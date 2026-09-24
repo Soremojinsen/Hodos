@@ -10,7 +10,7 @@ const vm = require("vm");
 
 const ROOT = path.join(__dirname, "..");
 
-/* Same order as in tests.html, minus everything that needs the DOM or WebGL */
+/* Same order as in tests.html */
 const SCRIPTS = [
   "js/libs/d3-7.9.0.min.js",
   "js/libs/aleaPRNG.min.js",
