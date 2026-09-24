@@ -194,17 +194,23 @@ test("zoom is clamped to [0, 7] instead of ignored", (assert) => {
 QUnit.module("Generator");
 
 /**
- * Generates a map and summarizes it as one "biome:altitude" entry per cell.
+ * Generates a map and summarizes it as one "biome:altitude:debug color" entry per cell.
  */
 const generateSummary = (seed) => {
   let generator = new MapGenerator(seed);
   generator.generateTile(0, 0, 0);
   let names = new Map(Object.entries(BIOMES).map(([name, b]) => [b, name]));
-  return generator.cells.map((c) => names.get(c.biome) + ":" + c.center.z);
+  return generator.cells.map(
+    (c) => names.get(c.biome) + ":" + c.center.z + ":" + c.debugColor.components.join(",")
+  );
 };
 
 test("the same seed always generates the same map", (assert) => {
   assert.deepEqual(generateSummary("12345"), generateSummary("12345"));
+});
+
+test("seed 12345 still generates the reference map", (assert) => {
+  assert.deepEqual(generateSummary("12345"), fixtures["seed-12345"]);
 });
 
 test("text seeds give different terrain noise", (assert) => {

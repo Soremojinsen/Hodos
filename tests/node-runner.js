@@ -28,6 +28,9 @@ const context = vm.createContext({
   QUnit,
   console,
   crypto: globalThis.crypto,
+  fixtures: {
+    "seed-12345": JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures", "seed-12345.json"), "utf8")),
+  },
 });
 
 for (const script of SCRIPTS) {
