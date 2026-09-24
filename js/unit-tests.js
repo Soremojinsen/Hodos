@@ -232,6 +232,18 @@ test("randomBiomeFromPool can pick every biome of a pool", (assert) => {
   }
 });
 
+test("corners shared with the ocean stay at sea level", (assert) => {
+  let generator = new MapGenerator("12345");
+  generator.generateTile(0, 0, 0);
+  let raised = 0;
+  generator.cells
+    .filter((cell) => cell.isMaritime())
+    .forEach((cell) => cell.ring.forEach((point) => {
+      if (point.z !== -0.1) raised++;
+    }));
+  assert.strictEqual(raised, 0, "no ocean cell corner has a land altitude");
+});
+
 test("the continent burn claims each cell only once", (assert) => {
   let claims = new Map();
   let setContinent = Cell.prototype.setContinent;
