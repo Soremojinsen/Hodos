@@ -25,6 +25,8 @@ body {
 /* Same color as the renderer's clear color, visible when WebGL is unavailable */
 .hodos-map {
 	background-color: rgb(71, 120, 134);
+	/* Gestures are handled by Hodos, not by the browser */
+	touch-action: none;
 }
 
 .hodos-canvas {
