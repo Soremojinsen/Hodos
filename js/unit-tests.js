@@ -244,6 +244,22 @@ test("corners shared with the ocean stay at sea level", (assert) => {
   assert.strictEqual(raised, 0, "no ocean cell corner has a land altitude");
 });
 
+test("the corruption always spreads to the whole first ring", (assert) => {
+  for (const seed of ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]) {
+    let generator = new MapGenerator(seed);
+    generator.generateTile(0, 0, 0);
+    let cells = generator.cells;
+    let isCorrupted = (i) => cells[i].biome === BIOMES["Corrupted"];
+    let hasFullRing = cells.some((cell, i) =>
+      isCorrupted(i) &&
+      [...generator.delaunay.neighbors(i)]
+        .filter((next) => cells[next].isContinent())
+        .every(isCorrupted)
+    );
+    assert.true(hasFullRing, "seed " + seed);
+  }
+});
+
 test("the continent burn claims each cell only once", (assert) => {
   let claims = new Map();
   let setContinent = Cell.prototype.setContinent;
