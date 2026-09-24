@@ -8,6 +8,12 @@ const TILE_PIXEL_SIZE = 256;
  */
 const WORLD_SIZE = 10_000;
 
+/**
+ * The zoom levels the camera can use.
+ */
+const MIN_ZOOM = 0;
+const MAX_ZOOM = 7;
+
 class WorldMap {
   #generator;
   #renderer;
@@ -63,9 +69,11 @@ class MapController {
   }
 
   zoom(deltaZoom) {
-    if (this.#map.camera.zoom + deltaZoom >= 0 && this.#map.camera.zoom + deltaZoom <= 7) {
-      this.#map.camera.zoom += deltaZoom;
-      this.#map.camera.updateGl();
+    let camera = this.#map.camera;
+    let zoom = Math.min(Math.max(camera.zoom + deltaZoom, MIN_ZOOM), MAX_ZOOM);
+    if (zoom !== camera.zoom) {
+      camera.zoom = zoom;
+      camera.updateGl();
     }
   }
 

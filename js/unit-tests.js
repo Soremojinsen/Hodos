@@ -173,6 +173,22 @@ test("Cell z getter returns the center altitude", (assert) => {
 });
 
 /**
+ * map.js
+ */
+QUnit.module("Map");
+
+test("zoom is clamped to [0, 7] instead of ignored", (assert) => {
+  let camera = { zoom: 1, updateGl: () => {} };
+  let controller = new MapController({ camera });
+  for (let i = 0; i < 5; i++) controller.zoom(-0.4);
+  assert.strictEqual(camera.zoom, 0, "wheel steps reach the minimum");
+  controller.zoom(10);
+  assert.strictEqual(camera.zoom, 7, "a large pinch reaches the maximum");
+  controller.zoom(0.4);
+  assert.strictEqual(camera.zoom, 7, "stays at the maximum");
+});
+
+/**
  * generator.js
  */
 QUnit.module("Generator");
