@@ -252,21 +252,32 @@ class MapGenerator {
     }
   }
 
+  /**
+   * Corrupts land around a continent seed, one ring of neighbours at a time.
+   * The first ring is always corrupted, and each ring after it is less likely to be.
+   */
   generateCorruptedBurn() {
-    let burn;
-    burn = Array();
-    burn.push(randomElement(this.seedCells, this.#random));
-    let proba = 1.0;
-    while (burn.length !== 0) {
-      let currentCell = burn.pop();
-      if (this.cells[currentCell].isContinent()) {
-        this.cells[currentCell].biome = BIOMES["Corrupted"];
+    const RING_COUNT = 5; // the chance drops by 1 / RING_COUNT per ring
+    let seed = randomElement(this.seedCells, this.#random);
+    this.cells[seed].biome = BIOMES["Corrupted"];
+    let ring = [seed];
+    for (let i = 0; i < RING_COUNT && ring.length > 0; i++) {
+      let proba = 1 - i / RING_COUNT;
+      let nextRing = Array();
+      for (let currentCell of ring) {
         for (let next of this.delaunay.neighbors(currentCell)) {
-          if (this.#random() < proba && this.cells[next].isContinent())
-            burn.push(next);
-          proba -= 0.2;
+          let cell = this.cells[next];
+          if (
+            cell.isContinent() &&
+            cell.biome !== BIOMES["Corrupted"] &&
+            this.#random() < proba
+          ) {
+            cell.biome = BIOMES["Corrupted"];
+            nextRing.push(next);
+          }
         }
       }
+      ring = nextRing;
     }
   }
 
