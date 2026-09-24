@@ -19,6 +19,8 @@ const SCRIPTS = [
   "js/biomes.js",
   "js/geometry.js",
   "js/generator.js",
+  "js/mesh.js",
+  "js/map.js",
   "js/unit-tests.js",
 ];
 

@@ -50,6 +50,21 @@ const getRandomSeed = () => {
 };
 
 /**
+ * Hashes a seed string (FNV-1a) into a seed for the noise library, which supports 2^16 values.
+ *
+ * @param {string} seed the map seed, numeric or not
+ * @returns {Number}    an integer in the range [0, 65536)
+ */
+const hashSeed = (seed) => {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < seed.length; i++) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return ((hash >>> 16) ^ hash) & 0xffff;
+};
+
+/**
  * Mathematical function that is multiplied to the probability that a cell is burnt when creating continent.
  *
  * @param {Number} x   the distance of the current cell from the center of the map

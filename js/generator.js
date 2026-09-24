@@ -31,13 +31,6 @@ class MapGenerator {
       this.#random
     );
     this.delaunay = d3.Delaunay.from(trianglesVertices);
-    trianglesVertices = getRandomPointsIn2dRange(
-      1000,
-      0,
-      WORLD_SIZE,
-      this.#random
-    );
-    this.delaunay = d3.Delaunay.from(trianglesVertices);
     this.lloydRelaxation(2);
     this.cells = this.createAllCells(
       this.delaunay.voronoi([0, 0, WORLD_SIZE, WORLD_SIZE])
@@ -181,7 +174,7 @@ class MapGenerator {
   /* Generate altitude V1*/
   generateAltitude() {
     const frequency = (1 / WORLD_SIZE) * 15;
-    noise.seed(this.#seed);
+    noise.seed(hashSeed(this.#seed));
     this.cells.forEach((cell) => {
       if (cell.isContinent()) {
         // + 1) / 2 is for the output is between 0 and 1
@@ -218,8 +211,7 @@ class MapGenerator {
     let burn = Array();
     this.seedCells.forEach((nbCell) => {
       let nextBiome = this.cells[nbCell].getBiomeType(this.#random);
-      this.cells[nbCell].biome =
-        BIOMES[BIOMESPOOL[nextBiome].at(getRandomInRange(0, 1, this.#random))];
+      this.cells[nbCell].biome = randomBiomeFromPool(nextBiome, this.#random);
       if (this.cells[nbCell].z > 0.8) {
         this.cells[nbCell].biome = BIOMES["Mountain"];
       }
@@ -241,10 +233,7 @@ class MapGenerator {
             if (this.cells[current].getBiomePool() === nextBiome) {
               this.cells[next].biome = BIOMES[this.cells[current].biome.stay()];
             } else {
-              this.cells[next].biome =
-                BIOMES[
-                  BIOMESPOOL[nextBiome].at(getRandomInRange(0, 1, this.#random))
-                ];
+              this.cells[next].biome = randomBiomeFromPool(nextBiome, this.#random);
             }
           }
           burn.unshift(next);

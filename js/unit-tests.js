@@ -160,3 +160,51 @@ test("Cell setEarth", (assert) => {
     "Correct Biome assignation"
   );
 });
+test("Cell z getter returns the center altitude", (assert) => {
+  let testCell = new Cell(1, 2, 0.9);
+  assert.strictEqual(testCell.z, 0.9, "z reads the center altitude");
+});
+
+/**
+ * generator.js
+ */
+QUnit.module("Generator");
+
+/**
+ * Generates a map and summarizes it as one "biome:altitude" entry per cell.
+ */
+const generateSummary = (seed) => {
+  let generator = new MapGenerator(seed);
+  generator.generateTile(0, 0, 0);
+  let names = new Map(Object.entries(BIOMES).map(([name, b]) => [b, name]));
+  return generator.cells.map((c) => names.get(c.biome) + ":" + c.center.z);
+};
+
+test("the same seed always generates the same map", (assert) => {
+  assert.deepEqual(generateSummary("12345"), generateSummary("12345"));
+});
+
+test("text seeds give different terrain noise", (assert) => {
+  new MapGenerator("dragon").generateTile(0, 0, 0);
+  let dragon = noise.simplex2(1.5, 2.5);
+  new MapGenerator("wizard").generateTile(0, 0, 0);
+  let wizard = noise.simplex2(1.5, 2.5);
+  assert.notStrictEqual(dragon, wizard, "noise depends on the seed");
+});
+
+test("hashSeed maps any string to a noise seed in [0, 65536)", (assert) => {
+  for (const seed of ["", "0", "12345", "dragon", "Hodos, voyagez avec audace !"]) {
+    let hash = hashSeed(seed);
+    assert.true(Number.isInteger(hash) && hash >= 0 && hash < 65536, seed);
+  }
+  assert.strictEqual(hashSeed("dragon"), hashSeed("dragon"), "stable");
+});
+
+test("randomBiomeFromPool can pick every biome of a pool", (assert) => {
+  createBiomes(Math.random);
+  for (const pool in BIOMESPOOL) {
+    let [first, second] = BIOMESPOOL[pool];
+    assert.strictEqual(randomBiomeFromPool(pool, () => 0), BIOMES[first], pool + " low roll");
+    assert.strictEqual(randomBiomeFromPool(pool, () => 0.99), BIOMES[second], pool + " high roll");
+  }
+});
