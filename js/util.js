@@ -7,6 +7,17 @@ const getRandomInRange = (min, max, randomFunction) => {
 };
 
 /**
+ * Picks an element of an array uniformly.
+ *
+ * @param {Array} array             a non-empty array
+ * @param {function} randomFunction a function that generates a number between 0 and 1
+ * @returns {*}                     one of the array's elements
+ */
+const randomElement = (array, randomFunction) => {
+  return array[Math.floor(randomFunction() * array.length)];
+};
+
+/**
  * Creates an array of two-dimensional arrays of numbers between lowerBound and upperBound.
  *
  * @param {Number} n                the number of points to create

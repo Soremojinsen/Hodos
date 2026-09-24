@@ -37,6 +37,13 @@ test("getRandomPointsIn2dRange", (assert) => {
   });
 });
 
+test("randomElement can pick every element", (assert) => {
+  let array = ["a", "b", "c"];
+  assert.strictEqual(randomElement(array, () => 0), "a", "low roll picks the first");
+  assert.strictEqual(randomElement(array, () => 0.5), "b", "middle roll");
+  assert.strictEqual(randomElement(array, () => 0.99), "c", "high roll picks the last");
+});
+
 test("taxiDistance", (assert) => {
   assert.true(taxiDistance(0, 0, 5, 6) == 6, "Correct distance");
   assert.true(taxiDistance(-2, 6, 5, 6) == 7, "Correct distance");

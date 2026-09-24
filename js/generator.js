@@ -254,10 +254,7 @@ class MapGenerator {
   generateCorruptedBurn() {
     let burn;
     burn = Array();
-    let x = Math.ceil(
-      getRandomInRange(0, this.seedCells.length - 1, this.#random)
-    );
-    burn.push(this.seedCells[x]);
+    burn.push(randomElement(this.seedCells, this.#random));
     let proba = 1.0;
     while (burn.length !== 0) {
       let currentCell = burn.pop();
