@@ -77,11 +77,6 @@ class MapController {
     }
   }
 
-  toggleDebug() {
-    let renderer = this.#map.renderer;
-    renderer.debug = !renderer.debug;
-  }
-
   onKeyPress(keyEvent) {
     // Let form fields (like the seed input) have their keys
     if (keyEvent.target instanceof HTMLInputElement) return;

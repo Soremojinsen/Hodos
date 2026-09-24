@@ -72,16 +72,6 @@ $('#mode-form input').change(function() {
   worldMap.renderer.setRenderingMode(mode);
 });
 
-/*Toggle biomes mode*/
-document.getElementById("biomes-toggle").addEventListener('change', e => {
-  //worldMap.controller.biomesDebug();
-});
-
-/*Toggle debug mode*/
-document.getElementById("debug-toggle").addEventListener('change', e => {
-  worldMap.controller.toggleDebug();
-});
-
 /*Modal pop-up*/
 let openedModals = [];
 
