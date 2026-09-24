@@ -284,4 +284,37 @@ const BIOMESPOOL = {
   Cold: ["Taiga", "Tundra"],
 };
 
-const BIOME_COUNTER = new Counter(0);
+let BIOME_COUNTER = new Counter(0);
+
+/**
+ * The biome registry, by name. Set by createBiomes().
+ */
+let BIOMES;
+
+/**
+ * Instantiates every biome and stores them in BIOMES.
+ * Ids restart at 0 so the renderer's biome texture stays small.
+ *
+ * @param {function} random a function that generates a number between 0 and 1
+ * @returns {Object}        the new biome registry
+ */
+const createBiomes = (random) => {
+  BIOME_COUNTER = new Counter(0);
+  BIOMES = {
+    ocean: new OceanBiome(random),
+    continent: new ContinentBiome(random, null, null),
+    island: new IslandBiome(random, null, null),
+    Tundra: new TundraBiome(random),
+    Taiga: new TaigaBiome(random),
+    Forest: new ForestBiome(random),
+    Plain: new PlainBiome(random),
+    Swamp: new SwampBiome(random),
+    Jungle: new JungleBiome(random),
+    Desert: new DesertBiome(random),
+    Savana: new SavanaBiome(random),
+    Mountain: new MountainBiome(random),
+    Corrupted: new CorruptedBiome(random),
+    Fairy: new FairyBiome(random),
+  };
+  return BIOMES;
+};

@@ -11,6 +11,7 @@ class MapGenerator {
       this.#seed = getRandomSeed();
     }
     this.#random = aleaPRNG(this.#seed);
+    createBiomes(this.#random);
   }
 
   /**

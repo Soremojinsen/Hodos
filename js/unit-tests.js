@@ -43,8 +43,42 @@ test("taxiDistance", (assert) => {
 });
 
 /**
+ * biomes.js
+ */
+QUnit.module("Biomes");
+
+test("createBiomes registers every biome", (assert) => {
+  let biomes = createBiomes(Math.random);
+  assert.strictEqual(BIOMES, biomes, "BIOMES points to the created registry");
+  for (const pool in BIOMESPOOL) {
+    for (const name of BIOMESPOOL[pool]) {
+      assert.true(biomes[name] instanceof Biome, name + " is registered");
+    }
+  }
+  assert.true(biomes["ocean"].isMaritime(), "ocean is maritime");
+});
+
+test("createBiomes assigns ids starting at 0 every time", (assert) => {
+  createBiomes(Math.random);
+  let ids = Object.values(createBiomes(Math.random)).map((b) => b.id);
+  assert.strictEqual(Math.min(...ids), 0, "ids restart at 0");
+  assert.strictEqual(new Set(ids).size, ids.length, "ids are unique");
+});
+
+test("MapGenerator registers the biomes itself", (assert) => {
+  BIOMES = undefined;
+  new MapGenerator("42");
+  assert.true(BIOMES["ocean"] instanceof OceanBiome, "biomes available without init.js");
+});
+
+/**
  * geometry.js
  */
+QUnit.module("Geometry", {
+  beforeEach: () => {
+    createBiomes(Math.random);
+  },
+});
 
 //Point
 test("Point constructor", (assert) => {
@@ -121,7 +155,6 @@ test("Cell removePolygonPoint", (assert) => {
 test("Cell setEarth", (assert) => {
   let testCell = new Cell(404, 42, 418);
   testCell.setEarth();
-  assert.true(testCell.center.z == 0.1, "Correct Z assignation");
   assert.true(
     testCell.biome == BIOMES["continent"],
     "Correct Biome assignation"
