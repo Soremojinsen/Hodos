@@ -1,0 +1,12 @@
+{
+  "name": "hodos",
+  "private": true,
+  "description": "An artistic procedural world map generator",
+  "license": "MIT",
+  "scripts": {
+    "test": "qunit tests/node-runner.js"
+  },
+  "devDependencies": {
+    "qunit": "^2.26.0"
+  }
+}
