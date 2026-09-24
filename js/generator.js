@@ -111,7 +111,9 @@ class MapGenerator {
           this.#random
         )
       );
-      this.cells[cellIndex].setContinent(i + 1);
+      // Two continents can pick the same cell, keep the first one
+      if (this.cells[cellIndex].isContinent()) continue;
+      this.#claimForContinent(cellIndex, i + 1);
       this.seedCells.push(cellIndex);
       burn.push(cellIndex);
     }
@@ -127,8 +129,6 @@ class MapGenerator {
           burn.unshift(-1);
         }
       } else {
-        this.cells[cellIndex].setEarth();
-        this.cells[cellIndex].debugColor = new GlColor(0, 1, 0);
         for (let next of this.delaunay.neighbors(cellIndex)) {
           let distanceFromCenter = taxiDistance(
             this.cells[next].center.x,
@@ -138,16 +138,25 @@ class MapGenerator {
           );
           if (
             this.#random() < proba * sigma(distanceFromCenter, WORLD_SIZE) &&
-            this.cells[next].earth === 0
+            !this.cells[next].isContinent()
           ) {
             burn.unshift(next);
-            this.cells[next].setContinent(
-              this.cells[cellIndex].continentNumber
-            );
+            this.#claimForContinent(next, this.cells[cellIndex].continentNumber);
           }
         }
       }
     }
+  }
+
+  /**
+   * Turns a cell into land of the given continent.
+   * This happens when the cell is queued, so no other cell of the burn can claim it again.
+   */
+  #claimForContinent(cellIndex, continentNumber) {
+    let cell = this.cells[cellIndex];
+    cell.setContinent(continentNumber);
+    cell.setEarth();
+    cell.debugColor = new GlColor(0, 1, 0);
   }
 
   generateIsland(rate, fairyRate) {
