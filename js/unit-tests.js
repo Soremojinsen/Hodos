@@ -10,7 +10,7 @@ test("getRandomInRange", (assert) => {
   let n = 1000;
   for (let i = 0; i < n; i++) {
     let res = getRandomInRange(0, 1, Math.random);
-    assert.true(0 < res && res < 1, "Correct range");
+    assert.true(0 <= res && res < 1, "Correct range");
   }
 });
 
@@ -27,11 +27,11 @@ test("getRandomPointsIn2dRange", (assert) => {
 
   arrayRes.forEach((coord) => {
     assert.true(
-      lowerBound < coord[0] && coord[0] < higherBound,
+      lowerBound <= coord[0] && coord[0] < higherBound,
       "Correct range for x value"
     );
     assert.true(
-      lowerBound < coord[1] && coord[1] < higherBound,
+      lowerBound <= coord[1] && coord[1] < higherBound,
       "Correct range for y value"
     );
   });

@@ -19,6 +19,12 @@ A public instance is available at [hodos.soremo.me](https://hodos.soremo.me/).
 
 Hodos creates maps for your imagination to thrive.
 
+## Development
+
+Hodos is a static site with no build step: serve the repository with any web server (e.g. `python3 -m http.server`) and open `index.html`.
+
+Unit tests run in Node with `npm install && npm test`, or in a browser by opening `tests.html`.
+
 ## Contributors
 
 - [Smyler](https://github.com/SmylerMC/)
