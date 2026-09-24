@@ -101,7 +101,10 @@ const toggleModal = (id) => {
     //Close requested modal
     $("#"+id).fadeOut(200);
     modal.style.transform = "translateY(80px)";
-    openedModals.splice(openedModals.indexOf(id))
+    // The id is already gone when the modal is closed to open another one,
+    // and splice(-1) would then drop an unrelated modal
+    let index = openedModals.indexOf(id);
+    if (index !== -1) openedModals.splice(index, 1);
   }
 }
 
