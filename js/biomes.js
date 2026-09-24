@@ -75,8 +75,11 @@ class OceanBiome extends Biome {
 class ContinentBiome extends Biome {}
 
 class IslandBiome extends Biome {
+  biomePool;
   constructor(random) {
     super(random, new GlColor(1,0.69,0.11), new GlColor(0.77,0.64,0.21));
+    // Not "default", so biome propagation from continents leaves islands alone
+    this.biomePool = "Island";
   }
 }
 

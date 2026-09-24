@@ -260,6 +260,21 @@ test("the corruption always spreads to the whole first ring", (assert) => {
   }
 });
 
+test("biome propagation leaves islands alone", (assert) => {
+  let absorbed = 0;
+  for (const seed of ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]) {
+    let generator = new MapGenerator(seed);
+    let generateBiome = generator.generateBiome.bind(generator);
+    generator.generateBiome = () => {
+      let islands = generator.cells.filter((cell) => cell.biome === BIOMES["island"]);
+      generateBiome();
+      absorbed += islands.filter((cell) => cell.biome !== BIOMES["island"]).length;
+    };
+    generator.generateTile(0, 0, 0);
+  }
+  assert.strictEqual(absorbed, 0, "no island cell got a continent biome");
+});
+
 test("the continent burn claims each cell only once", (assert) => {
   let claims = new Map();
   let setContinent = Cell.prototype.setContinent;
