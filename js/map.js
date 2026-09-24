@@ -75,26 +75,29 @@ class MapController {
   }
 
   onKeyPress(keyEvent) {
+    // Let form fields (like the seed input) have their keys
+    if (keyEvent.target instanceof HTMLInputElement) return;
     let zoom = this.#map.camera.zoom;
     let delta = (10 / (TILE_PIXEL_SIZE * Math.pow(2, zoom))) * WORLD_SIZE;
-    let code = keyEvent.keyCode;
-    if (code === 37) {
-      this.move(-delta, 0);
-    }
-    if (code === 40) {
-      this.move(0, -delta);
-    }
-    if (code === 39) {
-      this.move(delta, 0);
-    }
-    if (code === 38) {
-      this.move(0, delta);
-    }
-    if (code === 107) {
-      this.zoom(1);
-    }
-    if (code === 109) {
-      this.zoom(-1);
+    switch (keyEvent.key) {
+      case "ArrowLeft":
+        this.move(-delta, 0);
+        break;
+      case "ArrowDown":
+        this.move(0, -delta);
+        break;
+      case "ArrowRight":
+        this.move(delta, 0);
+        break;
+      case "ArrowUp":
+        this.move(0, delta);
+        break;
+      case "+":
+        this.zoom(1);
+        break;
+      case "-":
+        this.zoom(-1);
+        break;
     }
   }
 
