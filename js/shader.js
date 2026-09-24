@@ -40,6 +40,9 @@ class Shader {
   async load() {
     console.log("Loading shader: " + this.url)
     let response = await fetch(this.url);
+    if (!response.ok) {
+      throw new Error(`Failed to download shader ${this.url}: HTTP ${response.status}`);
+    }
     this.#glsl = await response.text();
     this.compile();
   }
@@ -53,6 +56,11 @@ class Shader {
     this.#glShader = this.#gl.createShader(this.#type);
     this.#gl.shaderSource(this.#glShader, this.#glsl);
     this.#gl.compileShader(this.#glShader);
+    if (!this.#gl.getShaderParameter(this.#glShader, this.#gl.COMPILE_STATUS)) {
+      let log = this.#gl.getShaderInfoLog(this.#glShader);
+      console.error(`Failed to compile shader ${this.url}:\n${log}`);
+      throw new Error(`Failed to compile shader ${this.url}`);
+    }
     console.log("Loaded shader: " + this.url);
   }
 
@@ -107,11 +115,10 @@ class ShaderProgram {
 
   async load() {
     await Promise.all([
-      await this.#vertexShader.load(),
-      await this.#fragmentShader.load()
-    ]).then(() => {
-      this.#link();
-    });
+      this.#vertexShader.load(),
+      this.#fragmentShader.load()
+    ]);
+    this.#link();
   }
 
   #link() {
@@ -119,6 +126,11 @@ class ShaderProgram {
     this.#vertexShader.linkTo(this.#glProgram);
     this.#fragmentShader.linkTo(this.#glProgram);
     this.#gl.linkProgram(this.#glProgram);
+    if (!this.#gl.getProgramParameter(this.#glProgram, this.#gl.LINK_STATUS)) {
+      let log = this.#gl.getProgramInfoLog(this.#glProgram);
+      console.error(`Failed to link shader program ${this.#vertexShader.url} + ${this.#fragmentShader.url}:\n${log}`);
+      throw new Error("Failed to link shader program");
+    }
   }
 
   use() {

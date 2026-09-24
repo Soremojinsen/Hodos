@@ -18,6 +18,7 @@ worldMap
     for (let element of document.getElementsByClassName("seed-placeholder")) {
       element.value = seed;
     }
-  });
+  })
+  .catch((error) => console.error("Could not load the map:", error));
 
   $("#default-toggle").prop("checked", true);
