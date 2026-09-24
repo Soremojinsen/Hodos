@@ -30,6 +30,10 @@ class Cell {
     return this.#ring;
   }
 
+  get z() {
+    return this.#center.z;
+  }
+
   set z(value) {
     this.#center.z = value;
   }

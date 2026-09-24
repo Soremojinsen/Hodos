@@ -284,6 +284,18 @@ const BIOMESPOOL = {
   Cold: ["Taiga", "Tundra"],
 };
 
+/**
+ * Picks a biome of the given pool uniformly.
+ *
+ * @param {string} pool       a key of BIOMESPOOL
+ * @param {function} random   a function that generates a number between 0 and 1
+ * @returns {Biome}
+ */
+const randomBiomeFromPool = (pool, random) => {
+  let names = BIOMESPOOL[pool];
+  return BIOMES[names[Math.floor(random() * names.length)]];
+};
+
 let BIOME_COUNTER = new Counter(0);
 
 /**
