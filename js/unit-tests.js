@@ -208,3 +208,19 @@ test("randomBiomeFromPool can pick every biome of a pool", (assert) => {
     assert.strictEqual(randomBiomeFromPool(pool, () => 0.99), BIOMES[second], pool + " high roll");
   }
 });
+
+test("the continent burn claims each cell only once", (assert) => {
+  let claims = new Map();
+  let setContinent = Cell.prototype.setContinent;
+  Cell.prototype.setContinent = function (nb) {
+    claims.set(this, (claims.get(this) || 0) + 1);
+    return setContinent.call(this, nb);
+  };
+  try {
+    new MapGenerator("12345").generateTile(0, 0, 0);
+  } finally {
+    Cell.prototype.setContinent = setContinent;
+  }
+  let reclaimed = [...claims.values()].filter((n) => n > 1).length;
+  assert.strictEqual(reclaimed, 0, "no cell is added to a continent twice");
+});

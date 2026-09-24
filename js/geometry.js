@@ -6,7 +6,6 @@ class Cell {
   #ring = Array();
   #debugColor;
   biome;
-  earth = 0;
 
   /**
    * Constructs a world cell.
