@@ -9,35 +9,52 @@ document.getElementById("map-zoom-out-button").addEventListener('click', e => {
   worldMap.controller.zoom(-1);
 })
 
-/*Move on mouse drag and drop*/
-let isDragging = false;
-let lastMouseX = 0;
-let lastMouseY = 0;
+/*Move by dragging with one pointer (mouse, finger or pen), zoom by pinching with two fingers*/
+const activePointers = new Map(); // pointerId -> last {x, y}
+let lastPinchDistance = null;
 
-document.getElementById("map").addEventListener('mousedown', e => {
+const pinchDistance = () => {
+  let [a, b] = activePointers.values();
+  return Math.hypot(a.x - b.x, a.y - b.y);
+};
+
+document.getElementById("map").addEventListener('pointerdown', e => {
+  if (e.target.closest("button")) return;
   e.preventDefault();
-  lastMouseX = e.clientX;
-  lastMouseY = e.clientY;
-  isDragging = true;
-})
+  activePointers.set(e.pointerId, {x: e.clientX, y: e.clientY});
+  lastPinchDistance = activePointers.size === 2 ? pinchDistance() : null;
+});
 
-document.getElementById("map").addEventListener('mousemove', e => {
-  if (isDragging === true) {
+document.addEventListener('pointermove', e => {
+  let last = activePointers.get(e.pointerId);
+  if (!last) return;
+  if (activePointers.size === 1) {
     let sizeFactor = WORLD_SIZE / (TILE_PIXEL_SIZE * Math.pow(2, worldMap.camera.zoom));
-    let deltaX = lastMouseX - e.clientX;
-    let deltaY = e.clientY - lastMouseY;
+    let deltaX = last.x - e.clientX;
+    let deltaY = e.clientY - last.y;
     worldMap.controller.move(deltaX * sizeFactor, deltaY * sizeFactor);
-    lastMouseX = e.clientX;
-    lastMouseY = e.clientY;
+  }
+  activePointers.set(e.pointerId, {x: e.clientX, y: e.clientY});
+  if (activePointers.size === 2) {
+    let distance = pinchDistance();
+    if (lastPinchDistance > 0 && distance > 0) {
+      // Doubling the distance between fingers zooms in by one level
+      worldMap.controller.zoom(Math.log2(distance / lastPinchDistance));
+    }
+    lastPinchDistance = distance;
   }
 });
 
-document.addEventListener('mouseup', e => {
-  isDragging = false;
-});
+const releasePointer = e => {
+  activePointers.delete(e.pointerId);
+  lastPinchDistance = null;
+};
+document.addEventListener('pointerup', releasePointer);
+document.addEventListener('pointercancel', releasePointer);
 
 document.addEventListener('contextmenu', e => {
-  isDragging = false;
+  activePointers.clear();
+  lastPinchDistance = null;
 });
 
 /*Zoom on mouse wheel*/
