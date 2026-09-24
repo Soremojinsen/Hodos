@@ -27,12 +27,17 @@ class MapRenderer {
     this.#debugSpan.classList.add("hodos-debug");
     this.#debugSpan.style.visibility = "hidden";
     div.appendChild(this.#debugSpan);
-    this.#gl = this.#canvas.getContext("experimental-webgl", {preserveDrawingBuffer: true});
+    this.#gl = this.#canvas.getContext("webgl", {preserveDrawingBuffer: true});
+    if (!this.#gl) {
+      this.showError("Hodos a besoin de WebGL pour dessiner la carte, mais votre navigateur ne le supporte pas ou l'a désactivé. " +
+          "(Hodos needs WebGL to draw the map, but this browser does not support it or has it disabled.)");
+    }
     this.#generator = generator;
     this.#camera = new Camera(this);
   }
 
   resize(width, height) {
+    if (!this.#gl) return;
     this.#canvas.width = width;
     this.#canvas.height = height;
     this.#gl.viewport(0, 0, this.#canvas.width, this.#canvas.height);
@@ -42,10 +47,30 @@ class MapRenderer {
   }
 
   async load() {
-    await Promise.all([
-      await this.#loadShaders(),
-      this.#loadData()
-    ]);
+    if (!this.#gl) {
+      throw new Error("WebGL is unavailable");
+    }
+    try {
+      // Data needs the shader programs to be linked, so this is sequential
+      await this.#loadShaders();
+      await this.#loadData();
+    } catch (error) {
+      this.showError("La carte n'a pas pu être dessinée. (The map could not be drawn, see the browser console for details.)");
+      throw error;
+    }
+  }
+
+  /**
+   * Displays an error message over the map, in place of the canvas.
+   *
+   * @param message {string} the message to display
+   */
+  showError(message) {
+    let error = document.createElement("p");
+    error.classList.add("hodos-error");
+    error.innerText = message;
+    this.#canvas.remove();
+    this.#div.appendChild(error);
   }
 
   /**
@@ -79,13 +104,12 @@ class MapRenderer {
     this.#biomeWorldShaderProgram = new BiomesWorldShaderProgram(this.#gl, "glsl/world_biomes.vert", "glsl/world_biomes.frag");
     this.#debugWorldShaderProgram = new DebugWorldShaderProgram(this.#gl, "glsl/world_debug.vert", "glsl/world_debug.frag");
     this.#activeWorldShaderProgram = this.#defaultWorldShaderProgram;
-    await Promise.all(
-        [
-            this.#defaultWorldShaderProgram.load(),
-            this.#biomeWorldShaderProgram.load(),
-            this.#debugWorldShaderProgram.load()]).then(() => {
-      console.log("Loaded shader programs");
-    }, () => console.log("Failed to load shaders"));
+    await Promise.all([
+      this.#defaultWorldShaderProgram.load(),
+      this.#biomeWorldShaderProgram.load(),
+      this.#debugWorldShaderProgram.load()
+    ]);
+    console.log("Loaded shader programs");
     this.#activeWorldShaderProgram.use();
   }
 
@@ -194,6 +218,8 @@ class Camera {
    * Updates the WebGL context so the values in this camera are used for rendering.
    */
   updateGl() {
+    let program = this.#renderer.worldShaderProgram;
+    if (!program) return; // Not loaded (yet)
     let zoomFactor = Math.pow(2, this.zoom);
     let scaleX = this.scaleX * zoomFactor;
     let scaleY = this.scaleY * zoomFactor;
@@ -204,7 +230,7 @@ class Camera {
           0,      scaleY, 0, 0,
           0,      0,      0, 0,
           deltaX, deltaY, 0, 1]);
-    this.#renderer.worldShaderProgram.setViewMatrix(matrix);
+    program.setViewMatrix(matrix);
   }
 
 }
