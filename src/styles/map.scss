@@ -558,7 +558,9 @@ body {
     overflow: visible;
   }
 
-  body > :not(#print-container) {
+  // Scoped to when a print actually built #print-container: printing (e.g. Ctrl+P) with no
+  // export in progress must not hide the whole page behind nothing.
+  body:has(> #print-container) > :not(#print-container) {
     display: none !important;
   }
 

@@ -27,6 +27,14 @@ test("printing on 2×2 pages prints four captioned pages, then removes them", as
   await expect(page.locator("#print-container")).toHaveCount(0);
 });
 
+test("Ctrl+P without a print in progress still shows the map", async ({ page }) => {
+  await openMap(page);
+  await expect(page.locator("#print-container")).toHaveCount(0);
+  await page.emulateMedia({ media: "print" });
+  await expect(page.locator(".hodos-canvas")).toBeVisible();
+  await page.emulateMedia({ media: "screen" });
+});
+
 test("a failing page mid-print revokes the URLs made so far and leaves no container", async ({
   page,
 }) => {
