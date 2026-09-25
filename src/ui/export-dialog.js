@@ -17,6 +17,8 @@ export function setupExportDialog(worldMap, overlay) {
   const sizeSelect = document.getElementById("export-size");
   const gridCheckbox = document.getElementById("export-grid");
   const status = document.getElementById("export-status");
+  const downloadButton = document.getElementById("export-download");
+  const printButton = document.getElementById("print-button");
 
   const area = () => form.querySelector('input[name="export-area"]:checked').value;
 
@@ -33,6 +35,16 @@ export function setupExportDialog(worldMap, overlay) {
   // The spec disables the dialog's buttons while an export runs: all of them, not just submit.
   const setBusy = (busy) => {
     for (const button of dialog.querySelectorAll("button")) button.disabled = busy;
+    // Restores the size-driven disabled state the blanket re-enable above just overwrote.
+    if (!busy) updateSubmitButtons();
+  };
+
+  // Nothing to export at this size (e.g. "Vue actuelle" on a window wider than the browser
+  // can render): the submit buttons must not offer an export that cannot happen.
+  const updateSubmitButtons = () => {
+    const hasEnabledSize = [...sizeSelect.options].some((option) => !option.disabled);
+    downloadButton.disabled = !hasEnabledSize;
+    printButton.disabled = !hasEnabledSize;
   };
 
   const refreshSizes = () => {
@@ -59,6 +71,7 @@ export function setupExportDialog(worldMap, overlay) {
       options.find((option) => option.value === (area() === "world" ? "2048" : "1")) ??
       options[0];
     if (preferred) sizeSelect.value = preferred.value;
+    updateSubmitButtons();
   };
 
   const onOpen = () => {
@@ -67,6 +80,12 @@ export function setupExportDialog(worldMap, overlay) {
     gridCheckbox.checked = !gridCheckbox.disabled;
     setStatus(null);
   };
+
+  // The window can be resized while the dialog is open: "Vue actuelle" sizes and limits must
+  // keep matching the view that would actually be exported.
+  window.addEventListener("resize", () => {
+    if (dialog.open) refreshSizes();
+  });
 
   /**
    * Runs an export task with the busy state and the failure message.

@@ -36,6 +36,18 @@ test("the grid is in the export only when asked", async ({ page }) => {
   expect(await countDifferentPixels(page, withoutGrid, again)).toBe(0);
 });
 
+test("comparing images of different sizes is refused rather than silently under-counted", async ({
+  page,
+}) => {
+  await openMap(page);
+  await openExport(page);
+  await page.locator("#export-size").selectOption("1024");
+  const small = (await download(page)).png;
+  await page.locator("#export-size").selectOption("2048");
+  const big = (await download(page)).png;
+  await expect(countDifferentPixels(page, small, big)).rejects.toThrow();
+});
+
 test("the grid option is disabled without a grid", async ({ page }) => {
   await openMap(page);
   await openExport(page);
@@ -64,6 +76,30 @@ test("sizes too large for browsers are disabled", async ({ page }) => {
   await expect(page.locator('#export-size option[value="4"]')).toContainText(
     "trop grand pour ce navigateur",
   );
+});
+
+test("no enabled view size disables the download and print buttons", async ({ page }) => {
+  await page.setViewportSize({ width: 4200, height: 700 });
+  await openMap(page);
+  await openExport(page);
+  await page.getByLabel("Vue actuelle").check();
+  await expect(page.locator("#export-size option:enabled")).toHaveCount(0);
+  await expect(page.locator("#export-download")).toBeDisabled();
+  await expect(page.locator("#print-button")).toBeDisabled();
+  // Back to a size that exists re-enables them
+  await page.getByLabel("Monde entier").check();
+  await expect(page.locator("#export-download")).toBeEnabled();
+  await expect(page.locator("#print-button")).toBeEnabled();
+});
+
+test("the size list rebuilds while the dialog stays open across a resize", async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 600 });
+  await openMap(page);
+  await openExport(page);
+  await page.getByLabel("Vue actuelle").check();
+  await expect(page.locator('#export-size option[value="1"]')).toHaveText("×1 (900 × 600 px)");
+  await page.setViewportSize({ width: 800, height: 500 });
+  await expect(page.locator('#export-size option[value="1"]')).toHaveText("×1 (800 × 500 px)");
 });
 
 test("a failed export says so and can be retried", async ({ page }) => {
