@@ -5,21 +5,20 @@
     <title>Hodos</title>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="css/map.css" />
-    <link rel="shortcut icon" href="./assets/img/favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
   </head>
   <body>
     <div class="main-content">
       <div class="header">
         <div class="logo">
-          <img src="./assets/img/HodosLogoColorInvert.png" alt="Logo Hodos">
+          <img src="./src/assets/img/HodosLogoColorInvert.png" alt="Logo Hodos">
         </div>
       </div>
       <div id="map">
         <div class="map-controls">
           <button id="map-zoom-in-button">+</button>
           <button id="map-zoom-out-button">-</button>
-          <button id="screenshot" type="button" class="download-button"><img src="assets/img/download-button.png"></button>
+          <button id="screenshot" type="button" class="download-button"><img src="./src/assets/img/download-button.png"></button>
         </div>
       </div>
       <div class="borders-container" style="opacity: 1;">
@@ -43,9 +42,9 @@
         <div class="content">
           <div class="title">
             <div class="title-inner">
-              <img class="upper" src="./assets/img/upperline.png">
+              <img class="upper" src="./src/assets/img/upperline.png">
               Parametres
-              <img class="under" src="./assets/img/underline.png">
+              <img class="under" src="./src/assets/img/underline.png">
             </div>
           </div>
           <div class="main-modal-content">
@@ -93,7 +92,7 @@
           </div>
           <div class="back-desktop">
             <span class="debug-modal-toggle">Retour</span>
-            <img class="underline" src="./assets/img/menu-underline.png">
+            <img class="underline" src="./src/assets/img/menu-underline.png">
           </div>
         </div>
       </div>
@@ -105,7 +104,7 @@
           <div class="title">
             <div class="title-inner">
               Projet
-              <img class="under" src="./assets/img/underline.png">
+              <img class="under" src="./src/assets/img/underline.png">
             </div>
           </div>
           <div class="main-modal-content">
@@ -123,30 +122,17 @@
             </div>
             <div class="modal-section">
               <a href="https://github.com/SmylerMC/Hodos" target="_blank" class="github-link">
-                <img src="./assets/img/github.png" alt="GitHub">
+                <img src="./src/assets/img/github.png" alt="GitHub">
               </a>
             </div>
           </div>
           <div class="back-desktop">
             <span class="project-modal-toggle">Retour</span>
-            <img class="underline" src="./assets/img/menu-underline.png">
+            <img class="underline" src="./src/assets/img/menu-underline.png">
           </div>
         </div>
       </div>
     </div>
-    <script src="js/libs/d3-7.9.0.min.js"></script>
-    <script src="js/libs/aleaPRNG.min.js"></script>
-    <script src="js/libs/perlin.js"></script>
-    <script src="js/libs/jquery-3.6.0.min.js"></script>
-    <script src="js/util.js"></script>
-    <script src="js/biomes.js"></script>
-    <script src="js/generator.js"></script>
-    <script src="js/geometry.js"></script>
-    <script src="js/mesh.js"></script>
-    <script src="js/map.js"></script>
-    <script src="js/renderer.js"></script>
-    <script src="js/shader.js"></script>
-    <script src="js/interface-controls.js"></script>
-    <script src="js/init.js"></script>
+    <script type="module" src="/src/main.js"></script>
   </body>
 </html>
