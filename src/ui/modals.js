@@ -1,5 +1,5 @@
 /**
- * Opens and closes the settings and project dialogs.
+ * Opens and closes every `data-dialog` dialog (settings, project, export).
  * Only one is open at a time; Escape, a "Retour" button or a click outside closes it.
  */
 export function setupModals() {
