@@ -1,4 +1,5 @@
 import { WORLD_SIZE } from "../constants.js";
+import { levelForView } from "../map/tile-grid.js";
 import { subView } from "../map/view.js";
 import { drawGrid } from "../overlay/grid.js";
 
@@ -79,21 +80,31 @@ export const gridLineWidth = (width, height) =>
   Math.max(1, Math.round(Math.max(width, height) / 1024));
 
 /**
- * Draws a view of the map offscreen, chunk by chunk, then the grid over it.
+ * Draws a view of the map offscreen, chunk by chunk, then the grid over it. Each chunk waits
+ * for the tiles of the view's level, so an export is as detailed as its scale, whatever the
+ * screen shows.
  *
- * @param renderer  {MapRenderer} or anything with maxChunkSize and renderToPixels(view)
+ * @param renderer  {MapRenderer} or anything with maxChunkSize, ensureTiles(view, level) and
+ *                  renderToPixels(view, level)
  * @param view      see map/view.js
  * @param grid      {Object|null} the grid settings, or null for no grid
- * @returns {HTMLCanvasElement}
+ * @returns {Promise<HTMLCanvasElement>}
  */
-export function renderImage(renderer, view, grid) {
+export async function renderImage(renderer, view, grid) {
   const canvas = document.createElement("canvas");
   canvas.width = view.width;
   canvas.height = view.height;
   const context = canvas.getContext("2d");
+  const level = levelForView(view);
   for (const rect of chunkRects(view.width, view.height, renderer.maxChunkSize)) {
-    const pixels = renderer.renderToPixels(subView(view, rect));
-    context.putImageData(new ImageData(pixels, rect.width, rect.height), rect.x, rect.y);
+    const chunk = subView(view, rect);
+    const release = await renderer.ensureTiles(chunk, level);
+    try {
+      const pixels = renderer.renderToPixels(chunk, level);
+      context.putImageData(new ImageData(pixels, rect.width, rect.height), rect.x, rect.y);
+    } finally {
+      release();
+    }
   }
   if (grid) drawGrid(context, view, grid, gridLineWidth(view.width, view.height));
   return canvas;
