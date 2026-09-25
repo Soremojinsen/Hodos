@@ -19,9 +19,22 @@ Hodos creates maps for your imagination to thrive.
 
 ## Development
 
-Hodos is a static site with no build step: serve the repository with any web server (e.g. `python3 -m http.server`) and open `index.html`.
+Requires Node.js 22.12 or later.
 
-Unit tests run in Node with `npm install && npm test`, or in a browser by opening `tests.html`.
+    npm install
+    npm run dev            # dev server with live reload
+    npm test               # unit tests (Vitest)
+    npm run test:browser   # browser tests (Playwright, first run: npx playwright install chromium)
+    npm run lint           # ESLint
+    npm run format         # Prettier
+    npm run build          # production build in dist/
+
+The source is in `src/`: `generation/` builds the map data, `map/` renders it with WebGL, `ui/` wires the page controls.
+
+## Deployment
+
+Pushing to `master` runs the tests and deploys `dist/` to GitHub Pages
+(repository Settings → Pages → Source: "GitHub Actions").
 
 ## Contributors
 
