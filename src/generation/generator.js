@@ -13,7 +13,7 @@ import {
   hashSeed,
   randomElement,
   sigma,
-  taxiDistance,
+  chebyshevDistance,
 } from "./util.js";
 
 export class MapGenerator {
@@ -40,7 +40,6 @@ export class MapGenerator {
    * @param {Number} y the y coordinate of the tile in the corresponding zoom level grid as an integer
    */
   generateTile(z, x, y) {
-    let time = Date.now();
     this.seedCells = Array();
     let trianglesVertices = getRandomPointsIn2dRange(
       1000,
@@ -58,8 +57,6 @@ export class MapGenerator {
     this.generateAltitude();
     this.generateBiome();
     this.generateCorruptedBurn();
-    time = Date.now() - time;
-    console.log("Map generates in " + time + " ms");
     return new Tile(z, x, y, this.cells);
   }
 
@@ -103,8 +100,6 @@ export class MapGenerator {
       this.trianglesVertices = polygons.map(polygonCentroid);
       this.delaunay = Delaunay.from(this.trianglesVertices);
     }
-
-    console.log("Lloyd's relaxation done in " + totalSteps + " steps !");
   }
 
   /* GENERATION METHOD */
@@ -145,7 +140,7 @@ export class MapGenerator {
         }
       } else {
         for (let next of this.delaunay.neighbors(cellIndex)) {
-          let distanceFromCenter = taxiDistance(
+          let distanceFromCenter = chebyshevDistance(
             this.cells[next].center.x,
             this.cells[next].center.y,
             WORLD_SIZE / 2,
@@ -176,7 +171,7 @@ export class MapGenerator {
   generateIsland(rate, fairyRate) {
     this.cells.forEach((cell) => {
       if (this.#random() < rate && cell.isMaritime()) {
-        let distanceFromCenter = taxiDistance(
+        let distanceFromCenter = chebyshevDistance(
           cell.center.x,
           cell.center.y,
           WORLD_SIZE / 2,
@@ -229,7 +224,9 @@ export class MapGenerator {
     return this.#random;
   }
 
-  /* Biome générator V1*/
+  /**
+   * Spreads biomes from the continent seeds to every continent cell.
+   */
   generateBiome() {
     let burn = Array();
     this.seedCells.forEach((nbCell) => {
@@ -251,7 +248,7 @@ export class MapGenerator {
           if (this.cells[next].center.z > 0.8) {
             this.cells[next].biome = BIOMES["Mountain"];
           } else {
-            //Magnifique repartiteur de biome
+            // Keep the neighbour's pool if its latitude agrees, otherwise pick a biome from the new pool
             let nextBiome = this.cells[next].getBiomeType(this.#random);
             if (this.cells[current].getBiomePool() === nextBiome) {
               this.cells[next].biome = BIOMES[this.cells[current].biome.stay()];

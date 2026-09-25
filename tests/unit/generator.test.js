@@ -1,4 +1,4 @@
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { BIOMES } from "../../src/generation/biomes.js";
 import { MapGenerator } from "../../src/generation/generator.js";
 import { Cell } from "../../src/generation/geometry.js";
@@ -77,4 +77,14 @@ test("the continent burn claims each cell only once", () => {
     Cell.prototype.setContinent = setContinent;
   }
   expect([...claims.values()].filter((n) => n > 1)).toHaveLength(0);
+});
+
+test("generating a map logs nothing", () => {
+  const log = vi.spyOn(console, "log").mockImplementation(() => {});
+  try {
+    new MapGenerator("12345").generateTile(0, 0, 0);
+    expect(log).not.toHaveBeenCalled();
+  } finally {
+    log.mockRestore();
+  }
 });

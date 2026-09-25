@@ -93,9 +93,7 @@ export class MapController {
   }
 
   setupCallback() {
-    window.onkeydown = (e) => {
-      this.onKeyPress(e);
-    };
+    window.addEventListener("keydown", (e) => this.onKeyPress(e));
   }
 
 }

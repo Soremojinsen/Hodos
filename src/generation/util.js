@@ -76,15 +76,15 @@ export const sigma = (x, T) => {
 };
 
 /**
- * Function to calculate Taxi Cab distance between to points
+ * The Chebyshev distance between two points: the largest of the coordinate differences
  *
  * @param {Number} x1  x coordinate of first point
  * @param {Number} y1  y coordinate of first point
  * @param {Number} x2  x coordinate of second point
  * @param {Number} y2  y coordinate of second point
- * @returns {Number}   Taxi Cab distance
+ * @returns {Number}   the Chebyshev distance
  */
-export const taxiDistance = (x1, y1, x2, y2) => {
+export const chebyshevDistance = (x1, y1, x2, y2) => {
   return Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2));
 };
 
