@@ -48,7 +48,11 @@ function decodePng(page, png) {
     canvas.height = image.height;
     const context = canvas.getContext("2d");
     context.drawImage(image, 0, 0);
-    return context.getImageData(0, 0, image.width, image.height).data;
+    return {
+      width: image.width,
+      height: image.height,
+      data: context.getImageData(0, 0, image.width, image.height).data,
+    };
   }, png.toString("base64"));
 }
 
@@ -56,7 +60,7 @@ function decodePng(page, png) {
  * Counts the distinct colors of a PNG image (every 97th pixel), decoding it in the page.
  */
 export async function countColors(page, png) {
-  const data = await decodePng(page, png);
+  const { data } = await decodePng(page, png);
   const colors = new Set();
   for (let i = 0; i < data.length; i += 4 * 97) {
     colors.add((data[i] << 16) | (data[i + 1] << 8) | data[i + 2]);
@@ -68,7 +72,14 @@ export async function countColors(page, png) {
  * Counts the pixels that clearly differ between two PNG images of the same size, decoding them in the page.
  */
 export async function countDifferentPixels(page, pngA, pngB) {
-  const [dataA, dataB] = await Promise.all([decodePng(page, pngA), decodePng(page, pngB)]);
+  const [a, b] = await Promise.all([decodePng(page, pngA), decodePng(page, pngB)]);
+  if (a.width !== b.width || a.height !== b.height) {
+    throw new Error(
+      `countDifferentPixels: images have different sizes (${a.width}x${a.height} vs ${b.width}x${b.height})`,
+    );
+  }
+  const { data: dataA } = a;
+  const { data: dataB } = b;
   let count = 0;
   for (let i = 0; i < dataA.length; i += 4) {
     const delta =
