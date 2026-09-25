@@ -24,15 +24,23 @@ const overlay = new GridOverlay(document.getElementById("map"), worldMap);
 
 /**
  * The state a link to the current map carries, see state/url-state.js.
+ *
+ * While the map is still generating (data-map is not yet "ready"), the camera and rendering
+ * mode the renderer exposes are still their construction defaults (zoom 0, mode "default"), not
+ * what the link asked for: the initial state parsed from the URL is used instead, with the
+ * generator's actual seed (which is set synchronously, even for a random seed).
  */
-const currentState = () => ({
-  seed: worldMap.generator.seed,
-  x: worldMap.camera.posX,
-  y: worldMap.camera.posY,
-  z: worldMap.camera.zoom,
-  mode: worldMap.renderer.renderingMode,
-  grid: overlay.settings,
-});
+const currentState = () =>
+  document.documentElement.dataset.map === "ready"
+    ? {
+        seed: worldMap.generator.seed,
+        x: worldMap.camera.posX,
+        y: worldMap.camera.posY,
+        z: worldMap.camera.zoom,
+        mode: worldMap.renderer.renderingMode,
+        grid: overlay.settings,
+      }
+    : { ...initialState, seed: worldMap.generator.seed };
 const urlSync = startUrlSync(worldMap.renderer, currentState);
 
 const resize = () => worldMap.resize(window.innerWidth, window.innerHeight);
