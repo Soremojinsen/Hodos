@@ -436,3 +436,44 @@ body {
     width: 100%;
   }
 }
+
+.notice {
+  position: fixed;
+  top: 14vh;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 90vw;
+  padding: 0.6rem 1.2rem;
+  font-family: "IM Fell Double Pica", serif;
+  font-size: 1.2rem;
+  background: url(../assets/img/popin-bg.jpg);
+  border: 1px solid #040403;
+
+  &[hidden] {
+    display: none;
+  }
+
+  .notice-link {
+    width: min(40em, 80vw);
+    font-family: Arial, Helvetica, sans-serif;
+    background: transparent;
+    border: 1px solid #040403;
+    padding: 2px 5px;
+  }
+}
+
+@media (max-width: 700px) {
+  .map-settings {
+    font-size: 1rem;
+
+    .setting-container,
+    .setting-container:hover {
+      padding: 0.8rem 0.3rem;
+    }
+  }
+}

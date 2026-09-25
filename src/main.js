@@ -5,6 +5,7 @@ import { DEFAULT_GRID, parseState } from "./state/url-state.js";
 import { setupControls } from "./ui/controls.js";
 import { initLanguage, setupLanguageSwitch } from "./ui/language.js";
 import { setupModals } from "./ui/modals.js";
+import { setupNavigation } from "./ui/navigation.js";
 import { startUrlSync } from "./ui/url-sync.js";
 
 // Texts first: the renderer shows an error as soon as it is created if WebGL is missing
@@ -34,6 +35,7 @@ window.addEventListener("resize", resize);
 setupControls(worldMap);
 setupModals();
 setupLanguageSwitch();
+setupNavigation(currentState, urlSync);
 // Browsers restore form fields on reload: the link decides the mode
 document.querySelector(`#mode-form input[value="${initialState.mode}"]`).checked = true;
 
