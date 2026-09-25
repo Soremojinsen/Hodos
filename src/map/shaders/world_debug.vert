@@ -1,4 +1,4 @@
-precision mediump float;
+precision highp float;
 
 attribute vec3 coordinates;
 attribute vec3 dbg_colors;
