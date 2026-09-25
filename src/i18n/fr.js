@@ -26,6 +26,12 @@ export default {
   "settings.seedPlaceholder": "un mot ou un nombre",
   "settings.seedSubmit": "Changer",
   "settings.seedTooLong": "Seed trop longue ({max} caractères au plus).",
+  "settings.grid": "Grille :",
+  "grid.none": "Aucune",
+  "grid.square": "Carrés",
+  "grid.hex": "Hexagones",
+  "grid.size": "Taille",
+  "grid.opacity": "Opacité",
   "dialog.back": "Retour",
   "project.title": "Projet",
   "project.p1":

@@ -161,6 +161,33 @@
               </form>
             </div>
             <div class="modal-section">
+              <form id="grid-form" class="options-form">
+                <fieldset>
+                  <legend data-i18n="settings.grid">Grille :</legend>
+                  <label>
+                    <input type="radio" name="grid-type" value="none" checked />
+                    <span data-i18n="grid.none">Aucune</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="grid-type" value="square" />
+                    <span data-i18n="grid.square">Carrés</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="grid-type" value="hex" />
+                    <span data-i18n="grid.hex">Hexagones</span>
+                  </label>
+                </fieldset>
+                <div>
+                  <label for="grid-size" data-i18n="grid.size">Taille</label>
+                  <input type="range" id="grid-size" min="100" max="1000" step="50" value="250" />
+                </div>
+                <div>
+                  <label for="grid-opacity" data-i18n="grid.opacity">Opacité</label>
+                  <input type="range" id="grid-opacity" min="10" max="100" step="1" value="40" />
+                </div>
+              </form>
+            </div>
+            <div class="modal-section">
               <div class="setting-row">
                 <label for="language-select" data-i18n="settings.language">Langue :</label>
                 <select id="language-select">
