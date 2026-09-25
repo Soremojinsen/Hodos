@@ -1,5 +1,6 @@
 import { BIOMES } from "../generation/biomes.js";
 import { t } from "../i18n/i18n.js";
+import { flipRows } from "./pixels.js";
 import { BiomesWorldShaderProgram, DebugWorldShaderProgram, WorldShaderProgram } from "./shader.js";
 import { cameraView, viewMatrix } from "./view.js";
 import biomesFragment from "./shaders/world_biomes.frag?raw";
@@ -102,9 +103,7 @@ export class MapRenderer {
   renderNow() {
     if (!this.tileTest) return;
     const start = performance.now();
-    this.#gl.clearColor(0.278, 0.47, 0.525, 1);
-    this.#gl.clear(this.#gl.COLOR_BUFFER_BIT | this.#gl.DEPTH_BUFFER_BIT);
-    this.tileTest.render(this.#activeWorldShaderProgram);
+    this.#drawScene();
     this.#frameCount++;
     const frameTime = performance.now() - start;
     this.#debugSpan.innerText =
@@ -114,6 +113,76 @@ export class MapRenderer {
       ` | PosX: ${this.camera.posX}` +
       ` | PosY: ${this.camera.posY}`;
     for (const listener of this.#frameListeners) listener();
+  }
+
+  /**
+   * Draws the map with the active program and view matrix, into the bound framebuffer.
+   */
+  #drawScene() {
+    this.#gl.clearColor(0.278, 0.47, 0.525, 1);
+    this.#gl.clear(this.#gl.COLOR_BUFFER_BIT | this.#gl.DEPTH_BUFFER_BIT);
+    this.tileTest.render(this.#activeWorldShaderProgram);
+  }
+
+  /**
+   * The largest image side renderToPixels can draw at once.
+   */
+  get maxChunkSize() {
+    const gl = this.#gl;
+    const [maxWidth, maxHeight] = gl.getParameter(gl.MAX_VIEWPORT_DIMS);
+    return Math.min(
+      2048,
+      gl.getParameter(gl.MAX_TEXTURE_SIZE),
+      gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),
+      maxWidth,
+      maxHeight,
+    );
+  }
+
+  /**
+   * Draws a view offscreen, in the current rendering mode, and reads its pixels.
+   * The map on screen and the camera are left as they were, even if this throws.
+   *
+   * @param view see view.js; width and height at most maxChunkSize
+   * @returns {Uint8ClampedArray} RGBA, top row first, opaque
+   */
+  renderToPixels(view) {
+    const gl = this.#gl;
+    const { width, height } = view;
+    const texture = gl.createTexture();
+    const framebuffer = gl.createFramebuffer();
+    try {
+      // Texture unit 0 holds the biome colors: use another one
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.bindTexture(gl.TEXTURE_2D, null);
+      gl.activeTexture(gl.TEXTURE0);
+
+      gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+      if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+        throw new Error("The offscreen framebuffer is incomplete");
+      }
+      gl.viewport(0, 0, width, height);
+      this.#activeWorldShaderProgram.setViewMatrix(viewMatrix(view));
+      this.#drawScene();
+      const pixels = new Uint8Array(width * height * 4);
+      gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+      return flipRows(pixels, width, height);
+    } finally {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.deleteFramebuffer(framebuffer);
+      gl.deleteTexture(texture);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.viewport(0, 0, this.#canvas.width, this.#canvas.height);
+      // Puts the camera's matrix back and redraws the screen
+      this.camera.updateGl();
+    }
   }
 
   /**
