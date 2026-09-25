@@ -58,3 +58,10 @@ test("Cell setEarth", () => {
 test("Cell z getter returns the center altitude", () => {
   expect(new Cell(1, 2, 0.9).z).toBe(0.9);
 });
+
+test("a cell's debug color is its biome's", () => {
+  const cell = new Cell(1, 2, 3);
+  expect(cell.debugColor).toBe(BIOMES.ocean.debugColor);
+  cell.setEarth();
+  expect(cell.debugColor).toBe(BIOMES.continent.debugColor);
+});
