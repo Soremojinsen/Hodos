@@ -74,13 +74,13 @@ export function setupControls(worldMap) {
   }
 
   document.getElementById("screenshot").addEventListener("click", () => {
+    if (document.documentElement.dataset.map !== "ready") return;
     const renderer = worldMap.renderer;
     const { width, height } = renderer.canvas;
     // Without preserveDrawingBuffer, a frame is only readable in the task that drew it
     renderer.renderNow();
-    renderer.canvas.toBlob(
-      (blob) => downloadBlob(blob, screenshotFileName(worldMap.generator.seed, width, height)),
-      "image/png",
-    );
+    renderer.canvas.toBlob((blob) => {
+      if (blob) downloadBlob(blob, screenshotFileName(worldMap.generator.seed, width, height));
+    }, "image/png");
   });
 }

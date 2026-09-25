@@ -24,3 +24,17 @@ test("without WebGL, a message is shown and nothing else fails", async ({ page }
 
   expect(errors.filter((e) => !e.includes("WebGL is unavailable"))).toEqual([]);
 });
+
+test("clicking screenshot without WebGL triggers no download and no page error", async ({
+  page,
+}) => {
+  const errors = await openMap(page);
+  let downloaded = false;
+  page.on("download", () => (downloaded = true));
+
+  await page.click("#screenshot");
+  await page.waitForTimeout(300);
+
+  expect(downloaded).toBe(false);
+  expect(errors.filter((e) => !e.includes("WebGL is unavailable"))).toEqual([]);
+});

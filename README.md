@@ -27,6 +27,7 @@ Requires Node.js 22.12 or later.
     npm run test:browser   # browser tests (Playwright, first run: npx playwright install chromium)
     npm run lint           # ESLint
     npm run format         # Prettier
+    npm run format:check  # Prettier check, as in CI
     npm run build          # production build in dist/
 
 The source is in `src/`: `generation/` builds the map data, `map/` renders it with WebGL, `ui/` wires the page controls.
@@ -35,12 +36,3 @@ The source is in `src/`: `generation/` builds the map data, `map/` renders it wi
 
 Pushing to `master` runs the tests and deploys `dist/` to GitHub Pages
 (repository Settings → Pages → Source: "GitHub Actions").
-
-## Contributors
-
-- [Smyler](https://github.com/SmylerMC/)
-- [Artamis](https://github.com/JulienRibiollet)
-- [Astate](https://github.com/Astate-I)
-- [Soremo](https://github.com/Soremojinsen)
-
-This repository is a fork of the original project. If you're interested in contributing, we encourage you to make a pull request on [the original repository](https://github.com/SmylerMC/Hodos).
