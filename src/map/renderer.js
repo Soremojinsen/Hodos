@@ -34,6 +34,7 @@ export class MapRenderer {
   #tiles;
   #loaded = false;
   #drawnTiles = [];
+  #errorShown = false;
 
   constructor(div, requestTile) {
     this.#div = div;
@@ -90,11 +91,15 @@ export class MapRenderer {
   }
 
   /**
-   * Displays an error message over the map, in place of the canvas.
+   * Displays an error message over the map, in place of the canvas. A no-op once an error is
+   * already shown: a failing load can reach this from two paths (its own catch and the worker
+   * answering a queued tile request with an error), and only the first should be shown.
    *
    * @param key {string} the translation key of the message
    */
   showError(key) {
+    if (this.#errorShown) return;
+    this.#errorShown = true;
     let error = document.createElement("p");
     error.classList.add("hodos-error");
     error.dataset.i18n = key;
