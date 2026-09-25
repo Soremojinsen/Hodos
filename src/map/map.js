@@ -65,6 +65,18 @@ export class MapController {
     }
   }
 
+  /**
+   * Moves the camera to a position and zoom, kept within the world and the zoom limits.
+   */
+  setView(x, y, zoom) {
+    const camera = this.#map.camera;
+    const half = WORLD_SIZE / 2;
+    camera.posX = Math.min(Math.max(x, -half), half);
+    camera.posY = Math.min(Math.max(y, -half), half);
+    camera.zoom = Math.min(Math.max(zoom, MIN_ZOOM), MAX_ZOOM);
+    camera.updateGl();
+  }
+
   onKeyPress(keyEvent) {
     // Let form fields (like the seed input or the language select) have their keys
     const target = keyEvent.target;
