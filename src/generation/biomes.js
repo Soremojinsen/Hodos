@@ -20,7 +20,13 @@ export const BIOME_DEFINITIONS = [
     debug: [0, 0, 1],
   },
   { name: "continent", pool: "default", low: [0, 0, 0], high: [1, 1, 1], debug: [0, 1, 0] },
-  { name: "island", pool: "Island", low: [1, 0.69, 0.11], high: [0.77, 0.64, 0.21], debug: [0, 0, 0] },
+  {
+    name: "island",
+    pool: "Island",
+    low: [1, 0.69, 0.11],
+    high: [0.77, 0.64, 0.21],
+    debug: [0, 0, 0],
+  },
   {
     name: "Tundra",
     pool: "Cold",
@@ -228,7 +234,10 @@ export let BIOMES;
 export const createBiomes = (random) => {
   const ids = new Counter(0);
   BIOMES = Object.fromEntries(
-    BIOME_DEFINITIONS.map((definition) => [definition.name, new Biome(ids.next(), definition, random)]),
+    BIOME_DEFINITIONS.map((definition) => [
+      definition.name,
+      new Biome(ids.next(), definition, random),
+    ]),
   );
   return BIOMES;
 };
@@ -240,4 +249,5 @@ export const createBiomes = (random) => {
  * @param {function} random   a function that generates a number between 0 and 1
  * @returns {Biome}
  */
-export const randomBiomeFromPool = (pool, random) => BIOMES[randomElement(BIOMESPOOL[pool], random)];
+export const randomBiomeFromPool = (pool, random) =>
+  BIOMES[randomElement(BIOMESPOOL[pool], random)];

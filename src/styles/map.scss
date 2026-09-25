@@ -1,204 +1,203 @@
 @font-face {
-  font-family: 'IM Fell Double Pica';
+  font-family: "IM Fell Double Pica";
   font-style: normal;
   font-weight: 400;
   font-display: swap;
   src: url(../assets/fonts/IMFell.woff2) format("woff2");
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074,
+    U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 * {
-	margin: 0;
-	padding: 0;
-	box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 html {
-	overflow: hidden;
+  overflow: hidden;
 }
 
 body {
-	overflow: hidden;
+  overflow: hidden;
 }
-
 
 /* Same color as the renderer's clear color, visible when WebGL is unavailable */
 .hodos-map {
-	background-color: rgb(71, 120, 134);
-	/* Gestures are handled by Hodos, not by the browser */
-	touch-action: none;
+  background-color: rgb(71, 120, 134);
+  /* Gestures are handled by Hodos, not by the browser */
+  touch-action: none;
 }
 
 .hodos-canvas {
-	position: absolute;
+  position: absolute;
 }
 .hodos-debug {
-	position: absolute;
+  position: absolute;
 }
 
 .hodos-error {
-	position: absolute;
-	top: 50%;
-	left: 50%;
-	transform: translate(-50%, -50%);
-	max-width: 32em;
-	padding: 1em;
-	text-align: center;
-	font-family: 'IM Fell Double Pica', serif;
-	font-size: 1.2em;
-	background: url(../assets/img/popin-bg.jpg);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 32em;
+  padding: 1em;
+  text-align: center;
+  font-family: "IM Fell Double Pica", serif;
+  font-size: 1.2em;
+  background: url(../assets/img/popin-bg.jpg);
 }
 
 /*Footer*/
 .map-settings {
-	background: url(../assets/img/parchment-band.jpg) no-repeat center;
-	background-size: cover;
-	font-family: 'IM Fell Double Pica', serif;
-	font-size: 1.5rem;
-	color: black;
-	margin: 0;
-	width: 100%;
-	position: fixed;
-	left: 0;
-	bottom: 0;
-	display: flex;
-	flex-direction: row;
-	justify-content: center;
-	align-items: center;
-	border: 3px solid rgba(0,0,0,0.5);
+  background: url(../assets/img/parchment-band.jpg) no-repeat center;
+  background-size: cover;
+  font-family: "IM Fell Double Pica", serif;
+  font-size: 1.5rem;
+  color: black;
+  margin: 0;
+  width: 100%;
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  border: 3px solid rgba(0, 0, 0, 0.5);
 
-	.setting-container {
-		font: inherit;
-		color: inherit;
-		background: none;
-		border: none;
-		flex: 1;
-		padding: 1rem 1rem;
-		display: flex;
-		flex-direction: column;
-		justify-content: center;
-		align-items: center;
-		position: relative;
-		cursor: pointer;
-		transition: all 0.3s ease;
+  .setting-container {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    flex: 1;
+    padding: 1rem 1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.3s ease;
 
-		&:hover {
-			padding: 1rem 2.5rem;
-			background-color: rgba(0,0,0,0.2)
-		}
+    &:hover {
+      padding: 1rem 2.5rem;
+      background-color: rgba(0, 0, 0, 0.2);
+    }
 
-		&::after {
-			content: "";
-			background: url(../assets/img/btn-border.png) repeat-y;
-			position: absolute;
-			right: 0;
-			width: 4px;
-			height: 100%;
-		}
-	}
+    &::after {
+      content: "";
+      background: url(../assets/img/btn-border.png) repeat-y;
+      position: absolute;
+      right: 0;
+      width: 4px;
+      height: 100%;
+    }
+  }
 }
 
 .map-controls {
-	position: fixed;
-	top: 0;
-	right: 1rem;
-	z-index: 1;
-	margin: 1em;
-	display: flex;
-	flex-direction: column;
-	justify-content: flex-start;
-	align-items: center;
+  position: fixed;
+  top: 0;
+  right: 1rem;
+  z-index: 1;
+  margin: 1em;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
 
-	button {
-		width: 2em;
-		height: 2em;
-		margin: 3px;
-		background: #d0c9b7;
-		color: #040403;
-		border: 1px solid #040403;
-		cursor: pointer;
-		transition: background-color 0.2s ease;
-	
-		&:hover {
-			background: #a5a091;
-		}
-	}
+  button {
+    width: 2em;
+    height: 2em;
+    margin: 3px;
+    background: #d0c9b7;
+    color: #040403;
+    border: 1px solid #040403;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
 
-	button.download-button {
-		width: 2.5em;
-		height: 2.5em;
-		margin: 3px;
-		margin-top: 10px;
-		display: flex;
-		flex-direction: column;
-		justify-content: center;
-		align-items: center;
-		background: #d0c9b7;
-		color: #040403;
-		border: 1px solid #040403;
-		cursor: pointer;
-		transition: background-color 0.2s ease;
+    &:hover {
+      background: #a5a091;
+    }
+  }
 
-		img{
-			width: 80%;
-		}
-	}
-	
+  button.download-button {
+    width: 2.5em;
+    height: 2.5em;
+    margin: 3px;
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: #d0c9b7;
+    color: #040403;
+    border: 1px solid #040403;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+
+    img {
+      width: 80%;
+    }
+  }
 }
 
 /*Header*/
 .header {
-	position: fixed;
-	display: flex;
-	flex-direction: column;
-	justify-content: flex-start;
-	align-items: center;
-	z-index: 1;
-	width: 100%;
-	padding: 1rem;
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  z-index: 1;
+  width: 100%;
+  padding: 1rem;
 
-	.logo {
-		display: flex;
-		justify-content: center;
-		align-items: center;
-		height: 10vh;
+  .logo {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 10vh;
 
-		img {
-			height: 100%;
-			opacity: 0.8;
-		}
-	}
-
+    img {
+      height: 100%;
+      opacity: 0.8;
+    }
+  }
 }
 
 /*Borders*/
 .borders-container {
-	div {
-		background-image: url(../assets/img/screen-border.png);
-		background-repeat: repeat-y;
-		position: absolute;
-		z-index: 2;
-	} 
+  div {
+    background-image: url(../assets/img/screen-border.png);
+    background-repeat: repeat-y;
+    position: absolute;
+    z-index: 2;
+  }
 
-	.border-top {
-		height: 100vw;
-		right: -6px;
-		top: 0;
-		-webkit-transform: rotate(90deg);
-		transform: rotate(90deg);
-		-webkit-transform-origin: left top;
-		transform-origin: left top;
-		width: 6px;
-	}
+  .border-top {
+    height: 100vw;
+    right: -6px;
+    top: 0;
+    -webkit-transform: rotate(90deg);
+    transform: rotate(90deg);
+    -webkit-transform-origin: left top;
+    transform-origin: left top;
+    width: 6px;
+  }
 
-	.border-left {
+  .border-left {
     height: 100vh;
     left: 0;
     top: 0;
     width: 6px;
-	}
+  }
 
-	.border-bottom {
+  .border-bottom {
     bottom: 6px;
     height: 100vw;
     right: 0;
@@ -207,213 +206,214 @@ body {
     -webkit-transform-origin: right bottom;
     transform-origin: right bottom;
     width: 6px;
-	}
+  }
 
-	.border-right {
+  .border-right {
     height: 100vh;
     right: 0;
     top: 0;
     -webkit-transform: rotate(180deg);
     transform: rotate(180deg);
     width: 6px;
-	}
+  }
 }
 
 .modal-box {
-	// <dialog> defaults reset, placed above the footer on the right
-	margin: 0;
-	padding: 0;
-	border: none;
-	background: transparent;
-	max-width: none;
-	max-height: none;
-	overflow: visible;
-	inset: auto 2vw 13.6vh auto;
-	opacity: 0;
-	transform: translateY(80px);
-	transition:
-		opacity 0.2s ease,
-		transform 0.3s ease,
-		overlay 0.3s ease allow-discrete,
-		display 0.3s ease allow-discrete;
+  // <dialog> defaults reset, placed above the footer on the right
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  max-width: none;
+  max-height: none;
+  overflow: visible;
+  inset: auto 2vw 13.6vh auto;
+  opacity: 0;
+  transform: translateY(80px);
+  transition:
+    opacity 0.2s ease,
+    transform 0.3s ease,
+    overlay 0.3s ease allow-discrete,
+    display 0.3s ease allow-discrete;
 
-	&[open] {
-		opacity: 1;
-		transform: translateY(0);
+  &[open] {
+    opacity: 1;
+    transform: translateY(0);
 
-		@starting-style {
-			opacity: 0;
-			transform: translateY(80px);
-		}
-	}
+    @starting-style {
+      opacity: 0;
+      transform: translateY(80px);
+    }
+  }
 
-	&::backdrop {
-		background: transparent;
-	}
+  &::backdrop {
+    background: transparent;
+  }
 
-	color: #040403;
+  color: #040403;
   font-style: normal;
   font-weight: 400;
-	line-height: 1.15;
-	tab-size: 4;
-	font-family: 'IM Fell Double Pica', serif;
+  line-height: 1.15;
+  tab-size: 4;
+  font-family: "IM Fell Double Pica", serif;
 
-	.inner {
+  .inner {
     background-image: url(../assets/img/popin-bg.jpg);
     background-repeat: repeat;
     display: block;
     position: relative;
-		top: 0;
-		bottom: 0;
-		left: 0;
-		right: 0;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
 
-		&::before {
-			border: 1px solid #040403;
-			bottom: 4px;
-			content: "";
-			display: block;
-			left: 4px;
-			pointer-events: none;
-			position: absolute;
-			right: 4px;
-			top: 4px;
-		}
+    &::before {
+      border: 1px solid #040403;
+      bottom: 4px;
+      content: "";
+      display: block;
+      left: 4px;
+      pointer-events: none;
+      position: absolute;
+      right: 4px;
+      top: 4px;
+    }
 
-		.content {
-			width: 620px;
-			max-width: 90vw;
-			padding: 2rem 3rem 2.5rem;
+    .content {
+      width: 620px;
+      max-width: 90vw;
+      padding: 2rem 3rem 2.5rem;
 
-			&::before {
-				border: 1px solid #040403;
-				bottom: 8px;
-				content: "";
-				display: block;
-				left: 8px;
-				pointer-events: none;
-				position: absolute;
-				right: 8px;
-				top: 8px;
-			}
+      &::before {
+        border: 1px solid #040403;
+        bottom: 8px;
+        content: "";
+        display: block;
+        left: 8px;
+        pointer-events: none;
+        position: absolute;
+        right: 8px;
+        top: 8px;
+      }
 
-			.title {
-				left: 0;
-				position: absolute;
-				right: 0;
-				top: -15px;
-				text-align: center;
+      .title {
+        left: 0;
+        position: absolute;
+        right: 0;
+        top: -15px;
+        text-align: center;
 
-				.title-inner {
-					background: #d0c9b7;
-					font-size: 24px;
-					letter-spacing: .38em;
-					line-height: 33px;
-					color: #040403;
-					display: inline-block;
-					padding: 0 15px;
-    			position: relative;
-    			text-transform: uppercase;
+        .title-inner {
+          background: #d0c9b7;
+          font-size: 24px;
+          letter-spacing: 0.38em;
+          line-height: 33px;
+          color: #040403;
+          display: inline-block;
+          padding: 0 15px;
+          position: relative;
+          text-transform: uppercase;
 
-					img {
-						left: 0;
-						position: absolute;
-						width: 100%;
-						vertical-align: middle;
-						display: block;
-					}
-				}
-			}
+          img {
+            left: 0;
+            position: absolute;
+            width: 100%;
+            vertical-align: middle;
+            display: block;
+          }
+        }
+      }
 
-			.main-modal-content {
-				margin: 1rem 0;
-				display: flex;
-				flex-direction: column;
-				justify-content: flex-start;
-				align-items: center;
+      .main-modal-content {
+        margin: 1rem 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: center;
 
-				.modal-section {
-					margin: 0.5rem 0;
-					width: 80%;
+        .modal-section {
+          margin: 0.5rem 0;
+          width: 80%;
 
-					p {
-						margin: 0;
-						text-align: justify;
-					}
+          p {
+            margin: 0;
+            text-align: justify;
+          }
 
-					label {
-						font-size: 1.2rem;
-					}
+          label {
+            font-size: 1.2rem;
+          }
 
-					input {
-						background: transparent;
-						border: 1px #040403 solid;
-						padding: 2px 5px;
-						font-family: 'IM Fell Double Pica', serif;
-						transition: background-color 0.2s ease;
-					}
+          input {
+            background: transparent;
+            border: 1px #040403 solid;
+            padding: 2px 5px;
+            font-family: "IM Fell Double Pica", serif;
+            transition: background-color 0.2s ease;
+          }
 
-					input[type="text"] {
-						font-family: Arial, Helvetica, sans-serif;
+          input[type="text"] {
+            font-family: Arial, Helvetica, sans-serif;
 
-						&:focus, &:focus-visible {
-							border: 1px #040403 solid;
-						}
-					}
+            &:focus,
+            &:focus-visible {
+              border: 1px #040403 solid;
+            }
+          }
 
-					input[type="submit"]:hover {
-						background-color: rgba(0,0,0,0.2);
-						cursor: pointer;
-					}
+          input[type="submit"]:hover {
+            background-color: rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+          }
 
-					form {
-						display: flex;
-						flex-direction: row;
-						justify-content: space-around;
-						align-items: flex-start;
-					}
-				}
-			}
+          form {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-around;
+            align-items: flex-start;
+          }
+        }
+      }
 
-			.back-desktop {
-				display: block;
-				font-size: 12px;
-				margin-top: 30px;
-				text-align: center;
-				text-transform: uppercase;
+      .back-desktop {
+        display: block;
+        font-size: 12px;
+        margin-top: 30px;
+        text-align: center;
+        text-transform: uppercase;
 
-				button {
-					font: inherit;
-					text-transform: inherit;
-					color: inherit;
-					background: none;
-					border: none;
-					cursor: pointer;
-				}
+        button {
+          font: inherit;
+          text-transform: inherit;
+          color: inherit;
+          background: none;
+          border: none;
+          cursor: pointer;
+        }
 
-				img {
-					margin: auto;
-					padding-top: 5px;
-					width: 40px;
-					display: block;
-					vertical-align: middle;
-				}
-			}
-		}
-	}
+        img {
+          margin: auto;
+          padding-top: 5px;
+          width: 40px;
+          display: block;
+          vertical-align: middle;
+        }
+      }
+    }
+  }
 }
 
 .github-link {
-	width: 3rem;
-	display: block;
-	transition: all 0.2s ease;
-	margin: auto;
+  width: 3rem;
+  display: block;
+  transition: all 0.2s ease;
+  margin: auto;
 
-	&:hover {
-		filter: invert(0.4);
-	}
+  &:hover {
+    filter: invert(0.4);
+  }
 
-	img {
-		width: 100%;
-	}
+  img {
+    width: 100%;
+  }
 }

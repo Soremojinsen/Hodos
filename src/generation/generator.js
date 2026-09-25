@@ -41,17 +41,10 @@ export class MapGenerator {
    */
   generateTile(z, x, y) {
     this.seedCells = Array();
-    let trianglesVertices = getRandomPointsIn2dRange(
-      1000,
-      0,
-      WORLD_SIZE,
-      this.#random
-    );
+    let trianglesVertices = getRandomPointsIn2dRange(1000, 0, WORLD_SIZE, this.#random);
     this.delaunay = Delaunay.from(trianglesVertices);
     this.lloydRelaxation(2);
-    this.cells = this.createAllCells(
-      this.delaunay.voronoi([0, 0, WORLD_SIZE, WORLD_SIZE])
-    );
+    this.cells = this.createAllCells(this.delaunay.voronoi([0, 0, WORLD_SIZE, WORLD_SIZE]));
     this.generateMultipleContinentBurn(15, 0.4);
     this.generateIsland(0.01, 0.4);
     this.generateAltitude();
@@ -67,19 +60,13 @@ export class MapGenerator {
     let createdPoint = new Map();
     // For every cell in Delaunay Graph create a Cell
     for (let i = 0; i < this.delaunay.points.length; i += 2) {
-      cells.push(
-        new Cell(
-          this.delaunay.points[i],
-          this.delaunay.points[i + 1],
-          -1
-        )
-      );
+      cells.push(new Cell(this.delaunay.points[i], this.delaunay.points[i + 1], -1));
       //Create an arrays with the point of the polygon
       voronoid.cellPolygon(i / 2).forEach((Element) => {
         if (!createdPoint.has(Element.toString())) {
           createdPoint.set(
             Element.toString(),
-            new Point(Element[0], Element[1], -1) // -1 is for point is sea y default
+            new Point(Element[0], Element[1], -1), // -1 is for point is sea y default
           );
         }
         cells[i / 2].addPolygonPoint(createdPoint.get(Element.toString()));
@@ -95,7 +82,7 @@ export class MapGenerator {
   lloydRelaxation(totalSteps) {
     for (let i = 0; i < totalSteps; i++) {
       let polygons = Array.from(
-        this.delaunay.voronoi([0, 0, WORLD_SIZE, WORLD_SIZE]).cellPolygons()
+        this.delaunay.voronoi([0, 0, WORLD_SIZE, WORLD_SIZE]).cellPolygons(),
       );
       this.trianglesVertices = polygons.map(polygonCentroid);
       this.delaunay = Delaunay.from(this.trianglesVertices);
@@ -113,13 +100,13 @@ export class MapGenerator {
         getRandomInRange(
           WORLD_SIZE * MAP_SIZE_PERCENT_MARGIN,
           WORLD_SIZE * (1 - MAP_SIZE_PERCENT_MARGIN),
-          this.#random
+          this.#random,
         ),
         getRandomInRange(
           WORLD_SIZE * MAP_SIZE_PERCENT_MARGIN,
           WORLD_SIZE * (1 - MAP_SIZE_PERCENT_MARGIN),
-          this.#random
-        )
+          this.#random,
+        ),
       );
       // Two continents can pick the same cell, keep the first one
       if (this.cells[cellIndex].isContinent()) continue;
@@ -144,7 +131,7 @@ export class MapGenerator {
             this.cells[next].center.x,
             this.cells[next].center.y,
             WORLD_SIZE / 2,
-            WORLD_SIZE / 2
+            WORLD_SIZE / 2,
           );
           if (
             this.#random() < proba * sigma(distanceFromCenter, WORLD_SIZE) &&
@@ -175,7 +162,7 @@ export class MapGenerator {
           cell.center.x,
           cell.center.y,
           WORLD_SIZE / 2,
-          WORLD_SIZE / 2
+          WORLD_SIZE / 2,
         );
         if (distanceFromCenter < (WORLD_SIZE * 0.95) / 2) {
           if (this.#random() < fairyRate) {
@@ -194,26 +181,24 @@ export class MapGenerator {
     noise.seed(hashSeed(this.#seed));
     // Cells share their corners, so ocean goes second:
     // a corner on the coast is always at sea level, whatever the cell order
-    this.cells.filter((cell) => cell.isContinent()).forEach((cell) => {
-      // + 1) / 2 is for the output is between 0 and 1
-      cell.center.z =
-        (noise.simplex2(
-          cell.center.x * frequency,
-          cell.center.y * frequency
-        ) +
-          1) /
-        2;
-      cell.ring.forEach((point) => {
-        point.z =
-          (noise.simplex2(point.x * frequency, point.y * frequency) + 1) / 2;
+    this.cells
+      .filter((cell) => cell.isContinent())
+      .forEach((cell) => {
+        // + 1) / 2 is for the output is between 0 and 1
+        cell.center.z =
+          (noise.simplex2(cell.center.x * frequency, cell.center.y * frequency) + 1) / 2;
+        cell.ring.forEach((point) => {
+          point.z = (noise.simplex2(point.x * frequency, point.y * frequency) + 1) / 2;
+        });
       });
-    });
-    this.cells.filter((cell) => cell.isMaritime()).forEach((cell) => {
-      cell.center.z = -0.1;
-      cell.ring.forEach((point) => {
-        point.z = -0.1;
+    this.cells
+      .filter((cell) => cell.isMaritime())
+      .forEach((cell) => {
+        cell.center.z = -0.1;
+        cell.ring.forEach((point) => {
+          point.z = -0.1;
+        });
       });
-    });
   }
 
   get seed() {
@@ -241,10 +226,7 @@ export class MapGenerator {
       let current = burn.pop();
 
       for (let next of this.delaunay.neighbors(current)) {
-        if (
-          this.cells[next].isContinent() &&
-          this.cells[next].getBiomePool() === "default"
-        ) {
+        if (this.cells[next].isContinent() && this.cells[next].getBiomePool() === "default") {
           if (this.cells[next].center.z > 0.8) {
             this.cells[next].biome = BIOMES["Mountain"];
           } else {
@@ -277,11 +259,7 @@ export class MapGenerator {
       for (let currentCell of ring) {
         for (let next of this.delaunay.neighbors(currentCell)) {
           let cell = this.cells[next];
-          if (
-            cell.isContinent() &&
-            cell.biome !== BIOMES["Corrupted"] &&
-            this.#random() < proba
-          ) {
+          if (cell.isContinent() && cell.biome !== BIOMES["Corrupted"] && this.#random() < proba) {
             cell.biome = BIOMES["Corrupted"];
             nextRing.push(next);
           }
