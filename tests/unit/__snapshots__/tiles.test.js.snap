@@ -1,0 +1,12 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`tile 2/1/1 of seed 12345 stays the same 1`] = `
+{
+  "biomeIds": 1789090434,
+  "debugColors": 519870909,
+  "indices": 3061001994,
+  "positions": 3859563182,
+  "triangles": 6145,
+  "vertices": 7169,
+}
+`;
