@@ -1,0 +1,32 @@
+/**
+ * English texts. fr.js has the same keys (checked by tests/unit/i18n.test.js).
+ */
+export default {
+  "page.description": "Hodos, a procedural world map generator in your browser.",
+  "map.zoomIn": "Zoom in",
+  "map.zoomOut": "Zoom out",
+  "map.download": "Download the map",
+  "footer.settings": "Settings",
+  "footer.project": "Project",
+  "settings.title": "Settings",
+  "settings.parchment": "Parchment:",
+  "settings.biomes": "Biomes:",
+  "settings.debug": "Debug:",
+  "settings.language": "Language:",
+  "settings.seed": "Seed:",
+  "settings.seedPlaceholder": "a word or a number",
+  "settings.seedSubmit": "Change",
+  "dialog.back": "Back",
+  "project.title": "Project",
+  "project.p1":
+    "The <i>Hodos</i> web application was developed for the computer science development project (PRO3600) of the Télécom SudParis engineering school. Over five months, our group of four first-year students worked to create the site you are visiting.",
+  "project.p2":
+    "The original idea was to create a procedural world map generator, usable by anyone who needs to build a world from scratch: authors, role-players, and so on.",
+  "project.p3":
+    "In its current state, the project lets you generate a unique map, with several continents, islands, relief and different biomes. The debugging view gives you an insight into how the map is generated, and the seed system lets you find again a map you generated and liked.",
+  "project.p4":
+    "For more information on how the application works, you can visit our GitHub repository.",
+  "error.webgl":
+    "Hodos needs WebGL to draw the map, but this browser does not support it or has it disabled.",
+  "error.render": "The map could not be drawn, see the browser console for details.",
+};
