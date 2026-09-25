@@ -26,6 +26,9 @@ test("the world renders offscreen, the same in chunks, without moving the camera
         Math.abs(whole[i] - pieces[i]) +
         Math.abs(whole[i + 1] - pieces[i + 1]) +
         Math.abs(whole[i + 2] - pieces[i + 2]);
+      // Lower threshold than helpers.js's countDifferentPixels (30): this compares the same
+      // render tiled two ways, where only faint seam antialiasing should differ, not two
+      // independently drawn PNGs with more legitimate pixel-level variation.
       if (delta > 24) different++;
     }
     const colors = new Set();

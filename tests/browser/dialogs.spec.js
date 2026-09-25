@@ -42,7 +42,7 @@ test("the footer buttons are reachable with Tab", async ({ page }) => {
 
 test("map buttons have accessible names", async ({ page }) => {
   await openMap(page);
-  for (const name of ["Zoom avant", "Zoom arrière", "Télécharger la carte"]) {
+  for (const name of ["Zoom avant", "Zoom arrière", "Exporter la carte", "Recentrer la carte"]) {
     await expect(page.getByRole("button", { name })).toBeVisible();
   }
 });

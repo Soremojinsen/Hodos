@@ -68,8 +68,9 @@
             id="screenshot"
             type="button"
             class="download-button"
-            aria-label="Télécharger la carte"
-            data-i18n-aria-label="map.download"
+            aria-label="Exporter la carte"
+            data-i18n-aria-label="map.export"
+            data-dialog="export-dialog"
           >
             <img src="./src/assets/img/download-button.png" alt="" />
           </button>
@@ -257,6 +258,52 @@
                 <img src="./src/assets/img/github.png" alt="GitHub" />
               </a>
             </div>
+          </div>
+          <div class="back-desktop">
+            <button type="button" class="dialog-close" data-i18n="dialog.back">Retour</button>
+            <img class="underline" src="./src/assets/img/menu-underline.png" alt="" />
+          </div>
+        </div>
+      </div>
+    </dialog>
+    <dialog class="modal-box" id="export-dialog" aria-labelledby="export-title">
+      <div class="inner">
+        <div class="content">
+          <div class="title">
+            <div class="title-inner">
+              <img class="upper" src="./src/assets/img/upperline.png" alt="" />
+              <span id="export-title" data-i18n="export.title">Exporter</span>
+              <img class="under" src="./src/assets/img/underline.png" alt="" />
+            </div>
+          </div>
+          <div class="main-modal-content">
+            <div class="modal-section">
+              <form id="export-form" class="options-form">
+                <fieldset>
+                  <legend data-i18n="export.area">Zone :</legend>
+                  <label>
+                    <input type="radio" name="export-area" value="world" checked />
+                    <span data-i18n="export.world">Monde entier</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="export-area" value="view" />
+                    <span data-i18n="export.view">Vue actuelle</span>
+                  </label>
+                </fieldset>
+                <div>
+                  <label for="export-size" data-i18n="export.size">Taille :</label>
+                  <select id="export-size"></select>
+                </div>
+                <div>
+                  <label for="export-grid" data-i18n="export.includeGrid">Inclure la grille</label>
+                  <input type="checkbox" id="export-grid" />
+                </div>
+                <button type="submit" id="export-download" data-i18n="export.download">
+                  Télécharger (PNG)
+                </button>
+              </form>
+            </div>
+            <p id="export-status" class="export-status" role="status"></p>
           </div>
           <div class="back-desktop">
             <button type="button" class="dialog-close" data-i18n="dialog.back">Retour</button>

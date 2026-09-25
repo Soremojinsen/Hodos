@@ -8,6 +8,11 @@ export const SEED_URL = "./?seed=12345";
 export const CENTER = { x: 250, y: 200, width: 500, height: 300 };
 
 /**
+ * The width and height of a PNG image, read from its header.
+ */
+export const pngSize = (png) => ({ width: png.readUInt32BE(16), height: png.readUInt32BE(20) });
+
+/**
  * Opens the map and waits until it has loaded (or failed to).
  *
  * @returns {string[]} page errors and console errors, collected while the page lives
@@ -30,9 +35,10 @@ export const camera = (page) =>
   });
 
 /**
- * Counts the distinct colors of a PNG image (every 97th pixel), decoding it in the page.
+ * Decodes a base64 PNG into its RGBA pixel data (decoding an image needs a DOM, so this runs in
+ * the page). Shared by countColors and countDifferentPixels so the decode exists in one place.
  */
-export function countColors(page, png) {
+function decodePng(page, png) {
   return page.evaluate(async (base64) => {
     const image = new Image();
     image.src = `data:image/png;base64,${base64}`;
@@ -42,13 +48,36 @@ export function countColors(page, png) {
     canvas.height = image.height;
     const context = canvas.getContext("2d");
     context.drawImage(image, 0, 0);
-    const data = context.getImageData(0, 0, image.width, image.height).data;
-    const colors = new Set();
-    for (let i = 0; i < data.length; i += 4 * 97) {
-      colors.add((data[i] << 16) | (data[i + 1] << 8) | data[i + 2]);
-    }
-    return colors.size;
+    return context.getImageData(0, 0, image.width, image.height).data;
   }, png.toString("base64"));
+}
+
+/**
+ * Counts the distinct colors of a PNG image (every 97th pixel), decoding it in the page.
+ */
+export async function countColors(page, png) {
+  const data = await decodePng(page, png);
+  const colors = new Set();
+  for (let i = 0; i < data.length; i += 4 * 97) {
+    colors.add((data[i] << 16) | (data[i + 1] << 8) | data[i + 2]);
+  }
+  return colors.size;
+}
+
+/**
+ * Counts the pixels that clearly differ between two PNG images of the same size, decoding them in the page.
+ */
+export async function countDifferentPixels(page, pngA, pngB) {
+  const [dataA, dataB] = await Promise.all([decodePng(page, pngA), decodePng(page, pngB)]);
+  let count = 0;
+  for (let i = 0; i < dataA.length; i += 4) {
+    const delta =
+      Math.abs(dataA[i] - dataB[i]) +
+      Math.abs(dataA[i + 1] - dataB[i + 1]) +
+      Math.abs(dataA[i + 2] - dataB[i + 2]);
+    if (delta > 30) count++;
+  }
+  return count;
 }
 
 /**

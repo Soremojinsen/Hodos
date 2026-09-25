@@ -33,6 +33,7 @@ test("clicking screenshot without WebGL triggers no download and no page error",
   page.on("download", () => (downloaded = true));
 
   await page.click("#screenshot");
+  await page.click("#export-download");
   await page.waitForTimeout(300);
 
   expect(downloaded).toBe(false);
