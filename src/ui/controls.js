@@ -66,6 +66,8 @@ export function setupControls(worldMap) {
 
   mapElement.addEventListener("wheel", (e) => {
     e.preventDefault();
+    // A horizontal scroll has no vertical delta
+    if (e.deltaY === 0) return;
     worldMap.controller.zoom(e.deltaY < 0 ? 0.4 : -0.4);
   });
 
