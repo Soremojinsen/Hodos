@@ -15,6 +15,15 @@ test("an empty seed gets a random one, shown in the seed field", async ({ page }
   expect(errors).toEqual([]);
 });
 
+test("a URL with no seed parameter at all gets a random one, shown in the seed field", async ({
+  page,
+}) => {
+  const errors = await openMap(page, "./");
+  await expect(page.locator("html")).toHaveAttribute("data-map", "ready");
+  await expect(page.locator("#seed")).toHaveValue(/^\d+$/);
+  expect(errors).toEqual([]);
+});
+
 test("the site works from a subfolder", async ({ page }) => {
   // Serve the build under /hodos/ by rerouting requests to the root
   await page.route("**/hodos/**", async (route) => {

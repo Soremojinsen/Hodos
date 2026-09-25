@@ -6,9 +6,7 @@ import { WorldShaderProgram } from "./shader.js";
 export class Mesh {
   /**
    * Creates the WebGL objects needed to render this mesh.
-   * This method needs to be implemented in a subclass.
-   *
-   * @param gl  {WebGLRenderingContext}
+   * This method needs to be implemented in a subclass, which receives the WebGL context.
    */
   bake() {
     throw new Error("Unimplemented Mesh bake method");
@@ -16,9 +14,7 @@ export class Mesh {
 
   /**
    * Draws this tile using the given gl context and shader program.
-   * This method needs to be implemented in a subclass.
-   *
-   * @param program {ShaderProgram}
+   * This method needs to be implemented in a subclass, which receives the shader program to draw with.
    */
   render() {
     throw new Error("Unimplemented Mesh render method");
