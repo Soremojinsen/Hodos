@@ -1,5 +1,7 @@
 // Vendored from https://github.com/josephg/noisejs (perlin.js, version 2012-03-09).
-// Only change: it fills an exports object instead of the global `this`, which is undefined in modules.
+// Only change: the library fills an exports object instead of the global `this` (undefined in
+// modules), inside createNoise() so each caller can have its own seeded permutation tables.
+export function createNoise() {
 const perlinExports = {};
 /*
  * A speed-improved perlin and simplex noise algorithms for 2D.
@@ -311,5 +313,7 @@ const perlinExports = {};
   };
 
 })(perlinExports);
+return perlinExports.noise;
+}
 
-export const noise = perlinExports.noise;
+export const noise = createNoise();
