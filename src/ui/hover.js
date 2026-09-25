@@ -79,19 +79,28 @@ export function setupHoverInfo(worldMap) {
       pending = null;
     });
   });
-  mapElement.addEventListener("pointerleave", () => {
+  mapElement.addEventListener("pointerleave", (event) => {
+    // A touch tap fires pointerup then pointerout/pointerleave right after: that must not
+    // hide the panel the tap just showed. Mouse pointers still hide on leave as before.
+    if (event.pointerType === "touch") return;
     cancelPending();
     panel.hidden = true;
   });
 
-  let tapStart = null;
+  // Keyed by pointerId so a second finger touching down (e.g. starting a pinch) cannot be
+  // mistaken for the continuation of the first finger's tap.
+  const tapStarts = new Map();
   mapElement.addEventListener("pointerdown", (event) => {
-    if (event.pointerType === "touch") tapStart = { x: event.clientX, y: event.clientY };
+    if (event.pointerType === "touch") {
+      tapStarts.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    }
   });
   mapElement.addEventListener("pointerup", (event) => {
-    if (event.pointerType !== "touch" || !tapStart) return;
+    if (event.pointerType !== "touch") return;
+    const tapStart = tapStarts.get(event.pointerId);
+    tapStarts.delete(event.pointerId);
+    if (!tapStart) return;
     const moved = Math.hypot(event.clientX - tapStart.x, event.clientY - tapStart.y);
-    tapStart = null;
     if (moved <= TAP_DISTANCE && active()) show(event.clientX, event.clientY);
   });
 }

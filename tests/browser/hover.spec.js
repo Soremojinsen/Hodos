@@ -95,3 +95,18 @@ test("the hover panel follows a language switch", async ({ page }) => {
   await expect(page.locator("#hover-land")).toContainText("Continent #");
   await expect(page.locator("#hover-info")).toContainText("Relief:");
 });
+
+test.describe("touch", () => {
+  test.use({ hasTouch: true });
+
+  test("tapping a land point on a touch device shows the panel and keeps it up", async ({
+    page,
+  }) => {
+    await openMap(page);
+    await enableHoverInfo(page);
+    const point = await landPoint(page);
+    await page.touchscreen.tap(point.x, point.y);
+    await expect(page.locator("#hover-info")).toBeVisible();
+    await expect(page.locator("#hover-biome")).not.toBeEmpty();
+  });
+});
