@@ -1,9 +1,11 @@
 import { canvasToBlob, exportOptions, exportView, renderImage } from "../export/export.js";
+import { printImage, printSize } from "../export/print.js";
+import { t } from "../i18n/i18n.js";
 import { applyTranslations } from "./language.js";
 import { downloadBlob, screenshotFileName } from "./screenshot.js";
 
 /**
- * Connects the Exporter dialog: area, size, grid and download.
+ * Connects the Exporter dialog: area, size, grid, download and printing.
  * The sizes are rebuilt each time the dialog opens, since they depend on the window size.
  *
  * @param worldMap  {WorldMap}
@@ -105,4 +107,16 @@ export function setupExportDialog(worldMap, overlay) {
     radio.addEventListener("change", refreshSizes);
   }
   document.getElementById("screenshot").addEventListener("click", onOpen);
+
+  document.getElementById("print-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    run(async () => {
+      const selectedArea = area();
+      const canvas = renderSelection(selectedArea, printSize(selectedArea, worldMap.camera.view));
+      const pages = Number(document.getElementById("print-pages").value);
+      await printImage(canvas, pages, (page) =>
+        t("print.caption", { seed: worldMap.generator.seed, ...page }),
+      );
+    });
+  });
 }
