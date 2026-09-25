@@ -58,6 +58,22 @@
         <button
           type="button"
           class="setting-container"
+          id="new-map-button"
+          data-i18n="footer.newMap"
+        >
+          Nouvelle carte
+        </button>
+        <button
+          type="button"
+          class="setting-container"
+          id="copy-link-button"
+          data-i18n="footer.copyLink"
+        >
+          Copier le lien
+        </button>
+        <button
+          type="button"
+          class="setting-container"
           data-dialog="settings-dialog"
           data-i18n="footer.settings"
         >
@@ -72,6 +88,17 @@
           Projet
         </button>
       </footer>
+      <div id="notice" class="notice" role="status" hidden>
+        <span class="notice-text"></span>
+        <input
+          class="notice-link"
+          type="text"
+          readonly
+          hidden
+          aria-label="Lien de la carte"
+          data-i18n-aria-label="notice.link"
+        />
+      </div>
     </div>
     <dialog class="modal-box" id="settings-dialog" aria-labelledby="settings-title">
       <div class="inner">
@@ -116,7 +143,7 @@
               </div>
             </div>
             <div class="modal-section">
-              <form method="GET" action="" id="seed-form">
+              <form id="seed-form">
                 <div>
                   <label for="seed" data-i18n="settings.seed">Seed :</label>
                   <input
