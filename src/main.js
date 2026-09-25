@@ -1,4 +1,3 @@
-import "./styles/map.scss";
 import { getRandomSeed } from "./generation/util.js";
 import { WorldMap } from "./map/map.js";
 import { GridOverlay } from "./overlay/overlay.js";
