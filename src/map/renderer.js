@@ -1,6 +1,6 @@
-import { TILE_PIXEL_SIZE, WORLD_SIZE } from "../constants.js";
 import { BIOMES } from "../generation/biomes.js";
 import { BiomesWorldShaderProgram, DebugWorldShaderProgram, WorldShaderProgram } from "./shader.js";
+import { cameraView, viewMatrix } from "./view.js";
 import biomesFragment from "./shaders/world_biomes.frag?raw";
 import biomesVertex from "./shaders/world_biomes.vert?raw";
 import debugFragment from "./shaders/world_debug.frag?raw";
@@ -52,8 +52,6 @@ export class MapRenderer {
     this.#canvas.width = width;
     this.#canvas.height = height;
     this.#gl.viewport(0, 0, this.#canvas.width, this.#canvas.height);
-    this.camera.scaleX = TILE_PIXEL_SIZE / WORLD_SIZE / (width / 2);
-    this.camera.scaleY = TILE_PIXEL_SIZE / WORLD_SIZE / (height / 2);
     this.camera.updateGl();
   }
 
@@ -244,8 +242,6 @@ export class MapRenderer {
 export class Camera {
   #renderer;
 
-  scaleX = 1;
-  scaleY = 1;
   posX = 0;
   posY = 0;
   zoom = 0;
@@ -255,35 +251,20 @@ export class Camera {
   }
 
   /**
+   * What the camera shows on the map canvas, see view.js.
+   */
+  get view() {
+    const canvas = this.#renderer.canvas;
+    return cameraView(this, canvas.width, canvas.height);
+  }
+
+  /**
    * Updates the WebGL context so the values in this camera are used for rendering.
    */
   updateGl() {
     let program = this.#renderer.worldShaderProgram;
     if (!program) return; // Not loaded (yet)
-    let zoomFactor = Math.pow(2, this.zoom);
-    let scaleX = this.scaleX * zoomFactor;
-    let scaleY = this.scaleY * zoomFactor;
-    let deltaX = -(this.posX + WORLD_SIZE / 2) * scaleX;
-    let deltaY = -(this.posY + WORLD_SIZE / 2) * scaleY;
-    let matrix = new Float32Array([
-      scaleX,
-      0,
-      0,
-      0,
-      0,
-      scaleY,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      deltaX,
-      deltaY,
-      0,
-      1,
-    ]);
-    program.setViewMatrix(matrix);
+    program.setViewMatrix(viewMatrix(this.view));
     this.#renderer.requestRender();
   }
 }
