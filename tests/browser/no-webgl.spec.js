@@ -39,3 +39,11 @@ test("clicking screenshot without WebGL triggers no download and no page error",
   expect(downloaded).toBe(false);
   expect(errors.filter((e) => !e.includes("WebGL is unavailable"))).toEqual([]);
 });
+
+test("showError does not add a second message once one is already shown", async ({ page }) => {
+  await openMap(page);
+  await expect(page.locator(".hodos-error")).toHaveCount(1);
+  // A failing load can call showError from two paths (see renderer.js); simulate the second call
+  await page.evaluate(() => window.hodos.renderer.showError("error.render"));
+  await expect(page.locator(".hodos-error")).toHaveCount(1);
+});
