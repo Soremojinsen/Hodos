@@ -1,4 +1,3 @@
-import { GlColor } from "../color.js";
 import { WORLD_SIZE } from "../constants.js";
 import { BIOMES, BIOMESPOOL } from "./biomes.js";
 import { normalFunction } from "./util.js";
@@ -9,7 +8,6 @@ import { normalFunction } from "./util.js";
 export class Cell {
   #center;
   #ring = Array();
-  #debugColor;
   biome;
 
   /**
@@ -18,14 +16,10 @@ export class Cell {
    * @param x           {Number}   the X coordinate of the cell's centroid
    * @param y           {Number}   the Y coordinate of the cell's centroid
    * @param z           {Number}   the altitude of the cell's centroid
-   * @param debugColor  {GlColor} the color to draw this cell with when in debug mode
    */
-  constructor(x, y, z, debugColor) {
+  constructor(x, y, z) {
     this.#center = new Point(x, y, z);
     this.#ring = Array();
-    this.#debugColor = debugColor
-      ? debugColor
-      : new GlColor(Math.random(), Math.random(), Math.random());
     this.continentNumber = 0;
     this.biome = BIOMES["ocean"];
   }
@@ -46,8 +40,11 @@ export class Cell {
     return this.#center;
   }
 
+  /**
+   * @returns {GlColor} the color to draw this cell with in debug mode
+   */
   get debugColor() {
-    return this.#debugColor;
+    return this.biome.debugColor;
   }
 
   addPolygonPoint(point) {
@@ -74,23 +71,23 @@ export class Cell {
     return this.biome.isMaritime();
   }
 
-  getListOfLongitudeBiomesProbability() {
-    let longitudeBiomesProbability = {};
+  getListOfLatitudeBiomesProbability() {
+    let latitudeBiomesProbability = {};
     let sumOfAllProbabilities = 0;
     /*Value between 0 and 1 telling how North is a cell*/
-    let longitudeRatio = this.#center.y / WORLD_SIZE;
+    let latitudeRatio = this.#center.y / WORLD_SIZE;
     for (const biomeCategory in BIOMESPOOL) {
-      let μ = BIOMES[BIOMESPOOL[biomeCategory][0]].longitudeAverage;
-      let s = BIOMES[BIOMESPOOL[biomeCategory][0]].longitudeSigma;
-      let res = normalFunction(longitudeRatio * 100, μ, s);
-      longitudeBiomesProbability[biomeCategory] = res;
+      let μ = BIOMES[BIOMESPOOL[biomeCategory][0]].latitudeAverage;
+      let s = BIOMES[BIOMESPOOL[biomeCategory][0]].latitudeSigma;
+      let res = normalFunction(latitudeRatio * 100, μ, s);
+      latitudeBiomesProbability[biomeCategory] = res;
       sumOfAllProbabilities += res;
     }
-    return [longitudeBiomesProbability, sumOfAllProbabilities];
+    return [latitudeBiomesProbability, sumOfAllProbabilities];
   }
 
   getBiomeType(random) {
-    let biomeProba = this.getListOfLongitudeBiomesProbability();
+    let biomeProba = this.getListOfLatitudeBiomesProbability();
     let biomeDico = biomeProba[0];
     let normalisationValue = biomeProba[1];
     let prob = random();
@@ -103,10 +100,6 @@ export class Cell {
 
   getBiomePool() {
     return this.biome.biomePool;
-  }
-
-  set debugColor(value) {
-    this.#debugColor = value;
   }
 }
 

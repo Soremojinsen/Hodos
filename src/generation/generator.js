@@ -1,6 +1,5 @@
 import { Delaunay } from "d3-delaunay";
 import { polygonCentroid } from "d3-polygon";
-import { GlColor } from "../color.js";
 import { WORLD_SIZE } from "../constants.js";
 import { Tile } from "../map/mesh.js";
 import { aleaPRNG } from "../vendor/alea-prng.js";
@@ -59,8 +58,6 @@ export class MapGenerator {
     this.generateAltitude();
     this.generateBiome();
     this.generateCorruptedBurn();
-
-    this.colorizeBiome();
     time = Date.now() - time;
     console.log("Map generates in " + time + " ms");
     return new Tile(z, x, y, this.cells);
@@ -77,8 +74,7 @@ export class MapGenerator {
         new Cell(
           this.delaunay.points[i],
           this.delaunay.points[i + 1],
-          -1,
-          new GlColor(0, 0, 1)
+          -1
         )
       );
       //Create an arrays with the point of the polygon
@@ -175,7 +171,6 @@ export class MapGenerator {
     let cell = this.cells[cellIndex];
     cell.setContinent(continentNumber);
     cell.setEarth();
-    cell.debugColor = new GlColor(0, 1, 0);
   }
 
   generateIsland(rate, fairyRate) {
@@ -192,7 +187,6 @@ export class MapGenerator {
             cell.biome = BIOMES["Fairy"];
           } else {
             cell.biome = BIOMES["island"];
-            cell.debugColor = new GlColor(0, 0, 0);
           }
         }
       }
@@ -298,44 +292,5 @@ export class MapGenerator {
       }
       ring = nextRing;
     }
-  }
-
-  /* truc moche*/
-  colorizeBiome() {
-    this.cells.forEach((cell) => {
-      if (cell.biome === BIOMES["Taiga"]) {
-        cell.debugColor = new GlColor(1, 1, 1);
-      }
-      if (cell.biome === BIOMES["Tundra"]) {
-        cell.debugColor = new GlColor(0.8, 0.8, 0.8);
-      }
-      if (cell.biome === BIOMES["Forest"]) {
-        cell.debugColor = new GlColor(0, 1, 0);
-      }
-      if (cell.biome === BIOMES["Plain"]) {
-        cell.debugColor = new GlColor(0, 0.8, 0);
-      }
-      if (cell.biome === BIOMES["Swamp"]) {
-        cell.debugColor = new GlColor(0, 1, 1);
-      }
-      if (cell.biome === BIOMES["Jungle"]) {
-        cell.debugColor = new GlColor(0, 0.8, 0.8);
-      }
-      if (cell.biome === BIOMES["Desert"]) {
-        cell.debugColor = new GlColor(1, 0, 0);
-      }
-      if (cell.biome === BIOMES["Savana"]) {
-        cell.debugColor = new GlColor(0.8, 0, 0);
-      }
-      if (cell.biome === BIOMES["Mountain"]) {
-        cell.debugColor = new GlColor(0.5, 0.5, 0.5);
-      }
-      if (cell.biome === BIOMES["Corrupted"]) {
-        cell.debugColor = new GlColor(0.5, 0, 1);
-      }
-      if (cell.biome === BIOMES["Fairy"]) {
-        cell.debugColor = new GlColor(1, 0.75, 0.8);
-      }
-    });
   }
 }
