@@ -12,7 +12,7 @@ export class Mesh {
    * @param gl  {WebGLRenderingContext}
    */
   bake(gl) {
-    console.log("Unimplemented Mesh bake method");
+    throw new Error("Unimplemented Mesh bake method");
   }
 
   /**
@@ -22,7 +22,7 @@ export class Mesh {
    * @param program {ShaderProgram}
    */
   render(program) {
-    console.log("Unimplemented Mesh daw method");
+    throw new Error("Unimplemented Mesh render method");
   }
 
   /**
@@ -104,7 +104,7 @@ export class Tile extends Mesh {
           0,
           this.#surfaceVertexCount);
     } else {
-      console.log("Tile draw function expects the passed ShaderProgram to be a WorldShaderProgram");
+      console.error("Tile render expects a WorldShaderProgram");
     }
   }
 

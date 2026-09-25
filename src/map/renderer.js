@@ -189,7 +189,7 @@ export class MapRenderer {
         newProgram = this.#biomeWorldShaderProgram;
         break;
       default:
-        console.log('Tying to use an unknown rendering mode, will fallback to default');
+        console.warn(`Unknown rendering mode "${mode}", falling back to default`);
         newProgram = this.#defaultWorldShaderProgram;
     }
     if (debug) {

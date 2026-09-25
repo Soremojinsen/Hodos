@@ -1,10 +1,10 @@
 import { expect, test } from "vitest";
 import {
+  chebyshevDistance,
   getRandomInRange,
   getRandomPointsIn2dRange,
   hashSeed,
   randomElement,
-  taxiDistance,
 } from "../../src/generation/util.js";
 
 test("getRandomInRange stays in [min, max)", () => {
@@ -30,9 +30,10 @@ test("randomElement can pick every element", () => {
   expect(randomElement(array, () => 0.99)).toBe("c");
 });
 
-test("taxiDistance", () => {
-  expect(taxiDistance(0, 0, 5, 6)).toBe(6);
-  expect(taxiDistance(-2, 6, 5, 6)).toBe(7);
+test("chebyshevDistance is the largest coordinate difference", () => {
+  expect(chebyshevDistance(0, 0, 5, 6)).toBe(6);
+  expect(chebyshevDistance(-2, 6, 5, 6)).toBe(7);
+  expect(chebyshevDistance(3, 3, 3, 3)).toBe(0);
 });
 
 test("hashSeed maps any string to a noise seed in [0, 65536)", () => {
