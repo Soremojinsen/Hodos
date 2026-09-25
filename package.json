@@ -3,10 +3,23 @@
   "private": true,
   "description": "An artistic procedural world map generator",
   "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
   "scripts": {
-    "test": "qunit tests/node-runner.js"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "d3-delaunay": "^6.0.4",
+    "d3-polygon": "^3.0.1"
   },
   "devDependencies": {
-    "qunit": "^2.26.0"
+    "sass": "^1.105.0",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.1"
   }
 }
