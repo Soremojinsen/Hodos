@@ -1,0 +1,8 @@
+dist
+playwright-report
+test-results
+src/vendor
+tests/fixtures
+package-lock.json
+docs/superpowers
+CLAUDE.md

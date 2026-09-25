@@ -11,7 +11,7 @@ export class Mesh {
    *
    * @param gl  {WebGLRenderingContext}
    */
-  bake(gl) {
+  bake() {
     throw new Error("Unimplemented Mesh bake method");
   }
 
@@ -21,14 +21,14 @@ export class Mesh {
    *
    * @param program {ShaderProgram}
    */
-  render(program) {
+  render() {
     throw new Error("Unimplemented Mesh render method");
   }
 
   /**
    * Frees all resources held by this mesh.
    */
-  destroy(gl) {
+  destroy() {
 
   }
 
@@ -60,6 +60,18 @@ export class Tile extends Mesh {
     this.#x = x;
     this.#y = y;
     this.#cells = cells;
+  }
+
+  get z() {
+    return this.#z;
+  }
+
+  get x() {
+    return this.#x;
+  }
+
+  get y() {
+    return this.#y;
   }
 
   bake(gl) {
