@@ -1,8 +1,5 @@
-import { downloadBlob, screenshotFileName } from "./screenshot.js";
-
 /**
- * Connects the zoom buttons, pointer gestures, mouse wheel, rendering mode form
- * and screenshot button to the map.
+ * Connects the zoom buttons, pointer gestures, mouse wheel and rendering mode form to the map.
  *
  * @param worldMap {WorldMap}
  */
@@ -73,15 +70,4 @@ export function setupControls(worldMap) {
   for (const input of document.querySelectorAll("#mode-form input")) {
     input.addEventListener("change", () => worldMap.renderer.setRenderingMode(input.value));
   }
-
-  document.getElementById("screenshot").addEventListener("click", () => {
-    if (document.documentElement.dataset.map !== "ready") return;
-    const renderer = worldMap.renderer;
-    const { width, height } = renderer.canvas;
-    // Without preserveDrawingBuffer, a frame is only readable in the task that drew it
-    renderer.renderNow();
-    renderer.canvas.toBlob((blob) => {
-      if (blob) downloadBlob(blob, screenshotFileName(worldMap.generator.seed, width, height));
-    }, "image/png");
-  });
 }

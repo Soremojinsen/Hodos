@@ -32,10 +32,16 @@ test("moving, resizing and switching mode redraw the map", async ({ page }) => {
   await expect.poll(() => frameCount(page)).toBeGreaterThan(count);
 });
 
-test("the screenshot downloads the drawn map as a PNG", async ({ page }) => {
+test("exporting the current view at ×1 downloads the drawn map as a PNG", async ({ page }) => {
   await openMap(page);
-  const [download] = await Promise.all([page.waitForEvent("download"), page.click("#screenshot")]);
-  expect(download.suggestedFilename()).toMatch(/^hodos-12345-\d+x\d+\.png$/);
+  await page.click("#screenshot");
+  await page.getByLabel("Vue actuelle").check();
+  await page.locator("#export-size").selectOption("1");
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.click("#export-download"),
+  ]);
+  expect(download.suggestedFilename()).toBe("hodos-12345-1000x700.png");
   const png = await readFile(await download.path());
   expect(png.subarray(1, 4).toString()).toBe("PNG");
   expect(await countColors(page, png)).toBeGreaterThan(20);
