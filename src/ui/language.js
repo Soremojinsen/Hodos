@@ -62,6 +62,8 @@ export function initLanguage() {
   const browserLanguages = navigator.languages?.length ? navigator.languages : [navigator.language];
   setLanguage(detectLanguage(readPreference("lang"), browserLanguages));
   applyLanguage();
+  // Set by the inline script of index.html while the texts were not translated yet
+  delete document.documentElement.dataset.translating;
 }
 
 /**

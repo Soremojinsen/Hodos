@@ -26,6 +26,11 @@ body {
   overflow: hidden;
 }
 
+// Texts still in French while the page switches to another language, see index.html
+html[data-translating] :is([data-i18n], [data-i18n-html]) {
+  visibility: hidden;
+}
+
 .hodos-map {
   /* Gestures are handled by Hodos, not by the browser */
   touch-action: none;

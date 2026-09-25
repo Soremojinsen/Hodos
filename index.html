@@ -12,6 +12,31 @@
     <title>Hodos</title>
     <link rel="icon" href="/favicon.ico" type="image/x-icon" />
     <link rel="stylesheet" href="./src/styles/map.scss" />
+    <script>
+      // The texts below are French until main.js translates them. When the page is going to
+      // switch to English, they are hidden until then, instead of showing French for a moment.
+      // Same choice as detectLanguage (i18n/i18n.js); initLanguage (ui/language.js) removes the flag.
+      (() => {
+        let saved = null;
+        try {
+          saved = localStorage.getItem("hodos.lang");
+        } catch {
+          // Storage unavailable: the browser languages decide
+        }
+        let language = ["fr", "en"].includes(saved) ? saved : null;
+        const browserLanguages = navigator.languages?.length
+          ? navigator.languages
+          : [navigator.language];
+        for (const code of language ? [] : browserLanguages) {
+          const lower = String(code).toLowerCase();
+          if (lower.startsWith("fr") || lower.startsWith("en")) {
+            language = lower.slice(0, 2);
+            break;
+          }
+        }
+        if ((language ?? "en") !== "fr") document.documentElement.dataset.translating = "";
+      })();
+    </script>
   </head>
   <body>
     <div class="main-content">
