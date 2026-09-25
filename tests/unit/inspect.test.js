@@ -1,12 +1,12 @@
 import { expect, test } from "vitest";
-import { MapGenerator } from "../../src/generation/world.js";
+import { WORLD_SIZE } from "../../src/constants.js";
+import { BIOME_DEFINITIONS } from "../../src/generation/biomes.js";
+import { WorldSampler } from "../../src/generation/fields.js";
+import { tileCells } from "../../src/generation/tiles.js";
+import { generateWorld } from "../../src/generation/world.js";
 import { inspectAt, reliefOf } from "../../src/map/inspect.js";
 
-const generated = (seed) => {
-  const generator = new MapGenerator(seed);
-  generator.generate();
-  return generator;
-};
+const sampler = new WorldSampler(generateWorld("12345"));
 
 test.each([
   [-0.1, "sea"],
@@ -22,36 +22,42 @@ test.each([
   expect(reliefOf(altitude)).toBe(relief);
 });
 
-test("inspecting a cell centre gives that cell", () => {
-  const generator = generated("12345");
-  generator.cells.forEach((cell, i) => {
-    if (i % 25 !== 0) return;
-    const info = inspectAt(generator, cell.center.x, cell.center.y);
-    expect(info.biome).toBe(cell.biome.name);
-    expect(info.relief).toBe(reliefOf(cell.center.z));
-  });
+test("inspecting gives the cell drawn there, at each level", () => {
+  for (const [z, x, y] of [
+    [0, 0, 0],
+    [3, 4, 3],
+    [6, 30, 33],
+  ]) {
+    tileCells("12345", z, x, y).forEach((cell, i) => {
+      if (i % 50 !== 0) return;
+      const [px, py] = cell.ring[0];
+      const inside = [
+        cell.site[0] + 0.9 * (px - cell.site[0]),
+        cell.site[1] + 0.9 * (py - cell.site[1]),
+      ];
+      if (inside.some((c) => c < 0 || c > WORLD_SIZE)) return;
+      const drawn = sampler.sampleAt(cell.site[0], cell.site[1], z);
+      const info = inspectAt(sampler, ...inside, z);
+      expect(info.biome).toBe(BIOME_DEFINITIONS[drawn.biome].name);
+      expect(info.relief).toBe(reliefOf(drawn.altitude));
+    });
+  }
 });
 
+const stub = (sample) => ({ seed: "12345", sampleAt: () => sample });
+
 test("land masses: continents by number, islands, nothing at sea", () => {
-  const generator = generated("12345");
-  const at = (cell) => inspectAt(generator, cell.center.x, cell.center.y).landmass;
-  const continent = generator.cells.find((c) => c.continentNumber > 0);
-  expect(at(continent)).toEqual({ type: "continent", number: continent.continentNumber });
-  const island = generator.cells.find((c) => c.continentNumber === 0 && c.isContinent());
-  expect(at(island)).toEqual({ type: "island" });
-  const sea = generator.cells.find((c) => c.isMaritime());
-  expect(at(sea)).toBeNull();
+  expect(
+    inspectAt(stub({ biome: 5, continent: 3, land: true, altitude: 0.3 }), 10, 10, 2).landmass,
+  ).toEqual({ type: "continent", number: 3 });
+  expect(
+    inspectAt(stub({ biome: 2, continent: 0, land: true, altitude: 0.3 }), 10, 10, 2).landmass,
+  ).toEqual({ type: "island" });
+  const sea = inspectAt(stub({ biome: 0, continent: 0, land: false, altitude: -0.1 }), 10, 10, 2);
+  expect(sea).toEqual({ biome: "ocean", relief: "sea", landmass: null });
 });
 
 test("outside the world there is nothing", () => {
-  const generator = generated("12345");
-  expect(inspectAt(generator, -1, 500)).toBeNull();
-  expect(inspectAt(generator, 500, 10001)).toBeNull();
-});
-
-test("inspecting draws no random numbers, so the map stays the same", () => {
-  const inspected = generated("12345");
-  for (let i = 0; i < 100; i++) inspectAt(inspected, i * 97, i * 89);
-  const untouched = generated("12345");
-  expect(inspected.random()).toBe(untouched.random());
+  expect(inspectAt(sampler, -1, 500, 3)).toBeNull();
+  expect(inspectAt(sampler, 500, 10001, 3)).toBeNull();
 });

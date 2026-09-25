@@ -118,7 +118,7 @@ export function setupExportDialog(worldMap, overlay) {
     event.preventDefault();
     run(async () => {
       const canvas = renderSelection(area(), Number(sizeSelect.value));
-      const fileName = screenshotFileName(worldMap.generator.seed, canvas.width, canvas.height);
+      const fileName = screenshotFileName(worldMap.seed, canvas.width, canvas.height);
       downloadBlob(await canvasToBlob(canvas), fileName);
     });
   });
@@ -134,7 +134,7 @@ export function setupExportDialog(worldMap, overlay) {
       const canvas = renderSelection(selectedArea, printSize(selectedArea, worldMap.camera.view));
       const pages = Number(document.getElementById("print-pages").value);
       await printImage(canvas, pages, (page) =>
-        t("print.caption", { seed: worldMap.generator.seed, ...page }),
+        t("print.caption", { seed: worldMap.seed, ...page }),
       );
     });
   });

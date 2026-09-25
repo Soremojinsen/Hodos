@@ -27,19 +27,19 @@ const overlay = new GridOverlay(document.getElementById("map"), worldMap);
  * While the map is still generating (data-map is not yet "ready"), the camera and rendering
  * mode the renderer exposes are still their construction defaults (zoom 0, mode "default"), not
  * what the link asked for: the initial state parsed from the URL is used instead, with the
- * generator's actual seed (which is set synchronously, even for a random seed).
+ * map's actual seed (which is set synchronously, even for a random seed).
  */
 const currentState = () =>
   document.documentElement.dataset.map === "ready"
     ? {
-        seed: worldMap.generator.seed,
+        seed: worldMap.seed,
         x: worldMap.camera.posX,
         y: worldMap.camera.posY,
         z: worldMap.camera.zoom,
         mode: worldMap.renderer.renderingMode,
         grid: overlay.settings,
       }
-    : { ...initialState, seed: worldMap.generator.seed };
+    : { ...initialState, seed: worldMap.seed };
 const urlSync = startUrlSync(worldMap.renderer, currentState);
 
 const resize = () => worldMap.resize(window.innerWidth, window.innerHeight);
@@ -64,7 +64,7 @@ worldMap
     worldMap.controller.setView(initialState.x, initialState.y, initialState.z);
     worldMap.startRender();
     for (const element of document.getElementsByClassName("seed-placeholder")) {
-      element.value = worldMap.generator.seed;
+      element.value = worldMap.seed;
     }
     // A random seed goes into the address bar right away, so a refresh keeps the map
     urlSync.syncNow();

@@ -25,8 +25,15 @@ export async function openMap(page, url = SEED_URL) {
   });
   await page.goto(url);
   await expect(page.locator("html")).toHaveAttribute("data-map", /^(ready|error)$/);
+  if ((await page.locator("html").getAttribute("data-map")) === "ready") await waitForTiles(page);
   return errors;
 }
+
+/**
+ * Waits until every tile the camera wants is drawn.
+ */
+export const waitForTiles = (page) =>
+  expect(page.locator("#map")).toHaveAttribute("data-tiles", "settled", { timeout: 30_000 });
 
 export const camera = (page) =>
   page.evaluate(() => {

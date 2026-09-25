@@ -1,8 +1,10 @@
-import { BIOMES } from "../generation/biomes.js";
+import { BIOME_DEFINITIONS } from "../generation/biomes.js";
 import { t } from "../i18n/i18n.js";
 import { flipRows } from "./pixels.js";
 import { BiomesWorldShaderProgram, DebugWorldShaderProgram, WorldShaderProgram } from "./shader.js";
 import { Tile } from "./mesh.js";
+import { levelForView, levelForZoom, tileKey, tilesInView } from "./tile-grid.js";
+import { TileManager } from "./tiles.js";
 import { cameraView, viewMatrix } from "./view.js";
 import biomesFragment from "./shaders/world_biomes.frag?raw";
 import biomesVertex from "./shaders/world_biomes.vert?raw";
@@ -29,9 +31,11 @@ export class MapRenderer {
   #biomeTexture;
   #maxBiomeId;
 
-  #generator;
+  #tiles;
+  #loaded = false;
+  #drawnTiles = [];
 
-  constructor(div, generator) {
+  constructor(div, requestTile) {
     this.#div = div;
     this.#div.classList.add("hodos-map");
     this.#canvas = document.createElement("canvas");
@@ -45,7 +49,19 @@ export class MapRenderer {
     if (!this.#gl) {
       this.showError("error.webgl");
     }
-    this.#generator = generator;
+    this.#tiles = new TileManager({
+      request: requestTile,
+      bake: (data) => {
+        const tile = new Tile(data);
+        tile.bake(this.#gl);
+        return tile;
+      },
+      destroy: (tile) => tile.destroy(this.#gl),
+      onChange: () => {
+        this.#showTilesState();
+        this.requestRender();
+      },
+    });
     this.#camera = new Camera(this);
   }
 
@@ -62,9 +78,11 @@ export class MapRenderer {
       throw new Error("WebGL is unavailable");
     }
     try {
-      // Data needs the shader programs to be linked, so this is sequential
       this.#loadShaders();
-      await this.#loadData();
+      this.#loadBiomeColors();
+      // The level-0 tile is the fallback of every other tile: it is loaded first and never released
+      await this.#tiles.ensure([{ z: 0, x: 0, y: 0 }]);
+      this.#loaded = true;
     } catch (error) {
       this.showError("error.render");
       throw error;
@@ -90,7 +108,7 @@ export class MapRenderer {
    * Call it whenever something visible changes; nothing is drawn otherwise.
    */
   requestRender() {
-    if (this.#frameRequested || !this.tileTest) return;
+    if (this.#frameRequested || !this.#loaded) return;
     this.#frameRequested = true;
     window.requestAnimationFrame(() => {
       this.#frameRequested = false;
@@ -102,9 +120,9 @@ export class MapRenderer {
    * Draws a frame right away. The frame can be read from the canvas until the current task ends.
    */
   renderNow() {
-    if (!this.tileTest) return;
+    if (!this.#loaded) return;
     const start = performance.now();
-    this.#drawScene();
+    this.#drawScene(this.camera.view, levelForZoom(this.camera.zoom));
     this.#frameCount++;
     const frameTime = performance.now() - start;
     this.#debugSpan.innerText =
@@ -117,12 +135,15 @@ export class MapRenderer {
   }
 
   /**
-   * Draws the map with the active program and view matrix, into the bound framebuffer.
+   * Draws the tiles of a level that a view shows, into the bound framebuffer. Missing tiles
+   * show their nearest loaded ancestor.
    */
-  #drawScene() {
+  #drawScene(view, level) {
     this.#gl.clearColor(0.278, 0.47, 0.525, 1);
     this.#gl.clear(this.#gl.COLOR_BUFFER_BIT | this.#gl.DEPTH_BUFFER_BIT);
-    this.tileTest.render(this.#activeWorldShaderProgram);
+    const tiles = this.#tiles.drawList(tilesInView(view, level));
+    for (const tile of tiles) tile.render(this.#activeWorldShaderProgram);
+    this.#drawnTiles = tiles.map((tile) => tileKey(tile.z, tile.x, tile.y));
   }
 
   /**
@@ -145,9 +166,10 @@ export class MapRenderer {
    * The map on screen and the camera are left as they were, even if this throws.
    *
    * @param view see view.js; width and height at most maxChunkSize
+   * @param level the tile level to draw; its tiles should be ready, see ensureTiles
    * @returns {Uint8ClampedArray} RGBA, top row first, opaque
    */
-  renderToPixels(view) {
+  renderToPixels(view, level = levelForView(view)) {
     const gl = this.#gl;
     const { width, height } = view;
     const texture = gl.createTexture();
@@ -171,7 +193,7 @@ export class MapRenderer {
       }
       gl.viewport(0, 0, width, height);
       this.#activeWorldShaderProgram.setViewMatrix(viewMatrix(view));
-      this.#drawScene();
+      this.#drawScene(view, level);
       const pixels = new Uint8Array(width * height * 4);
       gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
       return flipRows(pixels, width, height);
@@ -184,6 +206,45 @@ export class MapRenderer {
       // Puts the camera's matrix back and redraws the screen
       this.camera.updateGl();
     }
+  }
+
+  /**
+   * The tile manager, which receives the tiles the worker builds.
+   */
+  get tiles() {
+    return this.#tiles;
+  }
+
+  /**
+   * Waits until every tile a view needs at a level is loaded, and keeps them until released.
+   *
+   * @returns {Promise<function()>} the release function
+   */
+  ensureTiles(view, level) {
+    return this.#tiles.ensure(tilesInView(view, level));
+  }
+
+  /**
+   * The keys ("z/x/y") of the tiles drawn in the last frame, on screen or offscreen.
+   */
+  get drawnTiles() {
+    return this.#drawnTiles;
+  }
+
+  /**
+   * Asks for the camera's tiles, with a ring around them, and redraws.
+   */
+  viewChanged() {
+    if (this.#loaded) {
+      this.#tiles.want(tilesInView(this.camera.view, levelForZoom(this.camera.zoom), 1));
+      this.#showTilesState();
+    }
+    this.requestRender();
+  }
+
+  // For tests and styles: data-tiles is "settled" when no wanted tile is still loading
+  #showTilesState() {
+    this.#div.dataset.tiles = this.#tiles.settled ? "settled" : "loading";
   }
 
   /**
@@ -233,41 +294,35 @@ export class MapRenderer {
     this.#activeWorldShaderProgram.use();
   }
 
-  async #loadData() {
-    this.#generator.generate();
-    this.tileTest = new Tile(0, 0, 0, this.#generator.cells);
-    this.tileTest.bake(this.#gl);
-
-    // Biome texture
-    let biomes = Object.values(BIOMES);
-    this.#maxBiomeId = Math.max(...biomes.map((b) => b.id));
-    let colorArray = new Array(this.#maxBiomeId);
-    biomes.forEach((biome) => {
-      colorArray[6 * biome.id] = biome.lowColor.red * 0xff;
-      colorArray[6 * biome.id + 1] = biome.lowColor.green * 0xff;
-      colorArray[6 * biome.id + 2] = biome.lowColor.blue * 0xff;
-      colorArray[6 * biome.id + 3] = biome.highColor.red * 0xff;
-      colorArray[6 * biome.id + 4] = biome.highColor.green * 0xff;
-      colorArray[6 * biome.id + 5] = biome.highColor.blue * 0xff;
+  #loadBiomeColors() {
+    // Low then high color of each biome, by id (the index in BIOME_DEFINITIONS)
+    const colors = new Uint8Array(6 * BIOME_DEFINITIONS.length);
+    BIOME_DEFINITIONS.forEach(({ low, high }, id) => {
+      colors.set(
+        [...low, ...high].map((component) => component * 0xff),
+        6 * id,
+      );
     });
-    this.#biomeTexture = this.#gl.createTexture();
-    this.#gl.bindTexture(this.#gl.TEXTURE_2D, this.#biomeTexture);
-    this.#gl.texImage2D(
-      this.#gl.TEXTURE_2D,
+    this.#maxBiomeId = BIOME_DEFINITIONS.length - 1;
+    const gl = this.#gl;
+    this.#biomeTexture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, this.#biomeTexture);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
       0,
-      this.#gl.RGB,
-      Math.ceil(colorArray.length / 3),
+      gl.RGB,
+      colors.length / 3,
       1,
       0,
-      this.#gl.RGB,
-      this.#gl.UNSIGNED_BYTE,
-      new Uint8Array(colorArray),
+      gl.RGB,
+      gl.UNSIGNED_BYTE,
+      colors,
     );
-    this.#gl.texParameteri(this.#gl.TEXTURE_2D, this.#gl.TEXTURE_MAG_FILTER, this.#gl.NEAREST);
-    this.#gl.texParameteri(this.#gl.TEXTURE_2D, this.#gl.TEXTURE_MIN_FILTER, this.#gl.NEAREST);
-    this.#gl.texParameteri(this.#gl.TEXTURE_2D, this.#gl.TEXTURE_WRAP_S, this.#gl.CLAMP_TO_EDGE);
-    this.#gl.texParameteri(this.#gl.TEXTURE_2D, this.#gl.TEXTURE_WRAP_T, this.#gl.CLAMP_TO_EDGE);
-    this.#gl.bindTexture(this.#gl.TEXTURE_2D, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.bindTexture(gl.TEXTURE_2D, null);
     this.#setBiomes();
   }
 
@@ -354,6 +409,6 @@ export class Camera {
     let program = this.#renderer.worldShaderProgram;
     if (!program) return; // Not loaded (yet)
     program.setViewMatrix(viewMatrix(this.view));
-    this.#renderer.requestRender();
+    this.#renderer.viewChanged();
   }
 }

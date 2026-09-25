@@ -30,27 +30,19 @@ export class Tile extends Mesh {
   #z;
   #x;
   #y;
-  #cells;
-
-  #surfaceVertexCount;
-  #surfaceVertexPositions;
-  #surfaceVertexDebugColors;
-  #biomeIds;
+  #data;
+  #buffers;
+  #indexCount;
 
   /**
-   * Constructs a new tile object. This is called from the generator side.
-   *
-   * @param z     {int}         tile zoom level
-   * @param x     {int}         tile X coordinate
-   * @param y     {int}         tile Y coordinate
-   * @param cells {Array[Cell]} list of voronoi cells that overlap with the tile
+   * @param data see generation/tiles.js buildTile: z, x, y and the typed arrays to draw
    */
-  constructor(z, x, y, cells) {
+  constructor(data) {
     super();
-    this.#z = z;
-    this.#x = x;
-    this.#y = y;
-    this.#cells = cells;
+    this.#z = data.z;
+    this.#x = data.x;
+    this.#y = data.y;
+    this.#data = data;
   }
 
   get z() {
@@ -66,51 +58,40 @@ export class Tile extends Mesh {
   }
 
   bake(gl) {
-    this.#surfaceVertexPositions = gl.createBuffer();
-    this.#surfaceVertexDebugColors = gl.createBuffer();
-    this.#biomeIds = gl.createBuffer();
-    let coordinates = [];
-    let dbgColors = [];
-    let biomeIds = [];
-    this.#cells.forEach((cell) => {
-      let polygonVertices = cell.ring;
-      let vertexCount = polygonVertices.length;
-      for (let i = 1; i <= vertexCount; i++) {
-        let vertex1 = polygonVertices[i - 1];
-        let vertex2 = polygonVertices[i % vertexCount];
-        let vertex3 = cell.center;
-        coordinates.push(...vertex1.coordinates);
-        coordinates.push(...vertex2.coordinates);
-        coordinates.push(...vertex3.coordinates);
-        for (let j = 0; j < 3; j++) dbgColors.push(...cell.debugColor.components);
-        for (let j = 0; j < 3; j++) biomeIds.push(cell.biome.id);
-      }
-    });
-    this.#surfaceVertexCount = coordinates.length / 3;
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.#surfaceVertexPositions);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(coordinates), gl.STATIC_DRAW);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.#surfaceVertexDebugColors);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(dbgColors), gl.STATIC_DRAW);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.#biomeIds);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(biomeIds), gl.STATIC_DRAW);
+    const upload = (target, array) => {
+      const buffer = gl.createBuffer();
+      gl.bindBuffer(target, buffer);
+      gl.bufferData(target, array, gl.STATIC_DRAW);
+      return buffer;
+    };
+    const data = this.#data;
+    this.#buffers = {
+      positions: upload(gl.ARRAY_BUFFER, data.positions),
+      debugColors: upload(gl.ARRAY_BUFFER, data.debugColors),
+      biomeIds: upload(gl.ARRAY_BUFFER, data.biomeIds),
+      indices: upload(gl.ELEMENT_ARRAY_BUFFER, data.indices),
+    };
+    this.#indexCount = data.indices.length;
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+    // The arrays now live on the GPU
+    this.#data = null;
   }
 
   render(shaderProgram) {
     if (shaderProgram instanceof WorldShaderProgram) {
       let gl = shaderProgram.gl;
-      shaderProgram.bindSurfaceVertexPositionBuffer(this.#surfaceVertexPositions);
-      shaderProgram.bindDebugSurfaceColorsBuffer(this.#surfaceVertexDebugColors);
-      shaderProgram.bindBiomeIdBuffer(this.#biomeIds);
-      gl.drawArrays(gl.TRIANGLES, 0, this.#surfaceVertexCount);
+      shaderProgram.bindSurfaceVertexPositionBuffer(this.#buffers.positions);
+      shaderProgram.bindDebugSurfaceColorsBuffer(this.#buffers.debugColors);
+      shaderProgram.bindBiomeIdBuffer(this.#buffers.biomeIds);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.#buffers.indices);
+      gl.drawElements(gl.TRIANGLES, this.#indexCount, gl.UNSIGNED_SHORT, 0);
     } else {
       console.error("Tile render expects a WorldShaderProgram");
     }
   }
 
   destroy(gl) {
-    gl.deleteBuffer(this.#surfaceVertexPositions);
-    gl.deleteBuffer(this.#surfaceVertexDebugColors);
-    gl.deleteBuffer(this.#biomeIds);
+    for (const buffer of Object.values(this.#buffers)) gl.deleteBuffer(buffer);
   }
 }

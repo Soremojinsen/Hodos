@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
-import { countColors, openMap } from "./helpers.js";
+import { countColors, openMap, waitForTiles } from "./helpers.js";
 
 const frameCount = (page) => page.evaluate(() => window.hodos.renderer.frameCount);
 
@@ -45,4 +45,15 @@ test("exporting the current view at ×1 downloads the drawn map as a PNG", async
   const png = await readFile(await download.path());
   expect(png.subarray(1, 4).toString()).toBe("PNG");
   expect(await countColors(page, png)).toBeGreaterThan(20);
+});
+
+test("zooming in draws the tiles of the new level once they are loaded", async ({ page }) => {
+  await openMap(page);
+  expect(await page.evaluate(() => window.hodos.renderer.drawnTiles)).not.toHaveLength(0);
+  await page.click("#map-zoom-in-button");
+  await waitForTiles(page);
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve())));
+  const drawn = await page.evaluate(() => window.hodos.renderer.drawnTiles);
+  expect(drawn.length).toBeGreaterThan(0);
+  for (const key of drawn) expect(key.startsWith("2/")).toBe(true);
 });
