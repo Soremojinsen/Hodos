@@ -1,15 +1,11 @@
 import { expect, test } from "@playwright/test";
 import { camera, openMap } from "./helpers.js";
 
-test("Recentrer returns to the opening view", async ({ page }) => {
-  await openMap(page, "./?seed=12345&x=800&y=-300&z=4");
-  await page.getByRole("button", { name: "Recentrer la carte", exact: true }).click();
-  expect(await camera(page)).toEqual({ x: 0, y: 0, zoom: 1 });
-});
-
-test("the fullscreen button enters and leaves full screen", async ({ page }) => {
-  // Headless browsers can't really go full screen: fake the API
-  await page.addInitScript(() => {
+/**
+ * Headless browsers can't really go full screen: fake the API.
+ */
+function fakeFullscreen(page) {
+  return page.addInitScript(() => {
     let element = null;
     Object.defineProperty(Document.prototype, "fullscreenEnabled", { get: () => true });
     Object.defineProperty(Document.prototype, "fullscreenElement", { get: () => element });
@@ -24,6 +20,16 @@ test("the fullscreen button enters and leaves full screen", async ({ page }) => 
       return Promise.resolve();
     };
   });
+}
+
+test("Recentrer returns to the opening view", async ({ page }) => {
+  await openMap(page, "./?seed=12345&x=800&y=-300&z=4");
+  await page.getByRole("button", { name: "Recentrer la carte", exact: true }).click();
+  expect(await camera(page)).toEqual({ x: 0, y: 0, zoom: 1 });
+});
+
+test("the fullscreen button enters and leaves full screen", async ({ page }) => {
+  await fakeFullscreen(page);
   await openMap(page);
   await page.getByRole("button", { name: "Plein écran", exact: true }).click();
   expect(await page.evaluate(() => document.fullscreenElement === document.documentElement)).toBe(
@@ -32,6 +38,26 @@ test("the fullscreen button enters and leaves full screen", async ({ page }) => 
   await page.getByRole("button", { name: "Quitter le plein écran", exact: true }).click();
   await expect(page.getByRole("button", { name: "Plein écran", exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+});
+
+test("the fullscreen button's label follows a language switch in both states", async ({ page }) => {
+  await fakeFullscreen(page);
+  await openMap(page);
+  await expect(page.getByRole("button", { name: "Plein écran", exact: true })).toBeVisible();
+
+  // Switch language while the button is in its default state
+  await page.getByRole("button", { name: "Paramètres" }).click();
+  await page.locator("#language-select").selectOption("en");
+  await expect(page.getByRole("button", { name: "Full screen", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  // Enter full screen, then switch language while the button is in its toggled state
+  await page.getByRole("button", { name: "Full screen", exact: true }).click();
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.locator("#language-select").selectOption("fr");
+  await expect(
+    page.getByRole("button", { name: "Quitter le plein écran", exact: true }),
+  ).toBeVisible();
 });
 
 test("the fullscreen button is hidden where full screen is unavailable", async ({ page }) => {
