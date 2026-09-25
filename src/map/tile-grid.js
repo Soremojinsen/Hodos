@@ -1,4 +1,5 @@
 import { MAX_ZOOM, MIN_ZOOM, TILE_PIXEL_SIZE, WORLD_SIZE } from "../constants.js";
+import { TILE_CELLS_SIDE, tileSize } from "../generation/tiles.js";
 import { viewBounds } from "./view.js";
 
 /**
@@ -49,6 +50,25 @@ export function tilesInView(view, level, margin = 0) {
   }
   tiles.sort((a, b) => b.visible - a.visible || a.distance - b.distance);
   return tiles.map(({ z, x, y }) => ({ z, x, y }));
+}
+
+/**
+ * A view padded by two cell widths of a level on every side, so tilesInView(paddedView(...))
+ * also picks up the neighbour tiles whose cells can reach past their own tile's edge.
+ *
+ * A tile keeps only the cells whose site is inside it (generation/tiles.js tileCells), but a
+ * cell's polygon is computed from its tile's 8 neighbours and can reach up to about one cell
+ * width past the tile's own edge. When the neighbour that owns such a cell is not drawn, that
+ * sliver is left at the clear colour, notching the tile's edge. Padding the view before finding
+ * its tiles brings those neighbours in too.
+ */
+export function paddedView(view, level) {
+  const padding = (2 * tileSize(level)) / TILE_CELLS_SIDE;
+  return {
+    ...view,
+    width: view.width + 2 * padding * view.pixelsPerUnit,
+    height: view.height + 2 * padding * view.pixelsPerUnit,
+  };
 }
 
 /**
