@@ -50,6 +50,28 @@ test("with hover info on, the panel names the land under the pointer", async ({ 
   await expect(page.locator("#hover-info")).toBeHidden();
 });
 
+test("hover info hides if the pointer leaves before its queued lookup runs", async ({ page }) => {
+  await openMap(page);
+  await enableHoverInfo(page);
+  const point = await landPoint(page);
+  // Dispatched synchronously, back to back, so the lookup the first move queues for the next
+  // animation frame is still pending when the second (a leave) is handled.
+  await page.evaluate(
+    ([x, y]) => {
+      const map = document.getElementById("map");
+      const options = { clientX: x, clientY: y, bubbles: true, pointerType: "mouse" };
+      map.dispatchEvent(new PointerEvent("pointermove", options));
+      map.dispatchEvent(new PointerEvent("pointerleave", options));
+    },
+    [point.x, point.y],
+  );
+  // Give the browser a couple of frames to run any queued (and now stale) lookup
+  await page.evaluate(
+    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+  );
+  await expect(page.locator("#hover-info")).toBeHidden();
+});
+
 test("the hover info choice is remembered", async ({ page }) => {
   await openMap(page);
   await enableHoverInfo(page);

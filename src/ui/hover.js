@@ -20,10 +20,23 @@ export function setupHoverInfo(worldMap) {
   const landLine = document.getElementById("hover-land-line");
   const land = document.getElementById("hover-land");
 
+  let pending = null;
+  let frame = null;
+  // Drops a lookup queued for the next frame, so it cannot show the panel again after
+  // the pointer has left the map or the setting has been turned off.
+  const cancelPending = () => {
+    if (frame !== null) cancelAnimationFrame(frame);
+    frame = null;
+    pending = null;
+  };
+
   toggle.checked = readPreference("hover") === "on";
   toggle.addEventListener("change", () => {
     writePreference("hover", toggle.checked ? "on" : "off");
-    if (!toggle.checked) panel.hidden = true;
+    if (!toggle.checked) {
+      cancelPending();
+      panel.hidden = true;
+    }
   });
 
   // Values are set as translation keys, so a language switch translates them
@@ -55,18 +68,21 @@ export function setupHoverInfo(worldMap) {
   // Not before the map is generated
   const active = () => toggle.checked && worldMap.generator.cells !== undefined;
 
-  let pending = null;
-  let frame = null;
   mapElement.addEventListener("pointermove", (event) => {
     if (event.pointerType === "touch" || !active()) return;
     pending = event;
     // At most one lookup per frame
     frame ??= requestAnimationFrame(() => {
       frame = null;
-      show(pending.clientX, pending.clientY);
+      // The pointer may have left the map or the setting been turned off since this was queued
+      if (active()) show(pending.clientX, pending.clientY);
+      pending = null;
     });
   });
-  mapElement.addEventListener("pointerleave", () => (panel.hidden = true));
+  mapElement.addEventListener("pointerleave", () => {
+    cancelPending();
+    panel.hidden = true;
+  });
 
   let tapStart = null;
   mapElement.addEventListener("pointerdown", (event) => {
