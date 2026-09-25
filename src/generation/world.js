@@ -1,7 +1,6 @@
 import { Delaunay } from "d3-delaunay";
 import { polygonCentroid } from "d3-polygon";
 import { WORLD_SIZE } from "../constants.js";
-import { Tile } from "../map/mesh.js";
 import { aleaPRNG } from "../vendor/alea-prng.js";
 import { noise } from "../vendor/perlin.js";
 import { BIOMES, createBiomes, randomBiomeFromPool } from "./biomes.js";
@@ -33,13 +32,9 @@ export class MapGenerator {
   }
 
   /**
-   * Generates a tile so it can later be rendered.
-   *
-   * @param {Number} z the zoom level of the tile as an integer
-   * @param {Number} x the x coordinate of the tile in the corresponding zoom level grid as an integer
-   * @param {Number} y the y coordinate of the tile in the corresponding zoom level grid as an integer
+   * Generates the coarse world: cells, continents, islands, altitude, biomes and corruption.
    */
-  generateTile(z, x, y) {
+  generate() {
     this.seedCells = Array();
     let trianglesVertices = getRandomPointsIn2dRange(1000, 0, WORLD_SIZE, this.#random);
     this.delaunay = Delaunay.from(trianglesVertices);
@@ -50,7 +45,21 @@ export class MapGenerator {
     this.generateAltitude();
     this.generateBiome();
     this.generateCorruptedBurn();
-    return new Tile(z, x, y, this.cells);
+  }
+
+  /**
+   * The coarse world as plain typed arrays, which can be posted to and from a worker.
+   * Biome ids are indexes in BIOME_DEFINITIONS.
+   *
+   * @returns {{seed: string, sites: Float64Array, biomes: Uint8Array, continents: Uint8Array}}
+   */
+  toBaseWorld() {
+    return {
+      seed: this.#seed,
+      sites: Float64Array.from(this.delaunay.points),
+      biomes: Uint8Array.from(this.cells, (cell) => cell.biome.id),
+      continents: Uint8Array.from(this.cells, (cell) => cell.continentNumber),
+    };
   }
 
   // create cell from the voronoid diagram
@@ -269,3 +278,14 @@ export class MapGenerator {
     }
   }
 }
+
+/**
+ * Generates the coarse world of a seed (a random one if empty).
+ *
+ * @returns see MapGenerator#toBaseWorld
+ */
+export const generateWorld = (seed) => {
+  const generator = new MapGenerator(seed);
+  generator.generate();
+  return generator.toBaseWorld();
+};

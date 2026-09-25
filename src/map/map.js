@@ -1,5 +1,5 @@
 import { MAX_ZOOM, MIN_ZOOM, TILE_PIXEL_SIZE, WORLD_SIZE } from "../constants.js";
-import { MapGenerator } from "../generation/generator.js";
+import { MapGenerator } from "../generation/world.js";
 import { MapRenderer } from "./renderer.js";
 import { worldToScreen } from "./view.js";
 

@@ -1,6 +1,6 @@
 import { expect, test, vi } from "vitest";
 import { BIOMES } from "../../src/generation/biomes.js";
-import { MapGenerator } from "../../src/generation/generator.js";
+import { MapGenerator, generateWorld } from "../../src/generation/world.js";
 import { Cell } from "../../src/generation/geometry.js";
 import { noise } from "../../src/vendor/perlin.js";
 import { generateSummary } from "./helpers.js";
@@ -17,16 +17,16 @@ test.each([[""], [null], [undefined]])("a missing seed (%j) gets a random numeri
 });
 
 test("text seeds give different terrain noise", () => {
-  new MapGenerator("dragon").generateTile(0, 0, 0);
+  new MapGenerator("dragon").generate();
   const dragon = noise.simplex2(1.5, 2.5);
-  new MapGenerator("wizard").generateTile(0, 0, 0);
+  new MapGenerator("wizard").generate();
   const wizard = noise.simplex2(1.5, 2.5);
   expect(dragon).not.toBe(wizard);
 });
 
 test("corners shared with the ocean stay at sea level", () => {
   const generator = new MapGenerator("12345");
-  generator.generateTile(0, 0, 0);
+  generator.generate();
   const raised = generator.cells
     .filter((cell) => cell.isMaritime())
     .flatMap((cell) => cell.ring)
@@ -36,7 +36,7 @@ test("corners shared with the ocean stay at sea level", () => {
 
 test.each(TEN_SEEDS)("seed %s: the corruption always spreads to the whole first ring", (seed) => {
   const generator = new MapGenerator(seed);
-  generator.generateTile(0, 0, 0);
+  generator.generate();
   const cells = generator.cells;
   const isCorrupted = (i) => cells[i].biome === BIOMES.Corrupted;
   const hasFullRing = cells.some(
@@ -59,7 +59,7 @@ test("biome propagation leaves islands alone", () => {
       generateBiome();
       absorbed += islands.filter((cell) => cell.biome !== BIOMES.island).length;
     };
-    generator.generateTile(0, 0, 0);
+    generator.generate();
   }
   expect(absorbed).toBe(0);
 });
@@ -72,7 +72,7 @@ test("the continent burn claims each cell only once", () => {
     return setContinent.call(this, number);
   };
   try {
-    new MapGenerator("12345").generateTile(0, 0, 0);
+    new MapGenerator("12345").generate();
   } finally {
     Cell.prototype.setContinent = setContinent;
   }
@@ -82,9 +82,28 @@ test("the continent burn claims each cell only once", () => {
 test("generating a map logs nothing", () => {
   const log = vi.spyOn(console, "log").mockImplementation(() => {});
   try {
-    new MapGenerator("12345").generateTile(0, 0, 0);
+    new MapGenerator("12345").generate();
     expect(log).not.toHaveBeenCalled();
   } finally {
     log.mockRestore();
   }
+});
+
+test("the base world holds every coarse cell as plain arrays", () => {
+  const generator = new MapGenerator("12345");
+  generator.generate();
+  const base = generator.toBaseWorld();
+  expect(base.seed).toBe("12345");
+  expect(base.sites).toBeInstanceOf(Float64Array);
+  expect(base.sites).toHaveLength(generator.cells.length * 2);
+  generator.cells.forEach((cell, i) => {
+    expect(base.biomes[i]).toBe(cell.biome.id);
+    expect(base.continents[i]).toBe(cell.continentNumber);
+    expect([base.sites[2 * i], base.sites[2 * i + 1]]).toEqual([cell.center.x, cell.center.y]);
+  });
+});
+
+test("generateWorld gives the same base world for the same seed", () => {
+  expect(generateWorld("abc")).toEqual(generateWorld("abc"));
+  expect(generateWorld("abc")).not.toEqual(generateWorld("abd"));
 });
