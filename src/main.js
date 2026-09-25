@@ -1,7 +1,11 @@
 import "./styles/map.scss";
 import { WorldMap } from "./map/map.js";
 import { setupControls } from "./ui/controls.js";
+import { initLanguage, setupLanguageSwitch } from "./ui/language.js";
 import { setupModals } from "./ui/modals.js";
+
+// Texts first: the renderer shows an error as soon as it is created if WebGL is missing
+initLanguage();
 
 /**
  * The "seed" URL parameter, or null if not set.
@@ -17,6 +21,7 @@ window.addEventListener("resize", resize);
 
 setupControls(worldMap);
 setupModals();
+setupLanguageSwitch();
 document.getElementById("default-toggle").checked = true;
 
 worldMap

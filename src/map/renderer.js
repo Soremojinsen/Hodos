@@ -1,4 +1,5 @@
 import { BIOMES } from "../generation/biomes.js";
+import { t } from "../i18n/i18n.js";
 import { BiomesWorldShaderProgram, DebugWorldShaderProgram, WorldShaderProgram } from "./shader.js";
 import { cameraView, viewMatrix } from "./view.js";
 import biomesFragment from "./shaders/world_biomes.frag?raw";
@@ -38,10 +39,7 @@ export class MapRenderer {
     div.appendChild(this.#debugSpan);
     this.#gl = this.#canvas.getContext("webgl");
     if (!this.#gl) {
-      this.showError(
-        "Hodos a besoin de WebGL pour dessiner la carte, mais votre navigateur ne le supporte pas ou l'a désactivé. " +
-          "(Hodos needs WebGL to draw the map, but this browser does not support it or has it disabled.)",
-      );
+      this.showError("error.webgl");
     }
     this.#generator = generator;
     this.#camera = new Camera(this);
@@ -64,9 +62,7 @@ export class MapRenderer {
       this.#loadShaders();
       await this.#loadData();
     } catch (error) {
-      this.showError(
-        "La carte n'a pas pu être dessinée. (The map could not be drawn, see the browser console for details.)",
-      );
+      this.showError("error.render");
       throw error;
     }
   }
@@ -74,12 +70,13 @@ export class MapRenderer {
   /**
    * Displays an error message over the map, in place of the canvas.
    *
-   * @param message {string} the message to display
+   * @param key {string} the translation key of the message
    */
-  showError(message) {
+  showError(key) {
     let error = document.createElement("p");
     error.classList.add("hodos-error");
-    error.innerText = message;
+    error.dataset.i18n = key;
+    error.textContent = t(key);
     this.#canvas.remove();
     this.#div.appendChild(error);
   }

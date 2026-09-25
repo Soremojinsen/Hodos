@@ -18,6 +18,7 @@ export default defineConfig({
   use: {
     launchOptions,
     viewport: { width: 1000, height: 700 },
+    locale: "fr-FR",
   },
   projects: [
     // The production build, as deployed

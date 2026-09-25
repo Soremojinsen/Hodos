@@ -6,7 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Hodos, un générateur procédural de cartes du monde dans votre navigateur. A procedural world map generator in your browser."
+      content="Hodos, un générateur procédural de cartes du monde dans votre navigateur."
+      data-i18n-content="page.description"
     />
     <title>Hodos</title>
     <link rel="icon" href="/favicon.ico" type="image/x-icon" />
@@ -20,13 +21,28 @@
       </div>
       <div id="map">
         <div class="map-controls">
-          <button id="map-zoom-in-button" type="button" aria-label="Zoom avant">+</button>
-          <button id="map-zoom-out-button" type="button" aria-label="Zoom arrière">-</button>
+          <button
+            id="map-zoom-in-button"
+            type="button"
+            aria-label="Zoom avant"
+            data-i18n-aria-label="map.zoomIn"
+          >
+            +
+          </button>
+          <button
+            id="map-zoom-out-button"
+            type="button"
+            aria-label="Zoom arrière"
+            data-i18n-aria-label="map.zoomOut"
+          >
+            -
+          </button>
           <button
             id="screenshot"
             type="button"
             class="download-button"
             aria-label="Télécharger la carte"
+            data-i18n-aria-label="map.download"
           >
             <img src="./src/assets/img/download-button.png" alt="" />
           </button>
@@ -39,19 +55,31 @@
         <div class="border-right"></div>
       </div>
       <footer class="map-settings">
-        <button type="button" class="setting-container" data-dialog="settings-dialog">
+        <button
+          type="button"
+          class="setting-container"
+          data-dialog="settings-dialog"
+          data-i18n="footer.settings"
+        >
           Paramètres
         </button>
-        <button type="button" class="setting-container" data-dialog="project-dialog">Projet</button>
+        <button
+          type="button"
+          class="setting-container"
+          data-dialog="project-dialog"
+          data-i18n="footer.project"
+        >
+          Projet
+        </button>
       </footer>
     </div>
     <dialog class="modal-box" id="settings-dialog" aria-labelledby="settings-title">
       <div class="inner">
         <div class="content">
           <div class="title">
-            <div class="title-inner" id="settings-title">
+            <div class="title-inner">
               <img class="upper" src="./src/assets/img/upperline.png" alt="" />
-              Parametres
+              <span id="settings-title" data-i18n="settings.title">Paramètres</span>
               <img class="under" src="./src/assets/img/underline.png" alt="" />
             </div>
           </div>
@@ -59,7 +87,7 @@
             <div class="modal-section">
               <form action="" id="mode-form">
                 <div>
-                  <label for="default-toggle">Parchemin :</label>
+                  <label for="default-toggle" data-i18n="settings.parchment">Parchemin :</label>
                   <input
                     id="default-toggle"
                     name="mode-toggle"
@@ -69,27 +97,43 @@
                   />
                 </div>
                 <div>
-                  <label for="biomes-toggle">Biomes :</label>
+                  <label for="biomes-toggle" data-i18n="settings.biomes">Biomes :</label>
                   <input id="biomes-toggle" name="mode-toggle" value="biomes" type="radio" />
                 </div>
                 <div>
-                  <label for="debug-toggle">Debug :</label>
+                  <label for="debug-toggle" data-i18n="settings.debug">Debug :</label>
                   <input id="debug-toggle" name="mode-toggle" value="debug" type="radio" />
                 </div>
               </form>
             </div>
             <div class="modal-section">
+              <div class="setting-row">
+                <label for="language-select" data-i18n="settings.language">Langue :</label>
+                <select id="language-select">
+                  <option value="fr" lang="fr">Français</option>
+                  <option value="en" lang="en">English</option>
+                </select>
+              </div>
+            </div>
+            <div class="modal-section">
               <form method="GET" action="" id="seed-form">
                 <div>
-                  <label for="seed">Seed :</label>
-                  <input type="text" class="seed-placeholder" id="seed" name="seed" />
-                  <input type="submit" value="Changer" />
+                  <label for="seed" data-i18n="settings.seed">Seed :</label>
+                  <input
+                    type="text"
+                    class="seed-placeholder"
+                    id="seed"
+                    name="seed"
+                    placeholder="un mot ou un nombre"
+                    data-i18n-placeholder="settings.seedPlaceholder"
+                  />
+                  <button type="submit" data-i18n="settings.seedSubmit">Changer</button>
                 </div>
               </form>
             </div>
           </div>
           <div class="back-desktop">
-            <button type="button" class="dialog-close">Retour</button>
+            <button type="button" class="dialog-close" data-i18n="dialog.back">Retour</button>
             <img class="underline" src="./src/assets/img/menu-underline.png" alt="" />
           </div>
         </div>
@@ -99,35 +143,17 @@
       <div class="inner">
         <div class="content">
           <div class="title">
-            <div class="title-inner" id="project-title">
-              Projet
+            <div class="title-inner">
+              <span id="project-title" data-i18n="project.title">Projet</span>
               <img class="under" src="./src/assets/img/underline.png" alt="" />
             </div>
           </div>
           <div class="main-modal-content">
             <div class="modal-section">
-              <p>
-                L'application web <i>Hodos</i> a été développée dans le cadre du projet de
-                développement informatique (PRO3600) de l'école d'ingénieurs Télécom SudParis.
-                Pendant cinq mois, notre de groupe de quatre étudiants en première année a travaillé
-                pour créer le site que vous consultez actuellement.
-              </p>
-              <p>
-                L'idée originale était de créer un générateur procédural de carte du monde,
-                utilisable notamment par quiconque aurait besoin de créer un monde à partir de zéro
-                : auteurs, rôlistes, etc...
-              </p>
-              <p>
-                Dans l'état actuel de projet, vous avez la possibilité de générer une carte unique,
-                avec plusieurs continents, des îles, un relief et des biomes différents. Le système
-                de débuggage mis à disposition vous permet d'avoir un aperçu de la façon dont la
-                carte est générée et vous permet également d'utiliser un système de seed pour
-                retrouver une carte que vous avez générée et qui vous a plu.
-              </p>
-              <p>
-                Pour plus d'informations sur la façon dont l'application fonctionne, vous pouvez
-                consulter notre dépôt GitHub.
-              </p>
+              <p data-i18n-html="project.p1"></p>
+              <p data-i18n-html="project.p2"></p>
+              <p data-i18n-html="project.p3"></p>
+              <p data-i18n-html="project.p4"></p>
             </div>
             <div class="modal-section">
               <a
@@ -141,7 +167,7 @@
             </div>
           </div>
           <div class="back-desktop">
-            <button type="button" class="dialog-close">Retour</button>
+            <button type="button" class="dialog-close" data-i18n="dialog.back">Retour</button>
             <img class="underline" src="./src/assets/img/menu-underline.png" alt="" />
           </div>
         </div>
