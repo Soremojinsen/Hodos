@@ -1,10 +1,10 @@
 import { expect, test } from "vitest";
-import { MapGenerator } from "../../src/generation/generator.js";
+import { MapGenerator } from "../../src/generation/world.js";
 import { inspectAt, reliefOf } from "../../src/map/inspect.js";
 
 const generated = (seed) => {
   const generator = new MapGenerator(seed);
-  generator.generateTile(0, 0, 0);
+  generator.generate();
   return generator;
 };
 

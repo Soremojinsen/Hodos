@@ -7,7 +7,7 @@ import {
   createBiomes,
   randomBiomeFromPool,
 } from "../../src/generation/biomes.js";
-import { MapGenerator } from "../../src/generation/generator.js";
+import { MapGenerator } from "../../src/generation/world.js";
 
 test("createBiomes registers every biome", () => {
   const biomes = createBiomes(Math.random);

@@ -18,7 +18,7 @@ export const reliefOf = (altitude) =>
  * What is at a world point: the biome name, the relief band and the land mass of its cell.
  * It only reads the generated cells and never draws random numbers, so the map stays the same.
  *
- * @param generator {MapGenerator} after generateTile
+ * @param generator {MapGenerator} after generate()
  * @returns {{biome: string, relief: string, landmass: Object|null}|null} null outside the world
  */
 export function inspectAt(generator, x, y) {

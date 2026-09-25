@@ -2,6 +2,7 @@ import { BIOMES } from "../generation/biomes.js";
 import { t } from "../i18n/i18n.js";
 import { flipRows } from "./pixels.js";
 import { BiomesWorldShaderProgram, DebugWorldShaderProgram, WorldShaderProgram } from "./shader.js";
+import { Tile } from "./mesh.js";
 import { cameraView, viewMatrix } from "./view.js";
 import biomesFragment from "./shaders/world_biomes.frag?raw";
 import biomesVertex from "./shaders/world_biomes.vert?raw";
@@ -233,7 +234,8 @@ export class MapRenderer {
   }
 
   async #loadData() {
-    this.tileTest = this.#generator.generateTile(0, 0, 0);
+    this.#generator.generate();
+    this.tileTest = new Tile(0, 0, 0, this.#generator.cells);
     this.tileTest.bake(this.#gl);
 
     // Biome texture
