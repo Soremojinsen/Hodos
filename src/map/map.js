@@ -68,6 +68,8 @@ export class MapController {
   onKeyPress(keyEvent) {
     // Let form fields (like the seed input) have their keys
     if (keyEvent.target instanceof HTMLInputElement) return;
+    // The map is behind an open dialog, and Ctrl/Cmd +/- is the browser zoom
+    if (document.querySelector("dialog[open]") || keyEvent.ctrlKey || keyEvent.metaKey) return;
     let zoom = this.#map.camera.zoom;
     let delta = (10 / (TILE_PIXEL_SIZE * Math.pow(2, zoom))) * WORLD_SIZE;
     switch (keyEvent.key) {

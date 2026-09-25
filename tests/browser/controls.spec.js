@@ -23,6 +23,34 @@ test("keys typed in the seed field don't move the map", async ({ page }) => {
   expect(await camera(page)).toEqual(before);
 });
 
+test("keys don't move the map while a dialog is open", async ({ page }) => {
+  await openMap(page);
+  // The project dialog has no input, its first link gets the focus
+  await page.locator(".map-settings").getByText("Projet").click();
+  const before = await camera(page);
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("+");
+  expect(await camera(page)).toEqual(before);
+});
+
+test("browser zoom shortcuts don't zoom the map", async ({ page }) => {
+  await openMap(page);
+  const before = await camera(page);
+  await page.keyboard.press("Control+-");
+  await page.keyboard.press("Meta+-");
+  expect(await camera(page)).toEqual(before);
+});
+
+test("the mouse wheel zooms, a horizontal scroll doesn't", async ({ page }) => {
+  await openMap(page);
+  const before = await camera(page);
+  await page.mouse.move(500, 350);
+  await page.mouse.wheel(120, 0);
+  expect(await camera(page)).toEqual(before);
+  await page.mouse.wheel(0, -120);
+  expect((await camera(page)).zoom).toBeGreaterThan(before.zoom);
+});
+
 test("mouse drag pans the map", async ({ page }) => {
   await openMap(page);
   const before = await camera(page);
