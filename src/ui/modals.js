@@ -1,26 +1,34 @@
-const MODALS = { "debug-modal-toggle": "debug-modal", "project-modal-toggle": "project-modal" };
-
 /**
- * Opens and closes the settings and project modals. Opening one closes the other.
+ * Opens and closes the settings and project dialogs.
+ * Only one is open at a time; Escape, a "Retour" button or a click outside closes it.
  */
 export function setupModals() {
-  const modals = Object.values(MODALS).map((id) => document.getElementById(id));
+  const dialogs = [...document.querySelectorAll("dialog.modal-box")];
 
-  const toggle = (modal) => {
-    const opening = modal.style.display === "none";
-    for (const other of modals) {
-      other.style.display = "none";
-      other.style.transform = "translateY(80px)";
-    }
-    if (opening) {
-      modal.style.display = "block";
-      requestAnimationFrame(() => (modal.style.transform = "translateY(0px)"));
-    }
-  };
+  for (const opener of document.querySelectorAll("[data-dialog]")) {
+    opener.addEventListener("click", () => {
+      toggleDialog(document.getElementById(opener.dataset.dialog), dialogs);
+    });
+  }
 
-  for (const [toggleClass, id] of Object.entries(MODALS)) {
-    for (const element of document.getElementsByClassName(toggleClass)) {
-      element.addEventListener("click", () => toggle(document.getElementById(id)));
+  for (const dialog of dialogs) {
+    // A click on the backdrop targets the dialog itself
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) dialog.close();
+    });
+    for (const closer of dialog.querySelectorAll(".dialog-close")) {
+      closer.addEventListener("click", () => dialog.close());
     }
   }
+}
+
+function toggleDialog(dialog, dialogs) {
+  if (dialog.open) {
+    dialog.close();
+    return;
+  }
+  for (const other of dialogs) {
+    if (other.open) other.close();
+  }
+  dialog.showModal();
 }

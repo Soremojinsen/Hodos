@@ -68,6 +68,10 @@ body {
 	border: 3px solid rgba(0,0,0,0.5);
 
 	.setting-container {
+		font: inherit;
+		color: inherit;
+		background: none;
+		border: none;
 		flex: 1;
 		padding: 1rem 1rem;
 		display: flex;
@@ -216,28 +220,43 @@ body {
 }
 
 .modal-box {
+	// <dialog> defaults reset, placed above the footer on the right
+	margin: 0;
+	padding: 0;
+	border: none;
+	background: transparent;
+	max-width: none;
+	max-height: none;
+	overflow: visible;
+	inset: auto 2vw 13.6vh auto;
+	opacity: 0;
+	transform: translateY(80px);
+	transition:
+		opacity 0.2s ease,
+		transform 0.3s ease,
+		overlay 0.3s ease allow-discrete,
+		display 0.3s ease allow-discrete;
+
+	&[open] {
+		opacity: 1;
+		transform: translateY(0);
+
+		@starting-style {
+			opacity: 0;
+			transform: translateY(80px);
+		}
+	}
+
+	&::backdrop {
+		background: transparent;
+	}
+
 	color: #040403;
   font-style: normal;
   font-weight: 400;
-  pointer-events: auto;
-  position: fixed;
-  right: 2vw;
-	bottom: 13.6vh;
-	left: auto;
-	top: auto;
-  z-index: 600;
 	line-height: 1.15;
 	tab-size: 4;
-	transition: transform .3s ease;
 	font-family: 'IM Fell Double Pica', serif;
-
-	.bg {
-    height: 100%;
-    left: 0;
-    position: absolute;
-    top: 0;
-    width: 100%;
-	}
 
 	.inner {
     background-image: url(../assets/img/popin-bg.jpg);
@@ -363,7 +382,12 @@ body {
 				text-align: center;
 				text-transform: uppercase;
 
-				span {
+				button {
+					font: inherit;
+					text-transform: inherit;
+					color: inherit;
+					background: none;
+					border: none;
 					cursor: pointer;
 				}
 
