@@ -4,7 +4,6 @@ import { WorldShaderProgram } from "./shader.js";
  * A mesh is a collection of points that gets renders into the canvas.
  */
 export class Mesh {
-
   /**
    * Creates the WebGL objects needed to render this mesh.
    * This method needs to be implemented in a subclass.
@@ -28,14 +27,10 @@ export class Mesh {
   /**
    * Frees all resources held by this mesh.
    */
-  destroy() {
-
-  }
-
+  destroy() {}
 }
 
 export class Tile extends Mesh {
-
   #z;
   #x;
   #y;
@@ -81,7 +76,7 @@ export class Tile extends Mesh {
     let coordinates = [];
     let dbgColors = [];
     let biomeIds = [];
-    this.#cells.forEach(cell => {
+    this.#cells.forEach((cell) => {
       let polygonVertices = cell.ring;
       let vertexCount = polygonVertices.length;
       for (let i = 1; i <= vertexCount; i++) {
@@ -109,12 +104,9 @@ export class Tile extends Mesh {
     if (shaderProgram instanceof WorldShaderProgram) {
       let gl = shaderProgram.gl;
       shaderProgram.bindSurfaceVertexPositionBuffer(this.#surfaceVertexPositions);
-      shaderProgram.bindDebugSurfaceColorsBuffer(this.#surfaceVertexDebugColors)
-      shaderProgram.bindBiomeIdBuffer(this.#biomeIds)
-      gl.drawArrays(
-          gl.TRIANGLES,
-          0,
-          this.#surfaceVertexCount);
+      shaderProgram.bindDebugSurfaceColorsBuffer(this.#surfaceVertexDebugColors);
+      shaderProgram.bindBiomeIdBuffer(this.#biomeIds);
+      gl.drawArrays(gl.TRIANGLES, 0, this.#surfaceVertexCount);
     } else {
       console.error("Tile render expects a WorldShaderProgram");
     }
@@ -125,5 +117,4 @@ export class Tile extends Mesh {
     gl.deleteBuffer(this.#surfaceVertexDebugColors);
     gl.deleteBuffer(this.#biomeIds);
   }
-
 }

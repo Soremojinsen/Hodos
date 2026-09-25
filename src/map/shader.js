@@ -126,7 +126,6 @@ export class ShaderProgram {
  * The world shader program is in charge of rendering the actual map.
  */
 export class WorldShaderProgram extends ShaderProgram {
-
   #glCoordsAttrib;
 
   use() {
@@ -137,10 +136,7 @@ export class WorldShaderProgram extends ShaderProgram {
 
   bindSurfaceVertexPositionBuffer(buffer) {
     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
-    this.gl.vertexAttribPointer(
-        this.#glCoordsAttrib,
-        3, this.gl.FLOAT,
-        false, 0, 0);
+    this.gl.vertexAttribPointer(this.#glCoordsAttrib, 3, this.gl.FLOAT, false, 0, 0);
   }
 
   bindBiomeIdBuffer() {
@@ -169,11 +165,9 @@ export class WorldShaderProgram extends ShaderProgram {
   setBiomesColors() {
     // This is a no-op here, but is used in case of the DebugWorldShaderProgram
   }
-
 }
 
 export class DebugWorldShaderProgram extends WorldShaderProgram {
-
   #glColorsAttrib;
 
   use() {
@@ -184,22 +178,16 @@ export class DebugWorldShaderProgram extends WorldShaderProgram {
 
   bindDebugSurfaceColorsBuffer(buffer) {
     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
-    this.gl.vertexAttribPointer(
-        this.#glColorsAttrib,
-        3, this.gl.FLOAT,
-        false, 0, 0);
+    this.gl.vertexAttribPointer(this.#glColorsAttrib, 3, this.gl.FLOAT, false, 0, 0);
   }
 
   stopUsing() {
     super.stopUsing();
     this.gl.disableVertexAttribArray(this.#glColorsAttrib);
   }
-
 }
 
-
 export class BiomesWorldShaderProgram extends WorldShaderProgram {
-
   #glBiomeIdAttrib;
 
   use() {
@@ -210,10 +198,7 @@ export class BiomesWorldShaderProgram extends WorldShaderProgram {
 
   bindBiomeIdBuffer(buffer) {
     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
-    this.gl.vertexAttribPointer(
-        this.#glBiomeIdAttrib,
-        1, this.gl.FLOAT,
-        false, 0, 0);
+    this.gl.vertexAttribPointer(this.#glBiomeIdAttrib, 1, this.gl.FLOAT, false, 0, 0);
   }
 
   /**
@@ -223,7 +208,7 @@ export class BiomesWorldShaderProgram extends WorldShaderProgram {
    * @param maxId         the maximum id stored in the texture
    */
   setBiomesColors(biomeTexture, maxId) {
-    let textureUnit = 0;  // from 0 to 15 is ok
+    let textureUnit = 0; // from 0 to 15 is ok
     let pointer = this.gl.getUniformLocation(this.glProgram, "biomes");
     this.gl.activeTexture(this.gl.TEXTURE0);
     this.gl.bindTexture(this.gl.TEXTURE_2D, biomeTexture);
@@ -236,5 +221,4 @@ export class BiomesWorldShaderProgram extends WorldShaderProgram {
     super.stopUsing();
     this.gl.disableVertexAttribArray(this.#glBiomeIdAttrib);
   }
-
 }

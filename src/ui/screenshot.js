@@ -7,7 +7,10 @@
  * @returns {string} e.g. "hodos-12345-800x600.png"
  */
 export const screenshotFileName = (seed, width, height) => {
-  const safeSeed = String(seed).replace(/[^A-Za-z0-9_-]+/g, "_").slice(0, 64) || "map";
+  const safeSeed =
+    String(seed)
+      .replace(/[^A-Za-z0-9_-]+/g, "_")
+      .slice(0, 64) || "map";
   return `hodos-${safeSeed}-${width}x${height}.png`;
 };
 

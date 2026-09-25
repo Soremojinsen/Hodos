@@ -22,12 +22,7 @@ export const randomElement = (array, randomFunction) => {
  * @param {function} randomFunction a function that generates a number between 0 and 1
  * @returns {*[]}                   the array of random 2d points, as an array of arrays
  */
-export const getRandomPointsIn2dRange = (
-  n,
-  lowerBound,
-  upperBound,
-  randomFunction
-) => {
+export const getRandomPointsIn2dRange = (n, lowerBound, upperBound, randomFunction) => {
   let arrayOfPoints = [];
   while (arrayOfPoints.length < n) {
     let x = getRandomInRange(lowerBound, upperBound, randomFunction);

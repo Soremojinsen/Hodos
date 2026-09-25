@@ -11,7 +11,9 @@ test("Escape closes the settings dialog", async ({ page }) => {
   expect(await isOpen(page, "settings-dialog")).toBe(false);
 });
 
-test("Retour and a click outside close a dialog, and only one is open at a time", async ({ page }) => {
+test("Retour and a click outside close a dialog, and only one is open at a time", async ({
+  page,
+}) => {
   await openMap(page);
   await page.getByRole("button", { name: "Projet" }).click();
   expect(await isOpen(page, "project-dialog")).toBe(true);

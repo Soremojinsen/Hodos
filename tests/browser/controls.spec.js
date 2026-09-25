@@ -59,11 +59,20 @@ test.describe("touch", () => {
   test("two-finger pinch zooms in without panning", async ({ page }) => {
     await openMap(page);
     const before = await camera(page);
-    await touch(page, "pointerdown", [[1, 180, 400], [2, 220, 400]]);
+    await touch(page, "pointerdown", [
+      [1, 180, 400],
+      [2, 220, 400],
+    ]);
     for (let i = 1; i <= 5; i++) {
-      await touch(page, "pointermove", [[1, 180 - 20 * i, 400], [2, 220 + 20 * i, 400]]);
+      await touch(page, "pointermove", [
+        [1, 180 - 20 * i, 400],
+        [2, 220 + 20 * i, 400],
+      ]);
     }
-    await touch(page, "pointerup", [[1, 80, 400], [2, 320, 400]]);
+    await touch(page, "pointerup", [
+      [1, 80, 400],
+      [2, 320, 400],
+    ]);
     const after = await camera(page);
     // 40px to 240px apart: log2(6) levels
     expect(after.zoom).toBeCloseTo(before.zoom + Math.log2(6), 5);

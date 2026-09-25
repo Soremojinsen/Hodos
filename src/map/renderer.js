@@ -9,7 +9,6 @@ import defaultFragment from "./shaders/world_default.frag?raw";
 import defaultVertex from "./shaders/world_default.vert?raw";
 
 export class MapRenderer {
-
   #activeWorldShaderProgram;
   #defaultWorldShaderProgram;
   #biomeWorldShaderProgram;
@@ -39,8 +38,10 @@ export class MapRenderer {
     div.appendChild(this.#debugSpan);
     this.#gl = this.#canvas.getContext("webgl");
     if (!this.#gl) {
-      this.showError("Hodos a besoin de WebGL pour dessiner la carte, mais votre navigateur ne le supporte pas ou l'a désactivé. " +
-          "(Hodos needs WebGL to draw the map, but this browser does not support it or has it disabled.)");
+      this.showError(
+        "Hodos a besoin de WebGL pour dessiner la carte, mais votre navigateur ne le supporte pas ou l'a désactivé. " +
+          "(Hodos needs WebGL to draw the map, but this browser does not support it or has it disabled.)",
+      );
     }
     this.#generator = generator;
     this.#camera = new Camera(this);
@@ -65,7 +66,9 @@ export class MapRenderer {
       this.#loadShaders();
       await this.#loadData();
     } catch (error) {
-      this.showError("La carte n'a pas pu être dessinée. (The map could not be drawn, see the browser console for details.)");
+      this.showError(
+        "La carte n'a pas pu être dessinée. (The map could not be drawn, see the browser console for details.)",
+      );
       throw error;
     }
   }
@@ -102,7 +105,7 @@ export class MapRenderer {
   renderNow() {
     if (!this.tileTest) return;
     const start = performance.now();
-    this.#gl.clearColor(0.278, 0.470, 0.525, 1);
+    this.#gl.clearColor(0.278, 0.47, 0.525, 1);
     this.#gl.clear(this.#gl.COLOR_BUFFER_BIT | this.#gl.DEPTH_BUFFER_BIT);
     this.tileTest.render(this.#activeWorldShaderProgram);
     this.#frameCount++;
@@ -123,9 +126,24 @@ export class MapRenderer {
   }
 
   #loadShaders() {
-    this.#defaultWorldShaderProgram = new WorldShaderProgram(this.#gl, "world_default", defaultVertex, defaultFragment);
-    this.#biomeWorldShaderProgram = new BiomesWorldShaderProgram(this.#gl, "world_biomes", biomesVertex, biomesFragment);
-    this.#debugWorldShaderProgram = new DebugWorldShaderProgram(this.#gl, "world_debug", debugVertex, debugFragment);
+    this.#defaultWorldShaderProgram = new WorldShaderProgram(
+      this.#gl,
+      "world_default",
+      defaultVertex,
+      defaultFragment,
+    );
+    this.#biomeWorldShaderProgram = new BiomesWorldShaderProgram(
+      this.#gl,
+      "world_biomes",
+      biomesVertex,
+      biomesFragment,
+    );
+    this.#debugWorldShaderProgram = new DebugWorldShaderProgram(
+      this.#gl,
+      "world_debug",
+      debugVertex,
+      debugFragment,
+    );
     this.#defaultWorldShaderProgram.compile();
     this.#biomeWorldShaderProgram.compile();
     this.#debugWorldShaderProgram.compile();
@@ -139,21 +157,29 @@ export class MapRenderer {
 
     // Biome texture
     let biomes = Object.values(BIOMES);
-    this.#maxBiomeId = Math.max(...biomes.map(b => b.id));
+    this.#maxBiomeId = Math.max(...biomes.map((b) => b.id));
     let colorArray = new Array(this.#maxBiomeId);
-    biomes.forEach(biome => {
-      colorArray[6 * biome.id] = biome.lowColor.red * 0xFF;
-      colorArray[6 * biome.id + 1] = biome.lowColor.green * 0xFF;
-      colorArray[6 * biome.id + 2] = biome.lowColor.blue * 0xFF;
-      colorArray[6 * biome.id + 3] = biome.highColor.red * 0xFF;
-      colorArray[6 * biome.id + 4] = biome.highColor.green * 0xFF;
-      colorArray[6 * biome.id + 5] = biome.highColor.blue * 0xFF;
+    biomes.forEach((biome) => {
+      colorArray[6 * biome.id] = biome.lowColor.red * 0xff;
+      colorArray[6 * biome.id + 1] = biome.lowColor.green * 0xff;
+      colorArray[6 * biome.id + 2] = biome.lowColor.blue * 0xff;
+      colorArray[6 * biome.id + 3] = biome.highColor.red * 0xff;
+      colorArray[6 * biome.id + 4] = biome.highColor.green * 0xff;
+      colorArray[6 * biome.id + 5] = biome.highColor.blue * 0xff;
     });
     this.#biomeTexture = this.#gl.createTexture();
     this.#gl.bindTexture(this.#gl.TEXTURE_2D, this.#biomeTexture);
-    this.#gl.texImage2D(this.#gl.TEXTURE_2D, 0, this.#gl.RGB,
-        Math.ceil(colorArray.length / 3), 1, 0,
-        this.#gl.RGB, this.#gl.UNSIGNED_BYTE, new Uint8Array(colorArray));
+    this.#gl.texImage2D(
+      this.#gl.TEXTURE_2D,
+      0,
+      this.#gl.RGB,
+      Math.ceil(colorArray.length / 3),
+      1,
+      0,
+      this.#gl.RGB,
+      this.#gl.UNSIGNED_BYTE,
+      new Uint8Array(colorArray),
+    );
     this.#gl.texParameteri(this.#gl.TEXTURE_2D, this.#gl.TEXTURE_MAG_FILTER, this.#gl.NEAREST);
     this.#gl.texParameteri(this.#gl.TEXTURE_2D, this.#gl.TEXTURE_MIN_FILTER, this.#gl.NEAREST);
     this.#gl.texParameteri(this.#gl.TEXTURE_2D, this.#gl.TEXTURE_WRAP_S, this.#gl.CLAMP_TO_EDGE);
@@ -210,14 +236,12 @@ export class MapRenderer {
     return this.#activeWorldShaderProgram;
   }
 
-  get canvas(){
+  get canvas() {
     return this.#canvas;
   }
-
 }
 
 export class Camera {
-
   #renderer;
 
   scaleX = 1;
@@ -239,15 +263,27 @@ export class Camera {
     let zoomFactor = Math.pow(2, this.zoom);
     let scaleX = this.scaleX * zoomFactor;
     let scaleY = this.scaleY * zoomFactor;
-    let deltaX = - (this.posX + WORLD_SIZE / 2) * scaleX;
-    let deltaY = - (this.posY + WORLD_SIZE / 2) * scaleY;
-    let matrix = new Float32Array(
-        [scaleX, 0,      0, 0,
-          0,      scaleY, 0, 0,
-          0,      0,      0, 0,
-          deltaX, deltaY, 0, 1]);
+    let deltaX = -(this.posX + WORLD_SIZE / 2) * scaleX;
+    let deltaY = -(this.posY + WORLD_SIZE / 2) * scaleY;
+    let matrix = new Float32Array([
+      scaleX,
+      0,
+      0,
+      0,
+      0,
+      scaleY,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      deltaX,
+      deltaY,
+      0,
+      1,
+    ]);
     program.setViewMatrix(matrix);
     this.#renderer.requestRender();
   }
-
 }
