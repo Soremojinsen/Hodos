@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { openMap } from "./helpers.js";
 
-const mapSeed = (page) => page.evaluate(() => window.hodos.generator.seed);
+const mapSeed = (page) => page.evaluate(() => window.hodos.seed);
 
 test("Nouvelle carte opens another map and Back returns to the previous one", async ({ page }) => {
   await openMap(page);

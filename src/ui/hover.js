@@ -1,4 +1,3 @@
-import { inspectAt } from "../map/inspect.js";
 import { screenToWorld } from "../map/view.js";
 import { readPreference, writePreference } from "../state/preferences.js";
 import { applyTranslations } from "./language.js";
@@ -49,7 +48,7 @@ export function setupHoverInfo(worldMap) {
   const show = (clientX, clientY) => {
     const rect = worldMap.renderer.canvas.getBoundingClientRect();
     const point = screenToWorld(worldMap.camera.view, clientX - rect.left, clientY - rect.top);
-    const info = inspectAt(worldMap.generator, point.x, point.y);
+    const info = worldMap.inspect(point.x, point.y);
     if (!info) {
       panel.hidden = true;
       return;
@@ -66,7 +65,7 @@ export function setupHoverInfo(worldMap) {
   };
 
   // Not before the map is generated
-  const active = () => toggle.checked && worldMap.generator.cells !== undefined;
+  const active = () => toggle.checked && worldMap.sampler !== undefined;
 
   mapElement.addEventListener("pointermove", (event) => {
     if (event.pointerType === "touch" || !active()) return;

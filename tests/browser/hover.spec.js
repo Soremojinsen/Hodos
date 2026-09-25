@@ -2,21 +2,28 @@ import { expect, test } from "@playwright/test";
 import { openMap } from "./helpers.js";
 
 /**
- * The page position of the continent cell centre closest to the middle of the screen.
+ * The page position of the continent land closest to the middle of the screen.
  */
 const landPoint = (page) =>
   page.evaluate(() => {
     const map = window.hodos;
     const rect = map.renderer.canvas.getBoundingClientRect();
-    let best = null;
-    for (const cell of map.generator.cells) {
-      if (cell.continentNumber === 0) continue;
-      const p = map.toScreen(cell.center.x, cell.center.y);
-      const distance = Math.hypot(p.x - 500, p.y - 350);
-      if (!best || distance < best.distance)
-        best = { x: rect.left + p.x, y: rect.top + p.y, distance };
+    const view = map.camera.view;
+    const candidates = [];
+    for (let px = 0; px < view.width; px += 10) {
+      for (let py = 0; py < view.height; py += 10) {
+        candidates.push({ px, py, distance: Math.hypot(px - 500, py - 350) });
+      }
     }
-    return best;
+    candidates.sort((a, b) => a.distance - b.distance);
+    for (const { px, py, distance } of candidates) {
+      const x = view.centerX + (px - view.width / 2) / view.pixelsPerUnit;
+      const y = view.centerY + (view.height / 2 - py) / view.pixelsPerUnit;
+      if (map.inspect(x, y)?.landmass?.type === "continent") {
+        return { x: rect.left + px, y: rect.top + py, distance };
+      }
+    }
+    return null;
   });
 
 const enableHoverInfo = async (page) => {

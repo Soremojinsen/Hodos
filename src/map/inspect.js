@@ -1,4 +1,6 @@
 import { WORLD_SIZE } from "../constants.js";
+import { BIOME_DEFINITIONS } from "../generation/biomes.js";
+import { siteAt } from "../generation/tiles.js";
 
 /**
  * The altitude bands of the Parchemin rendering (shaders/world_default.frag), lowest first.
@@ -15,21 +17,20 @@ export const reliefOf = (altitude) =>
   RELIEF_BANDS.find((band) => altitude < band.below)?.relief ?? "peak";
 
 /**
- * What is at a world point: the biome name, the relief band and the land mass of its cell.
- * It only reads the generated cells and never draws random numbers, so the map stays the same.
+ * What is at a world point at a tile level: the biome name, the relief band and the land mass
+ * of the cell drawn there. It only reads the sampler, so the map stays the same.
  *
- * @param generator {MapGenerator} after generate()
+ * @param sampler {WorldSampler}
  * @returns {{biome: string, relief: string, landmass: Object|null}|null} null outside the world
  */
-export function inspectAt(generator, x, y) {
+export function inspectAt(sampler, x, y, level) {
   if (!(x >= 0 && x <= WORLD_SIZE && y >= 0 && y <= WORLD_SIZE)) return null;
-  const cell = generator.cells[generator.delaunay.find(x, y)];
+  const [siteX, siteY] = siteAt(sampler.seed, x, y, level);
+  const cell = sampler.sampleAt(siteX, siteY, level);
   let landmass = null;
-  if (cell.isContinent()) {
+  if (cell.land) {
     landmass =
-      cell.continentNumber > 0
-        ? { type: "continent", number: cell.continentNumber }
-        : { type: "island" };
+      cell.continent > 0 ? { type: "continent", number: cell.continent } : { type: "island" };
   }
-  return { biome: cell.biome.name, relief: reliefOf(cell.center.z), landmass };
+  return { biome: BIOME_DEFINITIONS[cell.biome].name, relief: reliefOf(cell.altitude), landmass };
 }
