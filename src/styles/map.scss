@@ -123,6 +123,15 @@ body {
     &:hover {
       background: #a5a091;
     }
+
+    svg {
+      display: block;
+      margin: auto;
+    }
+
+    &[hidden] {
+      display: none;
+    }
   }
 
   button.download-button {
