@@ -54,35 +54,45 @@ export async function printImage(canvas, n, captionFor) {
   const container = document.createElement("div");
   container.id = "print-container";
   const urls = [];
-  for (const [index, rect] of rects.entries()) {
-    const piece = document.createElement("canvas");
-    piece.width = rect.width;
-    piece.height = rect.height;
-    piece
-      .getContext("2d")
-      .drawImage(canvas, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
-    const url = URL.createObjectURL(await canvasToBlob(piece));
-    urls.push(url);
-    const page = document.createElement("section");
-    page.className = "print-page";
-    const image = document.createElement("img");
-    image.src = url;
-    image.alt = "";
-    const caption = document.createElement("p");
-    // Set once and never retranslated: this container only exists for the duration of a print,
-    // so a language switch while it is up would have nothing meaningful to update.
-    caption.textContent = captionFor({
-      page: index + 1,
-      pages: rects.length,
-      row: rect.row + 1,
-      col: rect.col + 1,
-    });
-    page.append(image, caption);
-    container.append(page);
+  // Everything below can fail midway (a piece's encoding, an image's decode): if it does, the
+  // container (whether or not it was appended yet) and every URL created so far must be cleaned
+  // up before the failure is rethrown, so the caller's failure handling isn't left with a stray
+  // container or leaked object URLs.
+  try {
+    for (const [index, rect] of rects.entries()) {
+      const piece = document.createElement("canvas");
+      piece.width = rect.width;
+      piece.height = rect.height;
+      piece
+        .getContext("2d")
+        .drawImage(canvas, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
+      const url = URL.createObjectURL(await canvasToBlob(piece));
+      urls.push(url);
+      const page = document.createElement("section");
+      page.className = "print-page";
+      const image = document.createElement("img");
+      image.src = url;
+      image.alt = "";
+      const caption = document.createElement("p");
+      // Set once and never retranslated: this container only exists for the duration of a print,
+      // so a language switch while it is up would have nothing meaningful to update.
+      caption.textContent = captionFor({
+        page: index + 1,
+        pages: rects.length,
+        row: rect.row + 1,
+        col: rect.col + 1,
+      });
+      page.append(image, caption);
+      container.append(page);
+    }
+    document.getElementById("print-container")?.remove();
+    document.body.append(container);
+    await Promise.all([...container.querySelectorAll("img")].map((image) => image.decode()));
+  } catch (error) {
+    container.remove();
+    for (const url of urls) URL.revokeObjectURL(url);
+    throw error;
   }
-  document.getElementById("print-container")?.remove();
-  document.body.append(container);
-  await Promise.all([...container.querySelectorAll("img")].map((image) => image.decode()));
   window.addEventListener(
     "afterprint",
     () => {
