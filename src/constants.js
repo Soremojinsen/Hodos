@@ -13,3 +13,8 @@ export const WORLD_SIZE = 10_000;
  */
 export const MIN_ZOOM = 0;
 export const MAX_ZOOM = 7;
+
+/**
+ * The camera position and zoom a map opens with.
+ */
+export const DEFAULT_VIEW = { x: 0, y: 0, z: 1 };
