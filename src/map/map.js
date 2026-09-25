@@ -23,7 +23,7 @@ export class WorldMap {
   }
 
   startRender() {
-    window.requestAnimationFrame((t) => this.#renderer.render(t));
+    this.#renderer.requestRender();
   }
 
   get camera() {

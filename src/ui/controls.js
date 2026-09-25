@@ -1,4 +1,5 @@
 import { TILE_PIXEL_SIZE, WORLD_SIZE } from "../constants.js";
+import { downloadBlob, screenshotFileName } from "./screenshot.js";
 
 /**
  * Connects the zoom buttons, pointer gestures, mouse wheel, rendering mode form
@@ -73,26 +74,13 @@ export function setupControls(worldMap) {
   }
 
   document.getElementById("screenshot").addEventListener("click", () => {
-    const canvas = worldMap.renderer.canvas;
-    const dataURL = canvas.toDataURL("image/png", 1.0);
-    downloadImage(
-      dataURL,
-      `world-map-${canvas.width}x${canvas.height}-seed ${worldMap.generator.seed}.png`,
+    const renderer = worldMap.renderer;
+    const { width, height } = renderer.canvas;
+    // Without preserveDrawingBuffer, a frame is only readable in the task that drew it
+    renderer.renderNow();
+    renderer.canvas.toBlob(
+      (blob) => downloadBlob(blob, screenshotFileName(worldMap.generator.seed, width, height)),
+      "image/png",
     );
   });
-}
-
-/**
- * Saves an image to disk.
- *
- * @param data      image data URL
- * @param filename  the file name under which the image should be saved
- */
-function downloadImage(data, filename) {
-  const link = document.createElement("a");
-  link.href = data;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
 }

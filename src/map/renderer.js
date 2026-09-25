@@ -18,9 +18,9 @@ export class MapRenderer {
   #canvas;
   #debugSpan;
   #gl;
-  #lastFrameStartTime;
-  #lastFramesTimes = [];
   #camera;
+  #frameRequested = false;
+  #frameCount = 0;
 
   #biomeTexture;
   #maxBiomeId;
@@ -37,7 +37,7 @@ export class MapRenderer {
     this.#debugSpan.classList.add("hodos-debug");
     this.#debugSpan.style.visibility = "hidden";
     div.appendChild(this.#debugSpan);
-    this.#gl = this.#canvas.getContext("webgl", {preserveDrawingBuffer: true});
+    this.#gl = this.#canvas.getContext("webgl");
     if (!this.#gl) {
       this.showError("Hodos a besoin de WebGL pour dessiner la carte, mais votre navigateur ne le supporte pas ou l'a désactivé. " +
           "(Hodos needs WebGL to draw the map, but this browser does not support it or has it disabled.)");
@@ -84,29 +84,42 @@ export class MapRenderer {
   }
 
   /**
-   * Renders a frame, and schedules rendering for the next frame.
-   *
-   * @param timestamp when was the method calledColorize terrain according to first biome colors
+   * Schedules drawing a frame, unless one is already scheduled.
+   * Call it whenever something visible changes; nothing is drawn otherwise.
    */
-  render(timestamp) {
-    let start = new Date().getTime();
+  requestRender() {
+    if (this.#frameRequested || !this.tileTest) return;
+    this.#frameRequested = true;
+    window.requestAnimationFrame(() => {
+      this.#frameRequested = false;
+      this.renderNow();
+    });
+  }
+
+  /**
+   * Draws a frame right away. The frame can be read from the canvas until the current task ends.
+   */
+  renderNow() {
+    if (!this.tileTest) return;
+    const start = performance.now();
     this.#gl.clearColor(0.278, 0.470, 0.525, 1);
     this.#gl.clear(this.#gl.COLOR_BUFFER_BIT | this.#gl.DEPTH_BUFFER_BIT);
     this.tileTest.render(this.#activeWorldShaderProgram);
-    let end = new Date().getTime();
-    let frameTime = end - start;
-    if (this.#lastFrameStartTime) {
-      this.#lastFramesTimes.push(start - this.#lastFrameStartTime);
-      if (this.#lastFramesTimes.length > 100) this.#lastFramesTimes.shift();
-      this.#debugSpan.innerText =
-        "FPS: " + this.fps +
-        " | Frame time: " + frameTime + "ms" +
-        " | Zoom: " + this.camera.zoom +
-        " | PosX: " + this.camera.posX +
-        " | PosY: " + this.camera.posY;
-    }
-    this.#lastFrameStartTime = start;
-    window.requestAnimationFrame(t => this.render(t));
+    this.#frameCount++;
+    const frameTime = performance.now() - start;
+    this.#debugSpan.innerText =
+      `Frames: ${this.#frameCount}` +
+      ` | Frame time: ${frameTime.toFixed(1)}ms` +
+      ` | Zoom: ${this.camera.zoom}` +
+      ` | PosX: ${this.camera.posX}` +
+      ` | PosY: ${this.camera.posY}`;
+  }
+
+  /**
+   * The number of frames drawn so far.
+   */
+  get frameCount() {
+    return this.#frameCount;
   }
 
   #loadShaders() {
@@ -189,10 +202,6 @@ export class MapRenderer {
     }
   }
 
-  get fps() {
-    return Math.round(this.#lastFramesTimes.length  / this.#lastFramesTimes.reduce((sum, val) => sum + val) * 1000);
-  }
-
   get camera() {
     return this.#camera;
   }
@@ -238,6 +247,7 @@ export class Camera {
           0,      0,      0, 0,
           deltaX, deltaY, 0, 1]);
     program.setViewMatrix(matrix);
+    this.#renderer.requestRender();
   }
 
 }
