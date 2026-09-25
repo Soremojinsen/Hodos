@@ -175,7 +175,7 @@ export class MapRenderer {
   }
 
   setRenderingMode(mode) {
-    let newProgram = null;
+    let newProgram;
     let debug = false;
     switch (mode) {
       case "default":

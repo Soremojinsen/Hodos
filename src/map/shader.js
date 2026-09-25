@@ -143,11 +143,11 @@ export class WorldShaderProgram extends ShaderProgram {
         false, 0, 0);
   }
 
-  bindBiomeIdBuffer(buffer) {
+  bindBiomeIdBuffer() {
     // This is a no-op here, but is used in case of the BiomesWorldShaderProgram
   }
 
-  bindDebugSurfaceColorsBuffer(buffer) {
+  bindDebugSurfaceColorsBuffer() {
     // This is a no-op here, but is used in case of the DebugWorldShaderProgram
   }
 
@@ -166,7 +166,7 @@ export class WorldShaderProgram extends ShaderProgram {
    * @param biomeTexture  the gl texture handle
    * @param maxId         the maximum id stored in the texture
    */
-  setBiomesColors(biomeTexture, maxId) {
+  setBiomesColors() {
     // This is a no-op here, but is used in case of the DebugWorldShaderProgram
   }
 
