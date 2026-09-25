@@ -21,6 +21,8 @@ export class MapRenderer {
   #camera;
   #frameRequested = false;
   #frameCount = 0;
+  #frameListeners = [];
+  #renderingMode = "default";
 
   #biomeTexture;
   #maxBiomeId;
@@ -111,6 +113,7 @@ export class MapRenderer {
       ` | Zoom: ${this.camera.zoom}` +
       ` | PosX: ${this.camera.posX}` +
       ` | PosY: ${this.camera.posY}`;
+    for (const listener of this.#frameListeners) listener();
   }
 
   /**
@@ -118,6 +121,20 @@ export class MapRenderer {
    */
   get frameCount() {
     return this.#frameCount;
+  }
+
+  /**
+   * Calls a function after every frame drawn on screen.
+   */
+  addFrameListener(listener) {
+    this.#frameListeners.push(listener);
+  }
+
+  /**
+   * The rendering mode: "default", "biomes" or "debug".
+   */
+  get renderingMode() {
+    return this.#renderingMode;
   }
 
   #loadShaders() {
@@ -201,17 +218,21 @@ export class MapRenderer {
     switch (mode) {
       case "default":
         newProgram = this.#defaultWorldShaderProgram;
+        this.#renderingMode = mode;
         break;
       case "debug":
         newProgram = this.#debugWorldShaderProgram;
         debug = true;
+        this.#renderingMode = mode;
         break;
       case "biomes":
         newProgram = this.#biomeWorldShaderProgram;
+        this.#renderingMode = mode;
         break;
       default:
         console.warn(`Unknown rendering mode "${mode}", falling back to default`);
         newProgram = this.#defaultWorldShaderProgram;
+        this.#renderingMode = "default";
     }
     if (debug) {
       this.#debugSpan.style.visibility = "visible";
