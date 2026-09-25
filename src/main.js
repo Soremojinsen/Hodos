@@ -5,6 +5,7 @@ import { GridOverlay } from "./overlay/overlay.js";
 import { parseState } from "./state/url-state.js";
 import { setupControls } from "./ui/controls.js";
 import { setupGridControls } from "./ui/grid-controls.js";
+import { setupHoverInfo } from "./ui/hover.js";
 import { initLanguage, setupLanguageSwitch } from "./ui/language.js";
 import { setupModals } from "./ui/modals.js";
 import { setupNavigation } from "./ui/navigation.js";
@@ -42,6 +43,7 @@ setupLanguageSwitch();
 setupNavigation(currentState, urlSync);
 setupViewButtons(worldMap);
 setupGridControls(overlay, initialState.grid);
+setupHoverInfo(worldMap);
 // Browsers restore form fields on reload: the link decides the mode
 document.querySelector(`#mode-form input[value="${initialState.mode}"]`).checked = true;
 

@@ -1,6 +1,7 @@
 import { MAX_ZOOM, MIN_ZOOM, TILE_PIXEL_SIZE, WORLD_SIZE } from "../constants.js";
 import { MapGenerator } from "../generation/generator.js";
 import { MapRenderer } from "./renderer.js";
+import { worldToScreen } from "./view.js";
 
 export class WorldMap {
   #generator;
@@ -24,6 +25,13 @@ export class WorldMap {
 
   startRender() {
     this.#renderer.requestRender();
+  }
+
+  /**
+   * Where a world point is on the map canvas, in pixels.
+   */
+  toScreen(x, y) {
+    return worldToScreen(this.camera.view, x, y);
   }
 
   get camera() {
