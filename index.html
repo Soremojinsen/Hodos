@@ -126,6 +126,11 @@
           data-i18n-aria-label="notice.link"
         />
       </div>
+      <div id="hover-info" class="hover-info" aria-live="polite" hidden>
+        <p><span data-i18n="hover.biome">Biome :</span> <span id="hover-biome"></span></p>
+        <p><span data-i18n="hover.relief">Relief :</span> <span id="hover-relief"></span></p>
+        <p id="hover-land-line"><span id="hover-land"></span></p>
+      </div>
     </div>
     <dialog class="modal-box" id="settings-dialog" aria-labelledby="settings-title">
       <div class="inner">
@@ -186,6 +191,12 @@
                   <input type="range" id="grid-opacity" min="10" max="100" step="1" value="40" />
                 </div>
               </form>
+            </div>
+            <div class="modal-section">
+              <div class="setting-row">
+                <label for="hover-toggle" data-i18n="settings.hover">Infos au survol</label>
+                <input type="checkbox" id="hover-toggle" />
+              </div>
             </div>
             <div class="modal-section">
               <div class="setting-row">

@@ -519,3 +519,21 @@ body {
     }
   }
 }
+
+.hover-info {
+  position: fixed;
+  left: 1rem;
+  bottom: 6rem;
+  z-index: 1;
+  padding: 0.5rem 1rem;
+  font-family: "IM Fell Double Pica", serif;
+  font-size: 1.1rem;
+  background: url(../assets/img/popin-bg.jpg);
+  border: 1px solid #040403;
+  pointer-events: none;
+
+  &[hidden],
+  [hidden] {
+    display: none;
+  }
+}

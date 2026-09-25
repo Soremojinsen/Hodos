@@ -1,4 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
+import { BIOME_DEFINITIONS } from "../../src/generation/biomes.js";
 import en from "../../src/i18n/en.js";
 import fr from "../../src/i18n/fr.js";
 import {
@@ -67,4 +68,11 @@ test("a key missing everywhere is shown as is", () => {
 
 test("an unknown language is refused", () => {
   expect(() => setLanguage("de")).toThrow();
+});
+
+test("every biome has a name in both languages", () => {
+  for (const { name } of BIOME_DEFINITIONS) {
+    expect(fr[`biome.${name}`]).toBeTruthy();
+    expect(en[`biome.${name}`]).toBeTruthy();
+  }
 });

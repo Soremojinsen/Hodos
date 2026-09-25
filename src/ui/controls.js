@@ -1,4 +1,3 @@
-import { TILE_PIXEL_SIZE, WORLD_SIZE } from "../constants.js";
 import { downloadBlob, screenshotFileName } from "./screenshot.js";
 
 /**
@@ -37,7 +36,7 @@ export function setupControls(worldMap) {
     const last = activePointers.get(e.pointerId);
     if (!last) return;
     if (activePointers.size === 1) {
-      const sizeFactor = WORLD_SIZE / (TILE_PIXEL_SIZE * Math.pow(2, worldMap.camera.zoom));
+      const sizeFactor = 1 / worldMap.camera.view.pixelsPerUnit;
       const deltaX = last.x - e.clientX;
       const deltaY = e.clientY - last.y;
       worldMap.controller.move(deltaX * sizeFactor, deltaY * sizeFactor);
