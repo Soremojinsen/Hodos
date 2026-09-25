@@ -16,10 +16,14 @@ test("the world renders offscreen, the same in chunks, without moving the camera
     const view = exportView("world", 1024, map.camera.view);
     const renderer = map.renderer;
     // Small chunks, to exercise the seams
-    const chunked = { maxChunkSize: 300, renderToPixels: (v) => renderer.renderToPixels(v) };
+    const chunked = {
+      maxChunkSize: 300,
+      ensureTiles: (v, level) => renderer.ensureTiles(v, level),
+      renderToPixels: (v, level) => renderer.renderToPixels(v, level),
+    };
     const pixelsOf = (canvas) => canvas.getContext("2d").getImageData(0, 0, 1024, 1024).data;
-    const whole = pixelsOf(renderImage(renderer, view, null));
-    const pieces = pixelsOf(renderImage(chunked, view, null));
+    const whole = pixelsOf(await renderImage(renderer, view, null));
+    const pieces = pixelsOf(await renderImage(chunked, view, null));
     let different = 0;
     for (let i = 0; i < whole.length; i += 4) {
       const delta =
@@ -56,7 +60,7 @@ test("a failing render leaves the map working", async ({ page }) => {
     };
     let threw = false;
     try {
-      renderImage(map.renderer, exportView("world", 512, map.camera.view), null);
+      await renderImage(map.renderer, exportView("world", 512, map.camera.view), null);
     } catch {
       threw = true;
     } finally {
@@ -77,4 +81,30 @@ test("a failing render leaves the map working", async ({ page }) => {
   await expect
     .poll(() => page.evaluate(() => window.hodos.renderer.frameCount))
     .toBeGreaterThan(result.frames);
+});
+
+test("an export draws every chunk from its own level's tiles, loaded first", async ({ page }) => {
+  await openDevMap(page);
+  const drawnPerChunk = await page.evaluate(async () => {
+    const { exportView, renderImage } = await import("/src/export/export.js");
+    const renderer = window.hodos.renderer;
+    const drawn = [];
+    const spy = {
+      maxChunkSize: 512,
+      ensureTiles: (v, level) => renderer.ensureTiles(v, level),
+      renderToPixels: (v, level) => {
+        const pixels = renderer.renderToPixels(v, level);
+        drawn.push([...renderer.drawnTiles]);
+        return pixels;
+      },
+    };
+    // 1024 px for the whole world is level 2: 16 tiles, 4 per 512 px chunk
+    await renderImage(spy, exportView("world", 1024, window.hodos.camera.view), null);
+    return drawn;
+  });
+  expect(drawnPerChunk).toHaveLength(4);
+  for (const keys of drawnPerChunk) {
+    expect(keys).toHaveLength(4);
+    for (const key of keys) expect(key.startsWith("2/")).toBe(true);
+  }
 });

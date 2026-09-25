@@ -117,7 +117,7 @@ export function setupExportDialog(worldMap, overlay) {
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     run(async () => {
-      const canvas = renderSelection(area(), Number(sizeSelect.value));
+      const canvas = await renderSelection(area(), Number(sizeSelect.value));
       const fileName = screenshotFileName(worldMap.seed, canvas.width, canvas.height);
       downloadBlob(await canvasToBlob(canvas), fileName);
     });
@@ -131,7 +131,10 @@ export function setupExportDialog(worldMap, overlay) {
     event.preventDefault();
     run(async () => {
       const selectedArea = area();
-      const canvas = renderSelection(selectedArea, printSize(selectedArea, worldMap.camera.view));
+      const canvas = await renderSelection(
+        selectedArea,
+        printSize(selectedArea, worldMap.camera.view),
+      );
       const pages = Number(document.getElementById("print-pages").value);
       await printImage(canvas, pages, (page) =>
         t("print.caption", { seed: worldMap.seed, ...page }),

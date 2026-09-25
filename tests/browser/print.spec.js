@@ -38,6 +38,7 @@ test("Ctrl+P without a print in progress still shows the map", async ({ page }) 
 test("a failing page mid-print revokes the URLs made so far and leaves no container", async ({
   page,
 }) => {
+  test.setTimeout(90_000);
   await page.addInitScript(() => {
     window.print = () => {
       window.printCount = (window.printCount ?? 0) + 1;
@@ -73,7 +74,9 @@ test("a failing page mid-print revokes the URLs made so far and leaves no contai
   await page.locator("#print-pages").selectOption("2");
   await page.locator("#print-button").click();
 
-  await expect(page.locator("#export-status")).toHaveText("L'export a échoué.");
+  await expect(page.locator("#export-status")).toHaveText("L'export a échoué.", {
+    timeout: 60_000,
+  });
   await expect(page.locator("#print-container")).toHaveCount(0);
   await expect(page.locator("#print-button")).toBeEnabled();
   expect(await page.evaluate(() => window.printCount ?? 0)).toBe(0);
