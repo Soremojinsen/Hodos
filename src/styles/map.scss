@@ -361,9 +361,28 @@ body {
             }
           }
 
-          input[type="submit"]:hover {
-            background-color: rgba(0, 0, 0, 0.2);
+          select,
+          button[type="submit"] {
+            background: transparent;
+            border: 1px #040403 solid;
+            padding: 2px 5px;
+            font-family: "IM Fell Double Pica", serif;
+            font-size: 1rem;
+            color: inherit;
+          }
+
+          button[type="submit"] {
             cursor: pointer;
+            transition: background-color 0.2s ease;
+
+            &:hover {
+              background-color: rgba(0, 0, 0, 0.2);
+            }
+
+            &:disabled {
+              opacity: 0.5;
+              cursor: wait;
+            }
           }
 
           form {
