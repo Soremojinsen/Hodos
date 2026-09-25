@@ -542,3 +542,52 @@ body {
   min-height: 1.2em;
   text-align: center;
 }
+
+#print-container {
+  display: none;
+}
+
+@page {
+  size: A4;
+  margin: 10mm;
+}
+
+@media print {
+  html,
+  body {
+    overflow: visible;
+  }
+
+  body > :not(#print-container) {
+    display: none !important;
+  }
+
+  #print-container {
+    display: block;
+  }
+
+  .print-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 270mm;
+    break-after: page;
+
+    &:last-child {
+      break-after: auto;
+    }
+
+    img {
+      max-width: 100%;
+      max-height: 255mm;
+      object-fit: contain;
+    }
+
+    p {
+      margin-top: 3mm;
+      font-family: "IM Fell Double Pica", serif;
+      font-size: 9pt;
+    }
+  }
+}

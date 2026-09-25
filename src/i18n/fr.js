@@ -69,6 +69,12 @@ export default {
   "export.download": "Télécharger (PNG)",
   "export.preparing": "Préparation…",
   "export.failed": "L'export a échoué.",
+  "print.pages": "Imprimer :",
+  "print.pages1": "1 page A4",
+  "print.pages2": "2 × 2 pages A4",
+  "print.pages3": "3 × 3 pages A4",
+  "print.button": "Imprimer…",
+  "print.caption": "Hodos · seed {seed} · page {page}/{pages} (ligne {row}, colonne {col})",
   "dialog.back": "Retour",
   "project.title": "Projet",
   "project.p1":
