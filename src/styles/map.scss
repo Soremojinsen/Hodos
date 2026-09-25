@@ -15,17 +15,18 @@
   box-sizing: border-box;
 }
 
+/* Same color as the renderer's clear color: shown before the map is drawn (so a new map does
+   not flash white while the page loads) and when WebGL is unavailable */
 html {
   overflow: hidden;
+  background-color: rgb(71, 120, 134);
 }
 
 body {
   overflow: hidden;
 }
 
-/* Same color as the renderer's clear color, visible when WebGL is unavailable */
 .hodos-map {
-  background-color: rgb(71, 120, 134);
   /* Gestures are handled by Hodos, not by the browser */
   touch-action: none;
 }
@@ -556,6 +557,8 @@ body {
   html,
   body {
     overflow: visible;
+    // The ocean color behind the page must not frame the printed pages
+    background: none;
   }
 
   // Scoped to when a print actually built #print-container: printing (e.g. Ctrl+P) with no
