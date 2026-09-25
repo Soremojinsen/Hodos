@@ -28,5 +28,8 @@ export function startUrlSync(renderer, currentState) {
     clearTimeout(timer);
     timer = setTimeout(syncNow, DELAY);
   });
+  // Catches any pending debounce (or a caller that forgot to flush) when the page is
+  // navigated away from or closed, so the last pan is never lost.
+  window.addEventListener("pagehide", syncNow);
   return { syncNow };
 }

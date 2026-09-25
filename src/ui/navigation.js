@@ -7,8 +7,12 @@ import { showNotice } from "./notice.js";
 /**
  * Opens the map of a seed, with the current mode and grid and the default view.
  * This is a navigation: the browser's Back button returns to the previous map.
+ *
+ * @param urlSync  {{syncNow: function}} see url-sync.js: flushed first, so the address bar (and
+ *                 so the page Back returns to) carries the latest pan even if it just happened.
  */
-export function navigateToSeed(seed, currentState) {
+export function navigateToSeed(seed, currentState, urlSync) {
+  urlSync.syncNow();
   const search = serializeState({ ...currentState(), ...DEFAULT_VIEW, seed });
   window.location.assign(`${window.location.pathname}${search}`);
 }
@@ -21,7 +25,7 @@ export function navigateToSeed(seed, currentState) {
  */
 export function setupNavigation(currentState, urlSync) {
   document.getElementById("new-map-button").addEventListener("click", () => {
-    navigateToSeed(getRandomSeed(), currentState);
+    navigateToSeed(getRandomSeed(), currentState, urlSync);
   });
 
   const form = document.getElementById("seed-form");
@@ -37,7 +41,7 @@ export function setupNavigation(currentState, urlSync) {
       input.reportValidity();
       return;
     }
-    navigateToSeed(seed === "" ? getRandomSeed() : seed, currentState);
+    navigateToSeed(seed === "" ? getRandomSeed() : seed, currentState, urlSync);
   });
 
   document.getElementById("copy-link-button").addEventListener("click", async () => {
