@@ -85,8 +85,10 @@ test("a failing render leaves the map working", async ({ page }) => {
 
 test("an export draws every chunk from its own level's tiles, loaded first", async ({ page }) => {
   await openDevMap(page);
-  const drawnPerChunk = await page.evaluate(async () => {
-    const { exportView, renderImage } = await import("/src/export/export.js");
+  const result = await page.evaluate(async () => {
+    const { exportView, renderImage, chunkRects } = await import("/src/export/export.js");
+    const { tilesInView, levelForView, tileKey } = await import("/src/map/tile-grid.js");
+    const { subView } = await import("/src/map/view.js");
     const renderer = window.hodos.renderer;
     const drawn = [];
     const spy = {
@@ -98,13 +100,49 @@ test("an export draws every chunk from its own level's tiles, loaded first", asy
         return pixels;
       },
     };
-    // 1024 px for the whole world is level 2: 16 tiles, 4 per 512 px chunk
-    await renderImage(spy, exportView("world", 1024, window.hodos.camera.view), null);
-    return drawn;
+    // 1024 px for the whole world is level 2: 16 tiles, 4 of its own per 512 px chunk (padding
+    // for neighbour tiles' overhanging cells may draw a few more)
+    const view = exportView("world", 1024, window.hodos.camera.view);
+    const level = levelForView(view);
+    const ownTilesPerChunk = chunkRects(view.width, view.height, 512).map((rect) =>
+      tilesInView(subView(view, rect), level).map(({ z, x, y }) => tileKey(z, x, y)),
+    );
+    await renderImage(spy, view, null);
+    return { drawn, ownTilesPerChunk };
   });
-  expect(drawnPerChunk).toHaveLength(4);
-  for (const keys of drawnPerChunk) {
-    expect(keys).toHaveLength(4);
+  expect(result.drawn).toHaveLength(4);
+  result.drawn.forEach((keys, i) => {
     for (const key of keys) expect(key.startsWith("2/")).toBe(true);
-  }
+    for (const ownKey of result.ownTilesPerChunk[i]) expect(keys).toContain(ownKey);
+  });
+});
+
+test("a 1024px world export renders identically whole and in 256px chunks landing on tile edges", async ({
+  page,
+}) => {
+  await openDevMap(page);
+  const result = await page.evaluate(async () => {
+    const { exportView, renderImage } = await import("/src/export/export.js");
+    const map = window.hodos;
+    const view = exportView("world", 1024, map.camera.view);
+    const renderer = map.renderer;
+    // 256 px chunks: at level 2 (1024 px world / 4 tiles per side) tile edges land exactly on
+    // chunk edges, so a tile whose neighbours' overhanging cells are not drawn there shows a
+    // clear-colour notch, rather than the sub-tile antialiasing noise a misaligned chunk size
+    // (like the 300 px chunks above) would blur it into.
+    const chunked = {
+      maxChunkSize: 256,
+      ensureTiles: (v, level) => renderer.ensureTiles(v, level),
+      renderToPixels: (v, level) => renderer.renderToPixels(v, level),
+    };
+    const pixelsOf = (canvas) => canvas.getContext("2d").getImageData(0, 0, 1024, 1024).data;
+    const whole = pixelsOf(await renderImage(renderer, view, null));
+    const pieces = pixelsOf(await renderImage(chunked, view, null));
+    let different = 0;
+    for (let i = 0; i < whole.length; i++) {
+      if (whole[i] !== pieces[i]) different++;
+    }
+    return { different };
+  });
+  expect(result.different).toBe(0);
 });

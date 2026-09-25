@@ -3,7 +3,7 @@ import { t } from "../i18n/i18n.js";
 import { flipRows } from "./pixels.js";
 import { BiomesWorldShaderProgram, DebugWorldShaderProgram, WorldShaderProgram } from "./shader.js";
 import { Tile } from "./mesh.js";
-import { levelForView, levelForZoom, tileKey, tilesInView } from "./tile-grid.js";
+import { levelForView, levelForZoom, paddedView, tileKey, tilesInView } from "./tile-grid.js";
 import { TileManager } from "./tiles.js";
 import { cameraView, viewMatrix } from "./view.js";
 import biomesFragment from "./shaders/world_biomes.frag?raw";
@@ -136,12 +136,13 @@ export class MapRenderer {
 
   /**
    * Draws the tiles of a level that a view shows, into the bound framebuffer. Missing tiles
-   * show their nearest loaded ancestor.
+   * show their nearest loaded ancestor. The view is padded (see tile-grid.js paddedView) so
+   * neighbour tiles whose cells reach past the view's edge are drawn too.
    */
   #drawScene(view, level) {
     this.#gl.clearColor(0.278, 0.47, 0.525, 1);
     this.#gl.clear(this.#gl.COLOR_BUFFER_BIT | this.#gl.DEPTH_BUFFER_BIT);
-    const tiles = this.#tiles.drawList(tilesInView(view, level));
+    const tiles = this.#tiles.drawList(tilesInView(paddedView(view, level), level));
     for (const tile of tiles) tile.render(this.#activeWorldShaderProgram);
     this.#drawnTiles = tiles.map((tile) => tileKey(tile.z, tile.x, tile.y));
   }
@@ -217,11 +218,12 @@ export class MapRenderer {
 
   /**
    * Waits until every tile a view needs at a level is loaded, and keeps them until released.
+   * Includes the padded neighbour tiles #drawScene also draws for that view, see paddedView.
    *
    * @returns {Promise<function()>} the release function
    */
   ensureTiles(view, level) {
-    return this.#tiles.ensure(tilesInView(view, level));
+    return this.#tiles.ensure(tilesInView(paddedView(view, level), level));
   }
 
   /**
