@@ -35,10 +35,6 @@ export class GridOverlay {
     this.#worldMap.renderer.requestRender();
   }
 
-  get canvas() {
-    return this.#canvas;
-  }
-
   /**
    * Draws the grid for the current camera, at the size of the map canvas.
    */
