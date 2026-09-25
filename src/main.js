@@ -1,8 +1,10 @@
 import "./styles/map.scss";
 import { getRandomSeed } from "./generation/util.js";
 import { WorldMap } from "./map/map.js";
-import { DEFAULT_GRID, parseState } from "./state/url-state.js";
+import { GridOverlay } from "./overlay/overlay.js";
+import { parseState } from "./state/url-state.js";
 import { setupControls } from "./ui/controls.js";
+import { setupGridControls } from "./ui/grid-controls.js";
 import { initLanguage, setupLanguageSwitch } from "./ui/language.js";
 import { setupModals } from "./ui/modals.js";
 import { setupNavigation } from "./ui/navigation.js";
@@ -16,6 +18,7 @@ const initialState = parseState(window.location.search);
 const worldMap = new WorldMap(document.getElementById("map"), initialState.seed ?? getRandomSeed());
 // Debug handle, for the browser console and the browser tests
 window.hodos = worldMap;
+const overlay = new GridOverlay(document.getElementById("map"), worldMap);
 
 /**
  * The state a link to the current map carries, see state/url-state.js.
@@ -26,7 +29,7 @@ const currentState = () => ({
   y: worldMap.camera.posY,
   z: worldMap.camera.zoom,
   mode: worldMap.renderer.renderingMode,
-  grid: DEFAULT_GRID,
+  grid: overlay.settings,
 });
 const urlSync = startUrlSync(worldMap.renderer, currentState);
 
@@ -38,6 +41,7 @@ setupModals();
 setupLanguageSwitch();
 setupNavigation(currentState, urlSync);
 setupViewButtons(worldMap);
+setupGridControls(overlay, initialState.grid);
 // Browsers restore form fields on reload: the link decides the mode
 document.querySelector(`#mode-form input[value="${initialState.mode}"]`).checked = true;
 

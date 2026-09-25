@@ -30,9 +30,18 @@ body {
   touch-action: none;
 }
 
-.hodos-canvas {
+.hodos-canvas,
+.hodos-overlay {
   position: absolute;
+  top: 0;
+  left: 0;
 }
+
+// The grid is drawn over the map; gestures go through it
+.hodos-overlay {
+  pointer-events: none;
+}
+
 .hodos-debug {
   position: absolute;
 }
@@ -399,6 +408,30 @@ body {
             flex-direction: row;
             justify-content: space-around;
             align-items: flex-start;
+          }
+
+          .options-form {
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem 1rem;
+
+            fieldset {
+              border: none;
+              display: flex;
+              flex-wrap: wrap;
+              align-items: center;
+              gap: 0.5rem;
+            }
+
+            legend {
+              float: left;
+              margin-right: 0.5rem;
+              font-size: 1.2rem;
+            }
+
+            input[type="range"] {
+              vertical-align: middle;
+            }
           }
         }
       }
