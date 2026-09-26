@@ -115,9 +115,8 @@ export class MapController {
   }
 
   move(deltaX, deltaY) {
-    this.#map.camera.posX += deltaX;
-    this.#map.camera.posY += deltaY;
-    this.#map.camera.updateGl();
+    const camera = this.#map.camera;
+    this.setView(camera.posX + deltaX, camera.posY + deltaY, camera.zoom);
   }
 
   zoom(deltaZoom) {

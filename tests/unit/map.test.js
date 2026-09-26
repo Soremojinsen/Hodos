@@ -11,3 +11,14 @@ test("zoom is clamped to [0, 7] instead of ignored", () => {
   controller.zoom(0.4);
   expect(camera.zoom).toBe(7);
 });
+
+test("moving keeps the camera within the world, as setView and links do", () => {
+  const camera = { posX: 4900, posY: -4900, zoom: 3, updateGl: () => {} };
+  const controller = new MapController({ camera });
+  controller.move(500, -500);
+  expect(camera.posX).toBe(5000);
+  expect(camera.posY).toBe(-5000);
+  controller.move(-20000, 20000);
+  expect(camera.posX).toBe(-5000);
+  expect(camera.posY).toBe(5000);
+});
