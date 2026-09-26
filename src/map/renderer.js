@@ -190,16 +190,18 @@ export class MapRenderer {
   }
 
   /**
-   * Draws a view offscreen, in the current rendering mode, and reads its pixels.
+   * Draws a view offscreen and reads its pixels.
    * The map on screen and the camera are left as they were, even if this throws.
    *
    * @param view see view.js; width and height at most maxChunkSize
    * @param level the tile level to draw; its tiles should be ready, see ensureTiles
+   * @param mode the rendering mode to draw in, see setRenderingMode; the screen's by default
    * @returns {Uint8ClampedArray} RGBA, top row first, opaque
    */
-  renderToPixels(view, level = levelForView(view)) {
+  renderToPixels(view, level = levelForView(view), mode = this.#renderingMode) {
     const gl = this.#gl;
     const { width, height } = view;
+    const screenProgram = this.#activeWorldShaderProgram;
     const texture = gl.createTexture();
     const framebuffer = gl.createFramebuffer();
     try {
@@ -220,6 +222,7 @@ export class MapRenderer {
         throw new Error("The offscreen framebuffer is incomplete");
       }
       gl.viewport(0, 0, width, height);
+      this.#useProgram(this.#programFor(mode));
       this.#activeWorldShaderProgram.setViewMatrix(viewMatrix(view));
       this.#drawScene(view, level);
       const pixels = new Uint8Array(width * height * 4);
@@ -231,6 +234,7 @@ export class MapRenderer {
       gl.deleteTexture(texture);
       gl.activeTexture(gl.TEXTURE0);
       gl.viewport(0, 0, this.#canvas.width, this.#canvas.height);
+      this.#useProgram(screenProgram);
       // Puts the camera's matrix back and redraws the screen
       this.camera.updateGl();
     }
@@ -359,36 +363,40 @@ export class MapRenderer {
     this.#activeWorldShaderProgram.setBiomesColors(this.#biomeTexture, this.#maxBiomeId);
   }
 
-  #changeShaderProgram(newShaders) {
+  // Makes a program the one drawing, with its attributes and the biome colors
+  #useProgram(program) {
+    if (program === this.#activeWorldShaderProgram) return;
     this.#activeWorldShaderProgram.stopUsing();
-    newShaders.use();
-    this.#activeWorldShaderProgram = newShaders;
-    this.camera.updateGl();
+    program.use();
+    this.#activeWorldShaderProgram = program;
     this.#setBiomes();
   }
 
-  setRenderingMode(mode) {
-    let newProgram;
-    let debug = false;
+  #changeShaderProgram(newShaders) {
+    this.#useProgram(newShaders);
+    this.camera.updateGl();
+  }
+
+  // The program of a known rendering mode
+  #programFor(mode) {
     switch (mode) {
-      case "default":
-        newProgram = this.#defaultWorldShaderProgram;
-        this.#renderingMode = mode;
-        break;
-      case "debug":
-        newProgram = this.#debugWorldShaderProgram;
-        debug = true;
-        this.#renderingMode = mode;
-        break;
       case "biomes":
-        newProgram = this.#biomeWorldShaderProgram;
-        this.#renderingMode = mode;
-        break;
+        return this.#biomeWorldShaderProgram;
+      case "debug":
+        return this.#debugWorldShaderProgram;
       default:
-        console.warn(`Unknown rendering mode "${mode}", falling back to default`);
-        newProgram = this.#defaultWorldShaderProgram;
-        this.#renderingMode = "default";
+        return this.#defaultWorldShaderProgram;
     }
+  }
+
+  setRenderingMode(mode) {
+    if (!["default", "biomes", "debug"].includes(mode)) {
+      console.warn(`Unknown rendering mode "${mode}", falling back to default`);
+      mode = "default";
+    }
+    this.#renderingMode = mode;
+    const newProgram = this.#programFor(mode);
+    const debug = mode === "debug";
     if (debug) {
       this.#debugSpan.style.visibility = "visible";
     } else {

@@ -177,3 +177,43 @@ test("reopening the dialog during an export keeps it busy, so a second one canno
   await expect(page.locator("#export-status")).toHaveText("");
   expect(downloads).toEqual(["hodos-12345-1024x1024.png"]);
 });
+
+test("an export keeps the rendering mode it started in, even if the mode changes meanwhile", async ({
+  page,
+}) => {
+  await openMap(page);
+  // Four chunks for a 1024px export, held before the second one until released
+  await page.evaluate(() => {
+    const renderer = window.hodos.renderer;
+    Object.defineProperty(renderer, "maxChunkSize", { value: 512 });
+    const ensureTiles = renderer.ensureTiles.bind(renderer);
+    let calls = 0;
+    renderer.ensureTiles = async (...args) => {
+      if (window.holdExport && calls++ === 1) {
+        await new Promise((resolve) => (window.releaseExport = resolve));
+      }
+      return ensureTiles(...args);
+    };
+  });
+  await openExport(page);
+  await page.locator("#export-size").selectOption("1024");
+  const parchment = (await download(page)).png;
+
+  await page.evaluate(() => (window.holdExport = true));
+  const [file] = await Promise.all([
+    page.waitForEvent("download"),
+    (async () => {
+      await page.locator("#export-download").click();
+      await page.waitForFunction(() => window.releaseExport);
+      // Biomes is chosen after the first chunk is drawn
+      await page.keyboard.press("Escape");
+      await page.getByRole("button", { name: "Paramètres" }).click();
+      await page.locator("#biomes-toggle").check();
+      await page.evaluate(() => window.releaseExport());
+    })(),
+  ]);
+  const png = await readFile(await file.path());
+  expect(await countDifferentPixels(page, parchment, png)).toBe(0);
+  // The screen shows the mode chosen
+  expect(await page.evaluate(() => window.hodos.renderer.renderingMode)).toBe("biomes");
+});

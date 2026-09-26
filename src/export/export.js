@@ -82,10 +82,11 @@ export const gridLineWidth = (width, height) =>
 /**
  * Draws a view of the map offscreen, chunk by chunk, then the grid over it. Each chunk waits
  * for the tiles of the view's level, so an export is as detailed as its scale, whatever the
- * screen shows.
+ * screen shows. Every chunk is drawn in the rendering mode of the start: the mode can be
+ * changed while the chunks wait.
  *
- * @param renderer  {MapRenderer} or anything with maxChunkSize, ensureTiles(view, level) and
- *                  renderToPixels(view, level)
+ * @param renderer  {MapRenderer} or anything with maxChunkSize, renderingMode,
+ *                  ensureTiles(view, level) and renderToPixels(view, level, mode)
  * @param view      see map/view.js
  * @param grid      {Object|null} the grid settings, or null for no grid
  * @returns {Promise<HTMLCanvasElement>}
@@ -96,11 +97,12 @@ export async function renderImage(renderer, view, grid) {
   canvas.height = view.height;
   const context = canvas.getContext("2d");
   const level = levelForView(view);
+  const mode = renderer.renderingMode;
   for (const rect of chunkRects(view.width, view.height, renderer.maxChunkSize)) {
     const chunk = subView(view, rect);
     const release = await renderer.ensureTiles(chunk, level);
     try {
-      const pixels = renderer.renderToPixels(chunk, level);
+      const pixels = renderer.renderToPixels(chunk, level, mode);
       context.putImageData(new ImageData(pixels, rect.width, rect.height), rect.x, rect.y);
     } finally {
       release();
