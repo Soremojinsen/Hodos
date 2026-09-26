@@ -19,14 +19,15 @@ export function setupHoverInfo(worldMap) {
   const landLine = document.getElementById("hover-land-line");
   const land = document.getElementById("hover-land");
 
-  let pending = null;
+  // Where the mouse is over the map, in client pixels, or null once it has left
+  let pointer = null;
   let frame = null;
   // Drops a lookup queued for the next frame, so it cannot show the panel again after
   // the pointer has left the map or the setting has been turned off.
   const cancelPending = () => {
     if (frame !== null) cancelAnimationFrame(frame);
     frame = null;
-    pending = null;
+    pointer = null;
   };
 
   toggle.checked = readPreference("hover") === "on";
@@ -69,14 +70,17 @@ export function setupHoverInfo(worldMap) {
 
   mapElement.addEventListener("pointermove", (event) => {
     if (event.pointerType === "touch" || !active()) return;
-    pending = event;
+    pointer = { x: event.clientX, y: event.clientY };
     // At most one lookup per frame
     frame ??= requestAnimationFrame(() => {
       frame = null;
       // The pointer may have left the map or the setting been turned off since this was queued
-      if (active()) show(pending.clientX, pending.clientY);
-      pending = null;
+      if (active() && pointer) show(pointer.x, pointer.y);
     });
+  });
+  // The map can move under a still mouse (wheel, keys, buttons): every such change draws a frame
+  worldMap.renderer.addFrameListener(() => {
+    if (active() && pointer) show(pointer.x, pointer.y);
   });
   mapElement.addEventListener("pointerleave", (event) => {
     // A touch tap fires pointerup then pointerout/pointerleave right after: that must not

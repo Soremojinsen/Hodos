@@ -79,6 +79,73 @@ test("hover info hides if the pointer leaves before its queued lookup runs", asy
   await expect(page.locator("#hover-info")).toBeHidden();
 });
 
+/**
+ * The translation key of the biome under a page position, at the current camera.
+ */
+const biomeKeyAt = (page, x, y) =>
+  page.evaluate(
+    ([x, y]) => {
+      const map = window.hodos;
+      const rect = map.renderer.canvas.getBoundingClientRect();
+      const view = map.camera.view;
+      const info = map.inspect(
+        view.centerX + (x - rect.left - view.width / 2) / view.pixelsPerUnit,
+        view.centerY + (view.height / 2 - (y - rect.top)) / view.pixelsPerUnit,
+      );
+      return info && `biome.${info.biome}`;
+    },
+    [x, y],
+  );
+
+test("the panel follows the map when it zooms under a still pointer", async ({ page }) => {
+  await openMap(page);
+  await enableHoverInfo(page);
+  // A point whose biome at zoom 1 differs from the one three zoom steps in
+  const point = await page.evaluate(() => {
+    const map = window.hodos;
+    const biomeAt = (px, py, zoom) => {
+      map.controller.setView(0, 0, zoom);
+      const view = map.camera.view;
+      return map.inspect(
+        view.centerX + (px - view.width / 2) / view.pixelsPerUnit,
+        view.centerY + (view.height / 2 - py) / view.pixelsPerUnit,
+      )?.biome;
+    };
+    for (let px = 300; px < 700; px += 10) {
+      for (let py = 150; py < 550; py += 10) {
+        const before = biomeAt(px, py, 1);
+        const after = biomeAt(px, py, 4);
+        if (before && after && before !== after) {
+          map.controller.setView(0, 0, 1);
+          const rect = map.renderer.canvas.getBoundingClientRect();
+          return { x: rect.left + px, y: rect.top + py };
+        }
+      }
+    }
+    return null;
+  });
+  expect(point).not.toBeNull();
+  await page.mouse.move(point.x, point.y);
+  await expect(page.locator("#hover-info")).toBeVisible();
+  const before = await page.locator("#hover-biome").getAttribute("data-i18n");
+
+  for (let i = 0; i < 3; i++) await page.keyboard.press("+");
+  const expected = await biomeKeyAt(page, point.x, point.y);
+  expect(expected).not.toBe(before);
+  await expect(page.locator("#hover-biome")).toHaveAttribute("data-i18n", expected);
+});
+
+test("the panel shows up when a zoom brings the world under a still pointer", async ({ page }) => {
+  await openMap(page);
+  await enableHoverInfo(page);
+  // At zoom 1 the world is 512 px wide in the middle of the screen: x = 200 is outside
+  await page.mouse.move(200, 350);
+  await page.waitForTimeout(100);
+  await expect(page.locator("#hover-info")).toBeHidden();
+  for (let i = 0; i < 3; i++) await page.keyboard.press("+");
+  await expect(page.locator("#hover-info")).toBeVisible();
+});
+
 test("the hover info choice is remembered", async ({ page }) => {
   await openMap(page);
   await enableHoverInfo(page);
