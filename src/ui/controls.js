@@ -1,4 +1,15 @@
 /**
+ * How many pixels of wheel scroll zoom in by one level: a 100 px mouse notch zooms by 0.4.
+ */
+const WHEEL_PIXELS_PER_ZOOM = 250;
+
+/**
+ * Pixels per wheel delta unit, by deltaMode: pixels, lines (Firefox: 3 per notch, so a notch
+ * zooms as in Chrome), pages (one zoom level).
+ */
+const WHEEL_MODE_PIXELS = [1, 100 / 3, WHEEL_PIXELS_PER_ZOOM];
+
+/**
  * Connects the zoom buttons, pointer gestures, mouse wheel and rendering mode form to the map.
  *
  * @param worldMap {WorldMap}
@@ -64,7 +75,9 @@ export function setupControls(worldMap) {
     e.preventDefault();
     // A horizontal scroll has no vertical delta
     if (e.deltaY === 0) return;
-    worldMap.controller.zoom(e.deltaY < 0 ? 0.4 : -0.4);
+    // By how far it scrolls: a trackpad sends many small steps where a mouse sends one notch
+    const pixels = e.deltaY * (WHEEL_MODE_PIXELS[e.deltaMode] ?? 1);
+    worldMap.controller.zoom(-pixels / WHEEL_PIXELS_PER_ZOOM);
   });
 
   for (const input of document.querySelectorAll("#mode-form input")) {

@@ -51,6 +51,42 @@ test("the mouse wheel zooms, a horizontal scroll doesn't", async ({ page }) => {
   expect((await camera(page)).zoom).toBeGreaterThan(before.zoom);
 });
 
+test("the wheel zooms by how far it scrolls, so a trackpad's many small steps don't race", async ({
+  page,
+}) => {
+  await openMap(page);
+  await page.mouse.move(500, 350);
+  // A trackpad: 80 px of scroll in 20 small events
+  for (let i = 0; i < 20; i++) await page.mouse.wheel(0, -4);
+  const trackpad = (await camera(page)).zoom;
+  await page.evaluate(() => window.hodos.controller.setView(0, 0, 1));
+  // A mouse: the same 80 px in one event
+  await page.mouse.wheel(0, -80);
+  expect(trackpad).toBeCloseTo((await camera(page)).zoom, 5);
+  expect(trackpad).toBeLessThan(2);
+});
+
+test("a wheel scrolling by lines (Firefox) zooms like one scrolling by pixels", async ({
+  page,
+}) => {
+  await openMap(page);
+  const wheel = (deltaY, deltaMode) =>
+    page.evaluate(
+      ([deltaY, deltaMode]) =>
+        document
+          .getElementById("map")
+          .dispatchEvent(new WheelEvent("wheel", { deltaY, deltaMode, cancelable: true })),
+      [deltaY, deltaMode],
+    );
+  // One notch: 3 lines (deltaMode 1, DOM_DELTA_LINE), or 100 px in Chrome
+  await wheel(-3, 1);
+  const lines = (await camera(page)).zoom;
+  await page.evaluate(() => window.hodos.controller.setView(0, 0, 1));
+  await wheel(-100, 0);
+  expect(lines).toBeCloseTo((await camera(page)).zoom, 5);
+  expect(lines).toBeGreaterThan(1.3);
+});
+
 test("mouse drag pans the map", async ({ page }) => {
   await openMap(page);
   const before = await camera(page);
