@@ -145,3 +145,35 @@ test("a failed export says so and can be retried", async ({ page }) => {
   await expect(page.locator("#export-download")).toBeEnabled();
   expect(errors.some((e) => e.includes("simulated failure"))).toBe(true);
 });
+
+test("reopening the dialog during an export keeps it busy, so a second one cannot start", async ({
+  page,
+}) => {
+  await openMap(page);
+  // Holds the export on its tiles until released
+  await page.evaluate(() => {
+    const renderer = window.hodos.renderer;
+    const ensureTiles = renderer.ensureTiles.bind(renderer);
+    const gate = new Promise((resolve) => (window.releaseExport = resolve));
+    renderer.ensureTiles = async (...args) => {
+      await gate;
+      return ensureTiles(...args);
+    };
+  });
+  const downloads = [];
+  page.on("download", (file) => downloads.push(file.suggestedFilename()));
+  await openExport(page);
+  await page.locator("#export-size").selectOption("1024");
+  await page.locator("#export-download").click();
+  await expect(page.locator("#export-download")).toBeDisabled();
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#export-dialog")).not.toHaveAttribute("open");
+  await openExport(page);
+  await expect(page.locator("#export-download")).toBeDisabled();
+  await expect(page.locator("#print-button")).toBeDisabled();
+  await expect(page.locator("#export-status")).toHaveText("Préparation…");
+  await page.evaluate(() => window.releaseExport());
+  await expect(page.locator("#export-download")).toBeEnabled();
+  await expect(page.locator("#export-status")).toHaveText("");
+  expect(downloads).toEqual(["hodos-12345-1024x1024.png"]);
+});

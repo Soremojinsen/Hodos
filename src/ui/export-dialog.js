@@ -34,8 +34,13 @@ export function setupExportDialog(worldMap, overlay) {
     }
   };
 
+  // Whether an export runs. The dialog can be closed and opened again meanwhile, so this, not
+  // the buttons' state, says whether another export may start.
+  let busy = false;
+
   // The spec disables the dialog's buttons while an export runs: all of them, not just submit.
-  const setBusy = (busy) => {
+  const setBusy = (value) => {
+    busy = value;
     for (const button of dialog.querySelectorAll("button")) button.disabled = busy;
     // Restores the size-driven disabled state the blanket re-enable above just overwrote.
     if (!busy) updateSubmitButtons();
@@ -45,8 +50,8 @@ export function setupExportDialog(worldMap, overlay) {
   // can render): the submit buttons must not offer an export that cannot happen.
   const updateSubmitButtons = () => {
     const hasEnabledSize = [...sizeSelect.options].some((option) => !option.disabled);
-    downloadButton.disabled = !hasEnabledSize;
-    printButton.disabled = !hasEnabledSize;
+    downloadButton.disabled = busy || !hasEnabledSize;
+    printButton.disabled = busy || !hasEnabledSize;
   };
 
   const refreshSizes = () => {
@@ -80,7 +85,8 @@ export function setupExportDialog(worldMap, overlay) {
     refreshSizes();
     gridCheckbox.disabled = overlay.settings.type === "none";
     gridCheckbox.checked = !gridCheckbox.disabled;
-    setStatus(null);
+    // Reopened during an export: its status stays until it ends
+    if (!busy) setStatus(null);
   };
 
   // The view can change size while the dialog is open (a window resize, or the map getting its
@@ -95,7 +101,7 @@ export function setupExportDialog(worldMap, overlay) {
    * Runs an export task with the busy state and the failure message.
    */
   async function run(task) {
-    if (document.documentElement.dataset.map !== "ready") return;
+    if (busy || document.documentElement.dataset.map !== "ready") return;
     setBusy(true);
     setStatus("export.preparing");
     // Let the browser show the busy state before the long rendering
