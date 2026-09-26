@@ -36,6 +36,10 @@
         }
         if ((language ?? "en") !== "fr") document.documentElement.dataset.translating = "";
       })();
+      // Decided here rather than in main.js, so the fullscreen button does not show up only once
+      // the page has loaded (see ui/view-buttons.js). Hidden where the browser can't go full
+      // screen (iPhone Safari).
+      if (!document.fullscreenEnabled) document.documentElement.dataset.noFullscreen = "";
     </script>
   </head>
   <body>
@@ -79,7 +83,6 @@
             type="button"
             aria-label="Plein écran"
             data-i18n-aria-label="map.fullscreen"
-            hidden
           >
             <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
               <path

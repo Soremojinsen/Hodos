@@ -149,6 +149,11 @@ html[data-translating] :is([data-i18n], [data-i18n-html]) {
     }
   }
 
+  // See index.html
+  html[data-no-fullscreen] & #map-fullscreen-button {
+    display: none;
+  }
+
   button.download-button {
     width: 2.5em;
     height: 2.5em;

@@ -3,7 +3,7 @@ import { applyTranslations } from "./language.js";
 
 /**
  * Connects the recenter and fullscreen buttons.
- * The fullscreen button stays hidden where the browser can't go full screen (iPhone Safari).
+ * The fullscreen button is hidden where the browser can't go full screen, see index.html.
  */
 export function setupViewButtons(worldMap) {
   document.getElementById("map-recenter-button").addEventListener("click", () => {
@@ -12,7 +12,6 @@ export function setupViewButtons(worldMap) {
 
   const button = document.getElementById("map-fullscreen-button");
   if (!document.fullscreenEnabled) return;
-  button.hidden = false;
   button.addEventListener("click", () => {
     if (document.fullscreenElement) {
       document

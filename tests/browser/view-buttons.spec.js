@@ -67,3 +67,13 @@ test("the fullscreen button is hidden where full screen is unavailable", async (
   await openMap(page);
   await expect(page.locator("#map-fullscreen-button")).toBeHidden();
 });
+
+test("the fullscreen button shows before the scripts run, so a new map does not blink it", async ({
+  page,
+}) => {
+  await fakeFullscreen(page);
+  // Only the inline script of the page runs
+  await page.route(/\.js(\?.*)?$/, (route) => route.abort());
+  await page.goto("./?seed=12345");
+  await expect(page.locator("#map-fullscreen-button")).toBeVisible();
+});
