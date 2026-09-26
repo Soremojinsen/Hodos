@@ -18,7 +18,12 @@ const setup = (options = {}) => {
     ...options,
   });
   const arrive = (key) => manager.receive(tile(key));
-  const drawn = (...list) => manager.drawList(tiles(...list)).map((baked) => baked.key);
+  // levels: the tiles of each level that cover the view, by level; the finest level is drawn
+  const drawn = (levels) => {
+    const level = Math.max(...Object.keys(levels).map(Number));
+    const tilesAtLevel = (k) => tiles(...(levels[k] ?? []));
+    return manager.drawList(tilesAtLevel, level).map((baked) => baked.key);
+  };
   return { manager, log, arrive, drawn };
 };
 
@@ -47,24 +52,48 @@ test("a tile that arrives after it stopped being wanted is kept", () => {
   arrive("3/0/0");
   manager.want(tiles("3/0/0"));
   expect(log.requests.filter((key) => key === "3/0/0")).toHaveLength(1);
-  expect(drawn("3/0/0")).toEqual(["3/0/0"]);
+  expect(drawn({ 3: ["3/0/0"] })).toEqual(["3/0/0"]);
 });
 
-test("missing tiles are drawn as their nearest ready ancestor, ancestors first and once", () => {
+test("a complete level is drawn alone", () => {
   const { manager, arrive, drawn } = setup({ maxInFlight: 10 });
-  manager.want(tiles("0/0/0", "1/0/0", "2/0/0", "2/1/1"));
-  arrive("0/0/0");
-  arrive("1/0/0");
-  arrive("2/1/1");
-  // 2/0/0 and 2/1/0 are both covered by 1/0/0; 2/2/2 only by 0/0/0
-  expect(drawn("2/0/0", "2/1/0", "2/1/1", "2/2/2")).toEqual(["0/0/0", "1/0/0", "2/1/1"]);
+  manager.want(tiles("0/0/0", "1/0/0", "1/1/0", "2/0/0", "2/1/0"));
+  ["0/0/0", "1/0/0", "1/1/0", "2/0/0", "2/1/0"].forEach(arrive);
+  const levels = { 0: ["0/0/0"], 1: ["1/0/0", "1/1/0"], 2: ["2/0/0", "2/1/0"] };
+  expect(drawn(levels)).toEqual(["2/0/0", "2/1/0"]);
+});
+
+test("with a tile missing, coarser levels are drawn first, down to the first complete one", () => {
+  const { manager, arrive, drawn } = setup({ maxInFlight: 10 });
+  manager.want(tiles("0/0/0", "1/0/0", "1/1/0", "2/0/0", "2/1/0", "2/2/0", "2/3/0"));
+  ["0/0/0", "1/0/0", "1/1/0", "2/0/0", "2/1/0", "2/3/0"].forEach(arrive);
+  const levels = {
+    0: ["0/0/0"],
+    1: ["1/0/0", "1/1/0"],
+    2: ["2/0/0", "2/1/0", "2/2/0", "2/3/0"],
+  };
+  // Level 1 is complete, so level 0 is not needed; the missing 2/2/0 is left out
+  expect(drawn(levels)).toEqual(["1/0/0", "1/1/0", "2/0/0", "2/1/0", "2/3/0"]);
+});
+
+test("an incomplete coarser level is drawn in part and skipped through to a complete one", () => {
+  const { manager, arrive, drawn } = setup({ maxInFlight: 10 });
+  manager.want(tiles("0/0/0", "1/1/0", "2/0/0", "2/1/0", "3/0/0", "3/1/0", "3/2/0"));
+  ["0/0/0", "1/1/0", "2/1/0", "3/0/0", "3/2/0"].forEach(arrive);
+  const levels = {
+    0: ["0/0/0"],
+    1: ["1/0/0", "1/1/0"], // 1/0/0 evicted
+    2: ["2/0/0", "2/1/0"], // 2/0/0 missing
+    3: ["3/0/0", "3/1/0", "3/2/0"], // 3/1/0 missing
+  };
+  expect(drawn(levels)).toEqual(["0/0/0", "1/1/0", "2/1/0", "3/0/0", "3/2/0"]);
 });
 
 test("the least recently used tiles are freed beyond the cache size", () => {
   const { manager, log, arrive, drawn } = setup({ cacheSize: 2, maxInFlight: 10 });
   manager.want(tiles("3/0/0", "3/1/0", "3/2/0"));
   ["3/0/0", "3/1/0", "3/2/0"].forEach(arrive);
-  drawn("3/0/0"); // 3/1/0 becomes the least recently used
+  drawn({ 3: ["3/0/0"] }); // 3/1/0 becomes the least recently used
   manager.want(tiles("3/3/0"));
   arrive("3/3/0");
   expect(log.destroyed).toEqual(["3/1/0", "3/2/0"]);

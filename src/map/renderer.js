@@ -140,14 +140,15 @@ export class MapRenderer {
   }
 
   /**
-   * Draws the tiles of a level that a view shows, into the bound framebuffer. Missing tiles
-   * show their nearest loaded ancestor. The view is padded (see tile-grid.js paddedView) so
-   * neighbour tiles whose cells reach past the view's edge are drawn too.
+   * Draws the tiles of a level that a view shows, into the bound framebuffer. While some are
+   * missing, the loaded tiles of coarser levels are drawn under them (see TileManager.drawList).
+   * The view is padded (see tile-grid.js paddedView) so neighbour tiles whose cells reach past
+   * the view's edge are drawn too.
    */
   #drawScene(view, level) {
     this.#gl.clearColor(0.278, 0.47, 0.525, 1);
     this.#gl.clear(this.#gl.COLOR_BUFFER_BIT | this.#gl.DEPTH_BUFFER_BIT);
-    const tiles = this.#tiles.drawList(tilesInView(paddedView(view, level), level));
+    const tiles = this.#tiles.drawList((k) => tilesInView(paddedView(view, k), k), level);
     for (const tile of tiles) tile.render(this.#activeWorldShaderProgram);
     this.#drawnTiles = tiles.map((tile) => tileKey(tile.z, tile.x, tile.y));
   }
