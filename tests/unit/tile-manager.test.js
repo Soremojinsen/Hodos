@@ -96,7 +96,20 @@ test("the least recently used tiles are freed beyond the cache size", () => {
   drawn({ 3: ["3/0/0"] }); // 3/1/0 becomes the least recently used
   manager.want(tiles("3/3/0"));
   arrive("3/3/0");
-  expect(log.destroyed).toEqual(["3/1/0", "3/2/0"]);
+  // 3/3/0 is in use and does not count: three tiles are left for two places
+  expect(log.destroyed).toEqual(["3/1/0"]);
+});
+
+test("the cache keeps its size in tiles beyond the ones in use", () => {
+  const { manager, log, arrive, drawn } = setup({ cacheSize: 2, maxInFlight: 10 });
+  manager.want(tiles("3/0/0", "3/1/0", "3/2/0", "3/3/0"));
+  ["3/0/0", "3/1/0", "3/2/0", "3/3/0"].forEach(arrive);
+  drawn({ 3: ["3/2/0", "3/3/0"] }); // 3/0/0 and 3/1/0 become the least recently used
+  // Zooming in: as many new tiles as the cache holds are wanted
+  manager.want(tiles("4/0/0", "4/1/0", "4/2/0", "4/3/0"));
+  ["4/0/0", "4/1/0", "4/2/0", "4/3/0"].forEach(arrive);
+  // Zooming back out only has to rebuild what the cache could not keep
+  expect(log.destroyed).toEqual(["3/0/0", "3/1/0"]);
 });
 
 test("the cache never evicts wanted or pinned tiles, even over its size", async () => {

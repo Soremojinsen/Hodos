@@ -195,14 +195,19 @@ export class TileManager {
     }
   }
 
-  // Frees the least recently used tiles beyond the cache size, except those in use
+  // Frees the least recently used tiles not in use, keeping cacheSize of them: the tiles in use
+  // do not count, or a screen wanting about cacheSize tiles would keep no others
   #evict() {
     const wanted = new Set(this.#wanted);
+    const inUse = (key) => wanted.has(key) || this.#pins.has(key);
+    let unused = 0;
+    for (const key of this.#ready.keys()) if (!inUse(key)) unused++;
     for (const [key, baked] of this.#ready) {
-      if (this.#ready.size <= this.#cacheSize) return;
-      if (wanted.has(key) || this.#pins.has(key)) continue;
+      if (unused <= this.#cacheSize) return;
+      if (inUse(key)) continue;
       this.#ready.delete(key);
       this.#destroy(baked);
+      unused--;
     }
   }
 }
