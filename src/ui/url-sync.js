@@ -15,6 +15,8 @@ const DELAY = 300;
  */
 export function startUrlSync(renderer, currentState) {
   let timer = null;
+  // The state of the last frame, as a query string
+  let lastSearch = null;
   const syncNow = () => {
     clearTimeout(timer);
     timer = null;
@@ -25,6 +27,11 @@ export function startUrlSync(renderer, currentState) {
     }
   };
   renderer.addFrameListener(() => {
+    // Frames that change nothing the link carries (like arriving tiles, which can keep coming
+    // for seconds on a slow machine) must not push the update back
+    const search = serializeState(currentState());
+    if (search === lastSearch) return;
+    lastSearch = search;
     clearTimeout(timer);
     timer = setTimeout(syncNow, DELAY);
   });

@@ -25,6 +25,19 @@ test("panning and zooming are saved in the link and restored on reload", async (
   expect(await camera(page)).toEqual({ x: 195, y: 0, zoom: 2 });
 });
 
+test("frames that do not move the map, like arriving tiles, do not hold back the link", async ({
+  page,
+}) => {
+  await openMap(page);
+  // Stands in for tiles arriving one after another on a slow machine
+  await page.evaluate(() => {
+    const redraw = setInterval(() => window.hodos.renderer.renderNow(), 100);
+    setTimeout(() => clearInterval(redraw), 10_000);
+  });
+  await page.keyboard.press("ArrowRight");
+  await expect(page).toHaveURL(/\?seed=12345&x=195$/, { timeout: 2000 });
+});
+
 test("the rendering mode is saved in the link", async ({ page }) => {
   await openMap(page);
   await page.getByRole("button", { name: "Paramètres" }).click();
