@@ -185,6 +185,8 @@ html[data-translating] :is([data-i18n], [data-i18n-html]) {
   z-index: 1;
   width: 100%;
   padding: 1rem;
+  // It spans the map's whole top, logo included: gestures go through it to the map
+  pointer-events: none;
 
   .logo {
     display: flex;
@@ -206,6 +208,8 @@ html[data-translating] :is([data-i18n], [data-i18n-html]) {
     background-repeat: repeat-y;
     position: absolute;
     z-index: 2;
+    // Drawn over the map's edges: gestures go through them
+    pointer-events: none;
   }
 
   .border-top {

@@ -99,6 +99,28 @@ test("mouse drag pans the map", async ({ page }) => {
   expect(after.y).toBeLessThan(before.y);
 });
 
+test("the header strip and the window borders let gestures through to the map", async ({
+  page,
+}) => {
+  await openMap(page);
+  // Beside the logo, in the header strip across the top, then on the left border
+  for (const [x, y] of [
+    [100, 40],
+    [3, 350],
+  ]) {
+    const before = await camera(page);
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + 100, y, { steps: 5 });
+    await page.mouse.up();
+    expect((await camera(page)).x).toBeLessThan(before.x);
+  }
+  const before = await camera(page);
+  await page.mouse.move(100, 40);
+  await page.mouse.wheel(0, -120);
+  expect((await camera(page)).zoom).toBeGreaterThan(before.zoom);
+});
+
 test("zoom buttons zoom without panning", async ({ page }) => {
   await openMap(page);
   const before = await camera(page);
