@@ -1,5 +1,7 @@
 import { Delaunay } from "d3-delaunay";
+import { polygonArea } from "d3-polygon";
 import { expect, test } from "vitest";
+import { WORLD_SIZE } from "../../src/constants.js";
 import { WorldSampler } from "../../src/generation/fields.js";
 import {
   TILE_CELLS_SIDE,
@@ -159,4 +161,51 @@ test("tile 2/1/1 of seed 12345 stays the same", () => {
     debugColors: fnv(tile.debugColors),
     indices: fnv(tile.indices),
   }).toMatchSnapshot();
+});
+
+test("tiles outside the world mirror the points of the tile across the world's edge", () => {
+  const z = 2;
+  const last = 2 ** z - 1;
+  const mirrored = (points, flipX, flipY) =>
+    points.map((value, i) => {
+      if (i % 2 === 0) return flipX === null ? value : 2 * flipX - value;
+      return flipY === null ? value : 2 * flipY - value;
+    });
+  const sorted = (points) => {
+    const pairs = [];
+    for (let i = 0; i < points.length; i += 2) pairs.push([points[i], points[i + 1]]);
+    return pairs.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  };
+  const expectMirror = ([x, y], [mx, my], flipX, flipY) => {
+    const expected = mirrored(tilePoints(SEED, z, mx, my), flipX, flipY);
+    const actual = sorted(tilePoints(SEED, z, x, y));
+    sorted(expected).forEach(([px, py], i) => {
+      expect(actual[i][0]).toBeCloseTo(px, 9);
+      expect(actual[i][1]).toBeCloseTo(py, 9);
+    });
+  };
+  expectMirror([-1, 1], [0, 1], 0, null);
+  expectMirror([last + 1, 2], [last, 2], WORLD_SIZE, null);
+  expectMirror([3, -1], [3, 0], null, 0);
+  expectMirror([-1, last + 1], [0, last], 0, WORLD_SIZE);
+});
+
+test("the cells of a level cover the world exactly: straight edges, no notches", () => {
+  for (const z of [0, 1, 2]) {
+    let area = 0;
+    for (let x = 0; x < 2 ** z; x++) {
+      for (let y = 0; y < 2 ** z; y++) {
+        for (const cell of tileCells(SEED, z, x, y)) {
+          for (const [px, py] of cell.ring) {
+            expect(px).toBeGreaterThanOrEqual(-1e-6);
+            expect(px).toBeLessThanOrEqual(WORLD_SIZE + 1e-6);
+            expect(py).toBeGreaterThanOrEqual(-1e-6);
+            expect(py).toBeLessThanOrEqual(WORLD_SIZE + 1e-6);
+          }
+          area += Math.abs(polygonArea(cell.ring));
+        }
+      }
+    }
+    expect(area / WORLD_SIZE ** 2).toBeCloseTo(1, 9);
+  }
 });

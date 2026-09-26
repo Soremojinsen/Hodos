@@ -21,11 +21,24 @@ export const tileSize = (z) => WORLD_SIZE / 2 ** z;
 /**
  * The cell sites of a tile: one point per square of a TILE_CELLS_SIDE² grid, moved at random
  * within it. Drawn from the seed and the tile coordinates only, so any tile can recompute its
- * neighbours' points. Tiles outside the world have points too, for the cells on its edge.
+ * neighbours' points.
  *
- * @returns {Float64Array} x0, y0, x1, y1, …, row by row from the tile's lowest y
+ * A tile outside the world has the points of the tile across the world's edge, mirrored. A point
+ * and its mirror image are split by the edge itself, so the cells on the edge end exactly on it,
+ * and every point inside the world belongs to a cell whose site is inside, which gets drawn.
+ *
+ * @returns {Float64Array} x0, y0, x1, y1, …, row by row from the tile's lowest y (unordered
+ *                         outside the world)
  */
 export function tilePoints(seed, z, x, y) {
+  const count = 2 ** z;
+  const inside = (i) => (i < 0 ? -1 - i : i >= count ? 2 * count - 1 - i : i);
+  if (inside(x) !== x || inside(y) !== y) {
+    const reflect = (value, i) => (i < 0 ? -value : i >= count ? 2 * WORLD_SIZE - value : value);
+    return tilePoints(seed, z, inside(x), inside(y)).map((value, i) =>
+      i % 2 === 0 ? reflect(value, x) : reflect(value, y),
+    );
+  }
   const random = aleaPRNG(`${seed}:${z}:${x}:${y}`);
   const size = tileSize(z);
   const step = size / TILE_CELLS_SIDE;
