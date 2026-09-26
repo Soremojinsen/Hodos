@@ -1,4 +1,4 @@
-import { parentTile, tileKey } from "./tile-grid.js";
+import { tileKey } from "./tile-grid.js";
 
 /**
  * How many tiles the worker may be building at once. Few, so a zoom or pan quickly takes over.
@@ -139,29 +139,25 @@ export class TileManager {
   }
 
   /**
-   * The drawable tiles to draw for these tiles: the nearest ready ancestor of each missing tile,
-   * coarsest first and each once, then the ready tiles, which cover their ancestors.
+   * The drawable tiles to draw a view at a level, coarsest first. tilesAtLevel(k) gives the
+   * tiles of level k that cover the view.
+   *
+   * A tile keeps only the cells whose site is inside it, so a strip along its edge is drawn by
+   * its neighbours' cells: a missing tile leaves a gap inside its ready neighbours too, which
+   * its own ancestor does not cover. So each level is drawn whole: when the level has a missing
+   * tile, the ready tiles of the coarser levels are drawn under it, up to the first complete
+   * level (level 0 is pinned, so always complete). Every point then shows the finest ready tile
+   * that owns it.
    */
-  drawList(tiles) {
-    const ancestors = new Map();
-    const ready = [];
-    for (const tile of tiles) {
-      const key = keyOf(tile);
-      if (this.#ready.has(key)) {
-        ready.push(this.#use(key));
-        continue;
-      }
-      for (let ancestor = tile; ancestor.z > 0;) {
-        ancestor = parentTile(ancestor);
-        const ancestorKey = keyOf(ancestor);
-        if (this.#ready.has(ancestorKey)) {
-          ancestors.set(ancestorKey, ancestor.z);
-          break;
-        }
-      }
+  drawList(tilesAtLevel, level) {
+    const levels = [];
+    for (let k = level; k >= 0; k--) {
+      const keys = tilesAtLevel(k).map(keyOf);
+      const ready = keys.filter((key) => this.#ready.has(key));
+      levels.unshift(ready);
+      if (ready.length === keys.length) break;
     }
-    const coarseFirst = [...ancestors].sort((a, b) => a[1] - b[1]);
-    return [...coarseFirst.map(([key]) => this.#use(key)), ...ready];
+    return levels.flat().map((key) => this.#use(key));
   }
 
   /**
