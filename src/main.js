@@ -48,6 +48,12 @@ const currentState = () =>
       }
     : { ...initialState, seed: worldMap.seed, mode: checkedMode(), grid: overlay.settings };
 const urlSync = startUrlSync(worldMap.renderer, currentState);
+// The link holds the whole state, so reloading it brings the same map back, rather than
+// rebuilding every WebGL object the lost context took with it
+worldMap.renderer.addContextRestoredListener(() => {
+  urlSync.syncNow();
+  window.location.reload();
+});
 
 const resize = () => worldMap.resize(window.innerWidth, window.innerHeight);
 window.addEventListener("resize", resize);

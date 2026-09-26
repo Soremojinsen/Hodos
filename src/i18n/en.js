@@ -87,4 +87,5 @@ export default {
   "error.webgl":
     "Hodos needs WebGL to draw the map, but this browser does not support it or has it disabled.",
   "error.render": "The map could not be drawn, see the browser console for details.",
+  "error.contextLost": "The browser interrupted the drawing of the map. It will reload shortly…",
 };

@@ -89,4 +89,6 @@ export default {
     "Hodos a besoin de WebGL pour dessiner la carte, mais votre navigateur ne le supporte pas ou l'a désactivé.",
   "error.render":
     "La carte n'a pas pu être dessinée. Consultez la console du navigateur pour plus de détails.",
+  "error.contextLost":
+    "Le navigateur a interrompu le dessin de la carte. Elle va se recharger dans un instant…",
 };

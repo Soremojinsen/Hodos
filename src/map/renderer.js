@@ -50,6 +50,13 @@ export class MapRenderer {
     if (!this.#gl) {
       this.showError("error.webgl");
     }
+    this.#canvas.addEventListener("webglcontextlost", (event) => {
+      // Without this the browser never gives the context back
+      event.preventDefault();
+      // Drawing into the lost context would do nothing, see addContextRestoredListener
+      this.#loaded = false;
+      this.#showMessage("error.contextLost");
+    });
     this.#tiles = new TileManager({
       request: requestTile,
       bake: (data) => {
@@ -100,12 +107,26 @@ export class MapRenderer {
   showError(key) {
     if (this.#errorShown) return;
     this.#errorShown = true;
-    let error = document.createElement("p");
-    error.classList.add("hodos-error");
-    error.dataset.i18n = key;
-    error.textContent = t(key);
     this.#canvas.remove();
-    this.#div.appendChild(error);
+    this.#showMessage(key);
+  }
+
+  // Displays a message over the map
+  #showMessage(key) {
+    let message = document.createElement("p");
+    message.classList.add("hodos-error");
+    message.dataset.i18n = key;
+    message.textContent = t(key);
+    this.#div.appendChild(message);
+  }
+
+  /**
+   * Calls a function when the browser gives back a WebGL context it took away (GPU reset, tab
+   * in the background on mobile). Every WebGL object was lost with it: nothing is drawn after
+   * the loss, and it is up to the function to start again, see main.js.
+   */
+  addContextRestoredListener(listener) {
+    this.#canvas.addEventListener("webglcontextrestored", listener);
   }
 
   /**
