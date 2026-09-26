@@ -65,7 +65,7 @@ setupNavigation(currentState, urlSync);
 setupViewButtons(worldMap);
 setupGridControls(overlay, initialState.grid);
 setupHoverInfo(worldMap);
-setupExportDialog(worldMap, overlay);
+const exportDialog = setupExportDialog(worldMap, overlay);
 // Browsers restore form fields on reload: the link decides the mode
 document.querySelector(`#mode-form input[value="${initialState.mode}"]`).checked = true;
 
@@ -82,6 +82,8 @@ worldMap
     // A random seed goes into the address bar right away, so a refresh keeps the map
     urlSync.syncNow();
     document.documentElement.dataset.map = "ready";
+    // An export dialog opened while generating showed sizes for the canvas before its resize
+    exportDialog.viewResized();
   })
   .catch((error) => {
     console.error("Could not load the map:", error);

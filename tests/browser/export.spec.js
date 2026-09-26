@@ -67,6 +67,36 @@ test("view sizes follow the window", async ({ page }) => {
   await expect(page.locator('#export-size option[value="1"]')).toHaveText("×1 (800 × 500 px)");
 });
 
+test("sizes opened while the map is generating follow the map once it is ready", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1300, height: 700 });
+  // Delays WorldMap#load so the dialog opens during generation, while the map canvas still has
+  // its default size and the camera its construction zoom
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "hodos", {
+      configurable: true,
+      set(worldMap) {
+        const originalLoad = worldMap.load.bind(worldMap);
+        worldMap.load = () =>
+          new Promise((resolve) => setTimeout(() => resolve(originalLoad()), 500));
+        Object.defineProperty(window, "hodos", {
+          value: worldMap,
+          writable: true,
+          configurable: true,
+        });
+      },
+    });
+  });
+  await page.goto("./?seed=12345");
+  await openExport(page);
+  await page.getByLabel("Vue actuelle").check();
+  await expect(page.locator("html")).not.toHaveAttribute("data-map", "ready");
+  await expect(page.locator("html")).toHaveAttribute("data-map", "ready");
+  await expect(page.locator('#export-size option[value="1"]')).toHaveText("×1 (1300 × 700 px)");
+  await expect(page.locator('#export-size option[value="4"]')).toBeDisabled();
+});
+
 test("sizes too large for browsers are disabled", async ({ page }) => {
   await page.setViewportSize({ width: 1300, height: 700 });
   await openMap(page);

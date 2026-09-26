@@ -10,6 +10,8 @@ import { downloadBlob, screenshotFileName } from "./screenshot.js";
  *
  * @param worldMap  {WorldMap}
  * @param overlay   {GridOverlay}
+ * @returns {{viewResized: function}} to call when the map view changes size other than by a
+ *          window resize, e.g. once the map is generated
  */
 export function setupExportDialog(worldMap, overlay) {
   const dialog = document.getElementById("export-dialog");
@@ -81,11 +83,13 @@ export function setupExportDialog(worldMap, overlay) {
     setStatus(null);
   };
 
-  // The window can be resized while the dialog is open: "Vue actuelle" sizes and limits must
-  // keep matching the view that would actually be exported.
-  window.addEventListener("resize", () => {
+  // The view can change size while the dialog is open (a window resize, or the map getting its
+  // size once generated): "Vue actuelle" sizes and limits must keep matching the view that would
+  // actually be exported.
+  const viewResized = () => {
     if (dialog.open) refreshSizes();
-  });
+  };
+  window.addEventListener("resize", viewResized);
 
   /**
    * Runs an export task with the busy state and the failure message.
@@ -141,4 +145,6 @@ export function setupExportDialog(worldMap, overlay) {
       );
     });
   });
+
+  return { viewResized };
 }
