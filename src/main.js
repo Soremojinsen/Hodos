@@ -22,12 +22,19 @@ window.hodos = worldMap;
 const overlay = new GridOverlay(document.getElementById("map"), worldMap);
 
 /**
+ * The mode of the settings form: the link's, until one is chosen, even while the map is
+ * generating (the renderer cannot switch modes before it has loaded).
+ */
+const checkedMode = () => document.querySelector("#mode-form input:checked").value;
+
+/**
  * The state a link to the current map carries, see state/url-state.js.
  *
  * While the map is still generating (data-map is not yet "ready"), the camera and rendering
  * mode the renderer exposes are still their construction defaults (zoom 0, mode "default"), not
  * what the link asked for: the initial state parsed from the URL is used instead, with the
- * map's actual seed (which is set synchronously, even for a random seed).
+ * map's actual seed (which is set synchronously, even for a random seed), and the mode and grid
+ * of the settings, which may already have been changed.
  */
 const currentState = () =>
   document.documentElement.dataset.map === "ready"
@@ -39,7 +46,7 @@ const currentState = () =>
         mode: worldMap.renderer.renderingMode,
         grid: overlay.settings,
       }
-    : { ...initialState, seed: worldMap.seed };
+    : { ...initialState, seed: worldMap.seed, mode: checkedMode(), grid: overlay.settings };
 const urlSync = startUrlSync(worldMap.renderer, currentState);
 
 const resize = () => worldMap.resize(window.innerWidth, window.innerHeight);
@@ -60,7 +67,7 @@ worldMap
   .load()
   .then(() => {
     resize();
-    worldMap.renderer.setRenderingMode(initialState.mode);
+    worldMap.renderer.setRenderingMode(checkedMode());
     worldMap.controller.setView(initialState.x, initialState.y, initialState.z);
     worldMap.startRender();
     for (const element of document.getElementsByClassName("seed-placeholder")) {

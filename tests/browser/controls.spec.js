@@ -107,3 +107,32 @@ test.describe("touch", () => {
     expect(after.x).toBe(before.x);
   });
 });
+
+test("a mode chosen while the map is generating is the one drawn", async ({ page }) => {
+  // Delays WorldMap#load so the mode is chosen before data-map="ready"
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "hodos", {
+      configurable: true,
+      set(worldMap) {
+        const originalLoad = worldMap.load.bind(worldMap);
+        worldMap.load = () =>
+          new Promise((resolve) => setTimeout(() => resolve(originalLoad()), 500));
+        Object.defineProperty(window, "hodos", {
+          value: worldMap,
+          writable: true,
+          configurable: true,
+        });
+      },
+    });
+  });
+  await page.goto("./?seed=12345");
+  await page.evaluate(() => {
+    const input = document.querySelector('#mode-form input[value="biomes"]');
+    input.checked = true;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await expect(page.locator("html")).not.toHaveAttribute("data-map", "ready");
+  await expect(page.locator("html")).toHaveAttribute("data-map", "ready");
+  expect(await page.evaluate(() => window.hodos.renderer.renderingMode)).toBe("biomes");
+  await expect(page).toHaveURL(/mode=biomes/);
+});
