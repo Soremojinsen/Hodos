@@ -131,17 +131,23 @@ export function buildTile(sampler, z, x, y) {
  * The site of the cell drawn under a world point at level z: its nearest site among the
  * points of its tile and the 8 around, the same cell buildTile draws there.
  *
+ * Tiles outside the world are skipped: their mirrored points are never nearer than the points
+ * they mirror, only as near on the world's edge, where they must not win the tie.
+ *
  * @returns {Number[]} [x, y]
  */
 export function siteAt(seed, px, py, z) {
   const size = tileSize(z);
+  const count = 2 ** z;
   const tileX = Math.floor(px / size);
   const tileY = Math.floor(py / size);
   let best = null;
   let bestDistance = Infinity;
   for (let dy = -1; dy <= 1; dy++) {
     for (let dx = -1; dx <= 1; dx++) {
-      const points = tilePoints(seed, z, tileX + dx, tileY + dy);
+      const [x, y] = [tileX + dx, tileY + dy];
+      if (x < 0 || x >= count || y < 0 || y >= count) continue;
+      const points = tilePoints(seed, z, x, y);
       for (let i = 0; i < points.length; i += 2) {
         const distance = (points[i] - px) ** 2 + (points[i + 1] - py) ** 2;
         if (distance < bestDistance) {

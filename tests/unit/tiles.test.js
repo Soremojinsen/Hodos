@@ -137,6 +137,25 @@ test("siteAt finds the drawn cell, even next to its border", () => {
   }
 });
 
+test("siteAt on the world's edge finds a drawn cell, not its mirror image outside", () => {
+  for (const z of [0, 3, 7]) {
+    for (const [px, py] of [
+      [0, 0],
+      [0, 5000],
+      [5000, 0],
+      [0, WORLD_SIZE],
+      [WORLD_SIZE, 0],
+      [WORLD_SIZE, WORLD_SIZE],
+    ]) {
+      const [x, y] = siteAt(SEED, px, py, z);
+      expect(x).toBeGreaterThanOrEqual(0);
+      expect(x).toBeLessThanOrEqual(WORLD_SIZE);
+      expect(y).toBeGreaterThanOrEqual(0);
+      expect(y).toBeLessThanOrEqual(WORLD_SIZE);
+    }
+  }
+});
+
 test("a deeper level draws the same coast with more, smaller cells", () => {
   const coastalCells = (z, x, y) =>
     tileCells(SEED, z, x, y).filter((cell) => {
