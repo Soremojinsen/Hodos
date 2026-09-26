@@ -183,4 +183,41 @@ test.describe("touch", () => {
     await expect(page.locator("#hover-info")).toBeVisible();
     await expect(page.locator("#hover-biome")).not.toBeEmpty();
   });
+
+  test("tapping a map button does not show the panel", async ({ page }) => {
+    await openMap(page);
+    await enableHoverInfo(page);
+    // Zoomed in, so the world (not the outside, which hides the panel anyway) is under the button
+    await page.evaluate(() => window.hodos.controller.setView(0, 0, 4));
+    const box = await page.locator("#map-zoom-in-button").boundingBox();
+    await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+    await expect.poll(() => page.evaluate(() => window.hodos.camera.zoom)).toBe(5);
+    await expect(page.locator("#hover-info")).toBeHidden();
+  });
+
+  test("the still finger of a pinch does not count as a tap", async ({ page }) => {
+    await openMap(page);
+    await enableHoverInfo(page);
+    await page.evaluate(() => window.hodos.controller.setView(0, 0, 4));
+    // Playwright taps with one finger only: the pinch is made of pointer events
+    await page.evaluate(() => {
+      const touch = (type, pointerId, clientX) =>
+        document.elementFromPoint(clientX, 350).dispatchEvent(
+          new PointerEvent(type, {
+            bubbles: true,
+            pointerId,
+            pointerType: "touch",
+            clientX,
+            clientY: 350,
+          }),
+        );
+      touch("pointerdown", 1, 500);
+      touch("pointerdown", 2, 550);
+      for (let x = 560; x <= 700; x += 20) touch("pointermove", 2, x);
+      touch("pointerup", 2, 700);
+      touch("pointerup", 1, 500);
+    });
+    expect(await page.evaluate(() => window.hodos.camera.zoom)).toBeGreaterThan(4);
+    await expect(page.locator("#hover-info")).toBeHidden();
+  });
 });

@@ -90,16 +90,27 @@ export function setupHoverInfo(worldMap) {
     panel.hidden = true;
   });
 
-  // Keyed by pointerId so a second finger touching down (e.g. starting a pinch) cannot be
-  // mistaken for the continuation of the first finger's tap.
+  // The fingers on the map, and where those that may still be a tap started, by pointerId.
+  // A tap is one finger alone: a second finger (a pinch) ends the taps of every finger down,
+  // even one held still, and a finger on a map button is pressing the button.
+  const touches = new Set();
   const tapStarts = new Map();
   mapElement.addEventListener("pointerdown", (event) => {
-    if (event.pointerType === "touch") {
+    if (event.pointerType !== "touch") return;
+    touches.add(event.pointerId);
+    if (touches.size > 1) {
+      tapStarts.clear();
+    } else if (!event.target.closest("button")) {
       tapStarts.set(event.pointerId, { x: event.clientX, y: event.clientY });
     }
   });
+  mapElement.addEventListener("pointercancel", (event) => {
+    touches.delete(event.pointerId);
+    tapStarts.delete(event.pointerId);
+  });
   mapElement.addEventListener("pointerup", (event) => {
     if (event.pointerType !== "touch") return;
+    touches.delete(event.pointerId);
     const tapStart = tapStarts.get(event.pointerId);
     tapStarts.delete(event.pointerId);
     if (!tapStart) return;
