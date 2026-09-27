@@ -42,7 +42,9 @@ export const getRandomSeed = () => {
 };
 
 /**
- * Hashes a seed string (FNV-1a) into a seed for the noise library, which supports 2^16 values.
+ * Hashes a seed string (FNV-1a) into a seed for the noise library, which supports 2^16 values,
+ * though it makes each h below 256 the same as h * 257: seeds share their noise a little more
+ * often than 1 in 65536, but their coarse sites (from the whole seed) still differ.
  *
  * @param {string} seed the map seed, numeric or not
  * @returns {Number}    an integer in the range [0, 65536)
