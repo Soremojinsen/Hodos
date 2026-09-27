@@ -12,9 +12,14 @@ export function setupModals() {
   }
 
   for (const dialog of dialogs) {
-    // A click on the backdrop targets the dialog itself
+    // A click on the backdrop targets the dialog itself, but so does a drag from inside the
+    // dialog released outside it (selecting text): only a press on the backdrop too closes it
+    let pressedOutside = false;
+    dialog.addEventListener("pointerdown", (event) => {
+      pressedOutside = event.target === dialog;
+    });
     dialog.addEventListener("click", (event) => {
-      if (event.target === dialog) dialog.close();
+      if (event.target === dialog && pressedOutside) dialog.close();
     });
     for (const closer of dialog.querySelectorAll(".dialog-close")) {
       closer.addEventListener("click", () => dialog.close());

@@ -46,3 +46,15 @@ test("map buttons have accessible names", async ({ page }) => {
     await expect(page.getByRole("button", { name })).toBeVisible();
   }
 });
+
+test("a drag from inside a dialog that ends outside leaves it open", async ({ page }) => {
+  await openMap(page);
+  await page.getByRole("button", { name: "Paramètres" }).click();
+  // Selecting the seed past the field's end
+  const field = await page.locator("#seed").boundingBox();
+  await page.mouse.move(field.x + 5, field.y + field.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(40, 40, { steps: 5 });
+  await page.mouse.up();
+  expect(await isOpen(page, "settings-dialog")).toBe(true);
+});
