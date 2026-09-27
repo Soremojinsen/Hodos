@@ -47,11 +47,13 @@ export function setupExportDialog(worldMap, overlay) {
   };
 
   // Nothing to export at this size (e.g. "Vue actuelle" on a window wider than the browser
-  // can render): the submit buttons must not offer an export that cannot happen.
+  // can render), or no map yet while it generates: the submit buttons must not offer an export
+  // that cannot happen. The map getting ready calls viewResized, which enables them.
   const updateSubmitButtons = () => {
     const hasEnabledSize = [...sizeSelect.options].some((option) => !option.disabled);
-    downloadButton.disabled = busy || !hasEnabledSize;
-    printButton.disabled = busy || !hasEnabledSize;
+    const ready = document.documentElement.dataset.map === "ready";
+    downloadButton.disabled = busy || !hasEnabledSize || !ready;
+    printButton.disabled = busy || !hasEnabledSize || !ready;
   };
 
   const refreshSizes = () => {

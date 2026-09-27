@@ -217,3 +217,33 @@ test("an export keeps the rendering mode it started in, even if the mode changes
   // The screen shows the mode chosen
   expect(await page.evaluate(() => window.hodos.renderer.renderingMode)).toBe("biomes");
 });
+
+test("the export buttons wait for a map still generating, then offer it", async ({ page }) => {
+  // Holds WorldMap#load until the test releases it
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "hodos", {
+      configurable: true,
+      set(worldMap) {
+        const originalLoad = worldMap.load.bind(worldMap);
+        worldMap.load = () =>
+          new Promise((resolve) => (window.releaseLoad = () => resolve(originalLoad())));
+        Object.defineProperty(window, "hodos", {
+          value: worldMap,
+          writable: true,
+          configurable: true,
+        });
+      },
+    });
+  });
+  await page.goto("./?seed=12345");
+  await openExport(page);
+  await expect(page.locator("#export-download")).toBeDisabled();
+  await expect(page.locator("#print-button")).toBeDisabled();
+
+  await page.evaluate(() => window.releaseLoad());
+  await expect(page.locator("html")).toHaveAttribute("data-map", "ready");
+  await expect(page.locator("#export-download")).toBeEnabled();
+  await page.locator("#export-size").selectOption("1024");
+  const { png } = await download(page);
+  expect(pngSize(png)).toEqual({ width: 1024, height: 1024 });
+});
