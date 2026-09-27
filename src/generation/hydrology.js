@@ -20,7 +20,7 @@ export const WATER_LEVEL = 3;
  * more than LAKE_DEPTH; shallower or smaller pits are only filled, and rivers cross them.
  */
 export const MIN_LAKE_POINTS = 12;
-export const LAKE_DEPTH = 0.06;
+export const LAKE_DEPTH = 0.15;
 
 /**
  * The smallest flow (in points drained, each bringing one unit of rain) that makes a river.
