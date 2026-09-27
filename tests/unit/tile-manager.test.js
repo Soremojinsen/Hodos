@@ -177,3 +177,26 @@ test("settled once every wanted tile has arrived or failed", () => {
   manager.fail(tile("1/1/0"));
   expect(manager.settled).toBe(true);
 });
+
+test("prefetched tiles are requested only once every wanted tile is ready or requested", () => {
+  const { manager, log, arrive } = setup();
+  manager.want(tiles("3/0/0", "3/1/0", "3/2/0"), tiles("4/0/0", "4/1/0"));
+  expect(log.requests).toEqual(["3/0/0", "3/1/0"]);
+  arrive("3/0/0");
+  expect(log.requests).toEqual(["3/0/0", "3/1/0", "3/2/0"]);
+  arrive("3/1/0");
+  expect(log.requests).toEqual(["3/0/0", "3/1/0", "3/2/0", "4/0/0"]);
+});
+
+test("the view is settled without its prefetched tiles, which are kept like wanted ones", () => {
+  const { manager, log, arrive } = setup({ cacheSize: 0 });
+  manager.want(tiles("3/0/0"), tiles("4/0/0"));
+  arrive("3/0/0");
+  expect(manager.settled).toBe(true);
+  arrive("4/0/0");
+  expect(log.destroyed).toEqual([]);
+  // No longer prefetched nor wanted: freed, as the cache keeps none
+  manager.want(tiles("3/0/0"));
+  arrive("3/0/0");
+  expect(log.destroyed).toEqual(["4/0/0"]);
+});

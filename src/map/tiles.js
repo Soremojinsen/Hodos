@@ -35,6 +35,7 @@ export class TileManager {
   // Tiles that failed while wanted: not requested again until they stop being wanted
   #failed = new Set();
   #wanted = [];
+  #prefetched = [];
   // Pin counts of the tiles ensure() holds
   #pins = new Map();
   // ensure() calls waiting for their tiles: {keys, resolve, reject}
@@ -65,10 +66,14 @@ export class TileManager {
   /**
    * Sets the tiles the camera wants, most important first. Tiles no longer wanted are not
    * requested anymore; those already requested are still kept when they arrive.
+   *
+   * @param prefetch tiles likely wanted next, built once every wanted tile is ready or being
+   *                 built, and kept like wanted ones; the view is settled without them
    */
-  want(tiles) {
+  want(tiles, prefetch = []) {
     this.#wanted = tiles.map(keyOf);
-    const wanted = new Set(this.#wanted);
+    this.#prefetched = prefetch.map(keyOf);
+    const wanted = new Set([...this.#wanted, ...this.#prefetched]);
     for (const key of this.#failed) {
       if (!wanted.has(key) && !this.#pins.has(key)) this.#failed.delete(key);
     }
@@ -162,11 +167,13 @@ export class TileManager {
   }
 
   /**
-   * Whether every wanted tile has arrived or failed, and no ensure() is waiting.
+   * Whether every wanted tile has arrived or failed, no ensure() is waiting, and no tile but
+   * prefetched ones is still being built.
    */
   get settled() {
+    const prefetched = new Set(this.#prefetched);
     return (
-      this.#inFlight.size === 0 &&
+      [...this.#inFlight].every((key) => prefetched.has(key)) &&
       this.#waiters.length === 0 &&
       this.#wanted.every((key) => this.#ready.has(key) || this.#failed.has(key))
     );
@@ -187,7 +194,11 @@ export class TileManager {
   }
 
   #pump() {
-    const candidates = [...this.#waiters.flatMap((waiter) => waiter.keys), ...this.#wanted];
+    const candidates = [
+      ...this.#waiters.flatMap((waiter) => waiter.keys),
+      ...this.#wanted,
+      ...this.#prefetched,
+    ];
     for (const key of candidates) {
       if (this.#inFlight.size >= this.#maxInFlight) return;
       if (this.#ready.has(key) || this.#inFlight.has(key) || this.#failed.has(key)) continue;
@@ -199,7 +210,7 @@ export class TileManager {
   // Frees the least recently used tiles not in use, keeping cacheSize of them: the tiles in use
   // do not count, or a screen wanting about cacheSize tiles would keep no others
   #evict() {
-    const wanted = new Set(this.#wanted);
+    const wanted = new Set([...this.#wanted, ...this.#prefetched]);
     const inUse = (key) => wanted.has(key) || this.#pins.has(key);
     let unused = 0;
     for (const key of this.#ready.keys()) if (!inUse(key)) unused++;

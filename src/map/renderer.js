@@ -1,3 +1,4 @@
+import { MAX_ZOOM } from "../constants.js";
 import { BIOME_DEFINITIONS } from "../generation/biomes.js";
 import { t } from "../i18n/i18n.js";
 import { flipRows } from "./pixels.js";
@@ -96,7 +97,7 @@ export class MapRenderer {
       // The level-0 tile is the fallback of every other tile: it is loaded first and never released
       const fallback = this.#tiles.ensure([{ z: 0, x: 0, y: 0 }]);
       // The camera's tiles come next, so the other workers build them meanwhile
-      this.#tiles.want(tilesInView(this.camera.view, levelForZoom(this.camera.zoom), 1));
+      this.#wantCameraTiles();
       await fallback;
       this.#loaded = true;
     } catch (error) {
@@ -277,10 +278,26 @@ export class MapRenderer {
    */
   viewChanged() {
     if (this.#loaded) {
-      this.#tiles.want(tilesInView(this.camera.view, levelForZoom(this.camera.zoom), 1));
+      this.#wantCameraTiles();
       this.#showTilesState();
     }
     this.requestRender();
+  }
+
+  // The camera's tiles with a ring around them, then, when the workers have nothing else to do,
+  // those of the next level, so zooming in shows its detail at once. Zooming keeps the centre
+  // of the view, and the next level is first drawn at zoom level + 0.5: the view at that zoom
+  // is the largest that level will show from here.
+  #wantCameraTiles() {
+    const view = this.camera.view;
+    const level = levelForZoom(this.camera.zoom);
+    let next = [];
+    if (level < MAX_ZOOM) {
+      const scale = 2 ** (level + 0.5 - this.camera.zoom);
+      const zoomedIn = { ...view, pixelsPerUnit: view.pixelsPerUnit * scale };
+      next = tilesInView(paddedView(zoomedIn, level + 1), level + 1);
+    }
+    this.#tiles.want(tilesInView(view, level, 1), next);
   }
 
   // For tests and styles: data-tiles is "settled" when no wanted tile is still loading
