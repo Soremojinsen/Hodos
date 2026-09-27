@@ -52,8 +52,8 @@ export class WorldSampler {
   #delaunay;
   #noise;
   #hint = 0;
-  #water = null;
-  #waterHint = 0;
+  // The side of the water mesh's grid, 0 without water
+  #waterSide = 0;
 
   /**
    * @param base see world.js MapGenerator#toBaseWorld, with or without its water (see
@@ -64,7 +64,7 @@ export class WorldSampler {
     this.#delaunay = new Delaunay(base.sites);
     this.#noise = createNoise();
     this.#noise.seed(hashSeed(base.seed));
-    if (base.waterSites) this.#water = new Delaunay(base.waterSites);
+    if (base.waterSites) this.#waterSide = Math.round(Math.sqrt(base.waterSites.length / 2));
   }
 
   get seed() {
@@ -78,7 +78,7 @@ export class WorldSampler {
    *            mouth: Uint8Array}|null}
    */
   get rivers() {
-    if (!this.#water) return null;
+    if (!this.#waterSide) return null;
     const base = this.#base;
     return {
       sites: base.waterSites,
@@ -138,6 +138,29 @@ export class WorldSampler {
   }
 
   /**
+   * The water mesh point nearest to (x, y). The mesh is a grid with a point in each square
+   * (hydrology.js computeDrainage), and the point of (x, y)'s own square is less than √2 squares
+   * away, so no point 3 or more squares away can be nearer: 5 × 5 squares are enough.
+   */
+  #nearestWaterPoint(x, y) {
+    const sites = this.#base.waterSites;
+    const side = this.#waterSide;
+    const step = WORLD_SIZE / side;
+    const clamp = (i) => Math.min(Math.max(i, 0), side - 1);
+    const [col, row] = [clamp(Math.floor(x / step)), clamp(Math.floor(y / step))];
+    let nearest = -1;
+    let nearestDistance = Infinity;
+    for (let r = Math.max(row - 2, 0); r <= Math.min(row + 2, side - 1); r++) {
+      for (let c = Math.max(col - 2, 0); c <= Math.min(col + 2, side - 1); c++) {
+        const i = r * side + c;
+        const distance = (sites[2 * i] - x) ** 2 + (sites[2 * i + 1] - y) ** 2;
+        if (distance < nearestDistance) [nearest, nearestDistance] = [i, distance];
+      }
+    }
+    return nearest;
+  }
+
+  /**
    * @returns {{biome: Number, continent: Number, land: boolean, altitude: Number}}
    *          biome is an index in BIOME_DEFINITIONS; continent is 0 at sea and on islands
    */
@@ -148,11 +171,9 @@ export class WorldSampler {
     this.#hint = cell;
     const biome = this.#base.biomes[cell];
     const land = !MARITIME[biome];
-    if (land && this.#water) {
+    if (land && this.#waterSide) {
       const [lx, ly] = this.lakeWarp(x, y, level);
-      const point = this.#water.find(lx, ly, this.#waterHint);
-      this.#waterHint = point;
-      if (this.#base.lakes[point]) {
+      if (this.#base.lakes[this.#nearestWaterPoint(lx, ly)]) {
         return { biome: LAKE, continent: 0, land: false, altitude: SEA_ALTITUDE };
       }
     }
