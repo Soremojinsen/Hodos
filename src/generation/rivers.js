@@ -25,9 +25,17 @@ export const MEANDER = 0.25;
 
 /**
  * How far, in world units, a river's end looks for the water drawn at a level, whose coasts and
- * lake shores differ a little from those the water flowed to.
+ * lake shores differ a little from those the water flowed to (measured: at most about 160).
+ * Shallow levels, whose cells are larger, look at least 3 deep water radii away, see maxReach.
  */
-export const MAX_REACH = 600;
+export const MAX_REACH = 250;
+
+/**
+ * How far, in pixels, the water must reach around a river's end: a tile colours each cell (about
+ * 8 px wide, see tiles.js TILE_CELLS_SIDE) by its site, so water only at the end itself may be
+ * drawn as land, while water all around it is drawn as water.
+ */
+export const DEEP_WATER_PX = 12;
 
 /**
  * The sides of the polygon drawn at each point of a course, joining its segments round.
@@ -40,6 +48,11 @@ export const RIVER = BIOME_DEFINITIONS.findIndex((definition) => definition.name
  * The side of a screen pixel at level z, in world units.
  */
 const pixelSize = (z) => WORLD_SIZE / 2 ** z / TILE_PIXEL_SIZE;
+
+/**
+ * How far a river's end looks for deep water at level z, in world units.
+ */
+export const maxReach = (z) => Math.max(MAX_REACH, 3 * DEEP_WATER_PX * pixelSize(z));
 
 /**
  * The smallest flow of the rivers drawn at level z.
@@ -82,27 +95,44 @@ export function meander(ax, ay, bx, by, key, z) {
 }
 
 /**
- * The nearest water drawn at level z from (x, y), looked for in 16 directions, ring by ring
- * (4 pixels, at least 5 world units, apart).
+ * Whether the water reaches DEEP_WATER_PX around (x, y) at level z, in 8 directions.
  *
  * @param sampler {WorldSampler}
- * @returns {Number[]|null} [x, y], or null when there is none within MAX_REACH
+ */
+export function deepWater(sampler, x, y, z) {
+  if (sampler.sampleAt(x, y, z).land) return false;
+  const radius = DEEP_WATER_PX * pixelSize(z);
+  for (let k = 0; k < 8; k++) {
+    const angle = (k * Math.PI) / 4;
+    if (sampler.sampleAt(x + radius * Math.cos(angle), y + radius * Math.sin(angle), z).land) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * The nearest deep water from (x, y) at level z (see deepWater), looked for in 16 directions,
+ * ring by ring (4 pixels, at least 5 world units, apart).
+ *
+ * @param sampler {WorldSampler}
+ * @returns {Number[]|null} [x, y], or null when there is none within maxReach(z)
  */
 export function nearestWater(sampler, x, y, z) {
   const step = Math.max(5, 4 * pixelSize(z));
-  for (let radius = step; radius <= MAX_REACH; radius += step) {
+  for (let radius = step; radius <= maxReach(z); radius += step) {
     for (let k = 0; k < 16; k++) {
       const angle = (k * Math.PI) / 8;
       const [px, py] = [x + radius * Math.cos(angle), y + radius * Math.sin(angle)];
-      if (!sampler.sampleAt(px, py, z).land) return [px, py];
+      if (deepWater(sampler, px, py, z)) return [px, py];
     }
   }
   return null;
 }
 
 /**
- * The course of river edge k at level z: its meander, and when it ends in water that this level
- * draws as land, a meander on to the nearest water.
+ * The course of river edge k at level z: its meander, and for an edge that ends in the sea or a
+ * lake, when this level does not draw deep water there, a meander on to the nearest that it does.
  *
  * @param sampler {WorldSampler}
  * @returns {Number[]} x0, y0, x1, y1, …
@@ -112,7 +142,7 @@ export function riverCourse(sampler, k, z) {
   const [a, b] = [from[k], to[k]];
   const [ax, ay, bx, by] = [sites[2 * a], sites[2 * a + 1], sites[2 * b], sites[2 * b + 1]];
   const course = meander(ax, ay, bx, by, `${sampler.seed}:river:${a}:${b}`, z);
-  if (mouth[k] && sampler.sampleAt(bx, by, z).land) {
+  if (mouth[k] && !deepWater(sampler, bx, by, z)) {
     const water = nearestWater(sampler, bx, by, z);
     if (water) {
       const reach = meander(bx, by, ...water, `${sampler.seed}:mouth:${a}:${b}`, z);
@@ -121,7 +151,6 @@ export function riverCourse(sampler, k, z) {
   }
   return course;
 }
-
 /**
  * The river triangles of an area at level z, to draw over its cells: a quad per segment and a
  * polygon per point of each course that touch the area, at sea altitude so the Parchemin
@@ -155,8 +184,8 @@ export function buildRivers(sampler, z, [minX, minY, maxX, maxY]) {
     const [a, b] = [from[k], to[k]];
     const [ax, ay, bx, by] = [sites[2 * a], sites[2 * a + 1], sites[2 * b], sites[2 * b + 1]];
     const half = riverWidth(flow[k], z) / 2;
-    // A course stays within half its length of its edge, plus its reach to the water
-    const pad = Math.hypot(bx - ax, by - ay) / 2 + half + (mouth[k] ? MAX_REACH : 0);
+    // A course strays at most about 0.36 of its length from its edge (and its reach from b)
+    const pad = Math.hypot(bx - ax, by - ay) / 2 + half + (mouth[k] ? 1.4 * maxReach(z) : 0);
     if (!touches(ax, ay, bx, by, pad)) continue;
 
     const course = riverCourse(sampler, k, z);

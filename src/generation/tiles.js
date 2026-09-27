@@ -101,8 +101,8 @@ export function tileCells(seed, z, x, y) {
 export function buildTile(sampler, z, x, y) {
   const cells = tileCells(sampler.seed, z, x, y);
   const size = tileSize(z);
-  // Cells may reach about a cell past the tile's edge, see tileCells
-  const margin = size / TILE_CELLS_SIDE;
+  // Cells may reach a little more than a cell past the tile's edge, see tileCells
+  const margin = (2 * size) / TILE_CELLS_SIDE;
   const rivers = buildRivers(sampler, z, [
     x * size - margin,
     y * size - margin,

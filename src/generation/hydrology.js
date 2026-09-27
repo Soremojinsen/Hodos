@@ -202,8 +202,9 @@ export function generateWater(sampler) {
   const edges = [];
   for (let i = 0; i < flow.length; i++) {
     const to = downstream[i];
-    // Water crossing a lake is the lake; its outlet is a river again
-    if (!land[i] || flow[i] < MIN_RIVER_FLOW || (lakes[i] && lakes[to])) continue;
+    // Water crossing a lake is the lake; its outlet is a river again. Land drains nowhere only
+    // in a world without sea.
+    if (!land[i] || to < 0 || flow[i] < MIN_RIVER_FLOW || (lakes[i] && lakes[to])) continue;
     edges.push(i);
   }
   edges.sort((a, b) => flow[b] - flow[a] || a - b);

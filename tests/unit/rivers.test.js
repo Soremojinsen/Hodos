@@ -8,12 +8,14 @@ import {
   MEANDER,
   MIN_WIDTH_PX,
   buildRivers,
+  deepWater,
   meander,
   nearestWater,
   riverCourse,
   riverThreshold,
   riverWidth,
 } from "../../src/generation/rivers.js";
+import { siteAt } from "../../src/generation/tiles.js";
 import { generateWorld } from "../../src/generation/world.js";
 
 const sampler = new WorldSampler(withWater(generateWorld("12345")));
@@ -79,23 +81,24 @@ test("a deeper level only adds bends: its course goes through the shallower one'
   }
 });
 
-test("a river that reaches the sea or a lake ends in the water drawn at each level", () => {
-  let checked = 0;
-  for (let k = 0; k < rivers.flow.length && checked < 40; k++) {
-    if (!rivers.mouth[k]) continue;
-    for (const z of [2, 5, 7]) {
-      const course = riverCourse(sampler, k, z);
-      const [ex, ey] = course.slice(-2);
+test("a river that reaches the sea or a lake ends in a cell drawn as water at each level", () => {
+  for (const z of [0, 2, 5, 7]) {
+    let [ends, dry] = [0, 0];
+    for (let k = 0; k < rivers.flow.length && rivers.flow[k] >= riverThreshold(z); k++) {
+      if (!rivers.mouth[k]) continue;
       const b = rivers.to[k];
       const [bx, by] = [rivers.sites[2 * b], rivers.sites[2 * b + 1]];
-      // Unless no water is drawn within reach, as then the course ends at its edge
-      if (nearestWater(sampler, bx, by, z) || !sampler.sampleAt(bx, by, z).land) {
-        expect(sampler.sampleAt(ex, ey, z).land).toBe(false);
-      }
+      // Unless no deep water is drawn within reach, as then the course ends at its edge
+      if (!deepWater(sampler, bx, by, z) && !nearestWater(sampler, bx, by, z)) continue;
+      const [ex, ey] = riverCourse(sampler, k, z).slice(-2);
+      ends++;
+      // The cell the tile draws there is coloured by its site
+      if (sampler.sampleAt(...siteAt(sampler.seed, ex, ey, z), z).land) dry++;
     }
-    checked++;
+    expect(ends).toBeGreaterThan(3);
+    // Deep water all around an end can still hold an islet at the cell's site: rarely
+    expect(dry / ends).toBeLessThanOrEqual(0.02);
   }
-  expect(checked).toBe(40);
 });
 
 test("a tile draws every point of the rivers that crosses it, so tiles join without seams", () => {

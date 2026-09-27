@@ -238,8 +238,10 @@ test("rivers come after the cells, in the river biome at sea level", () => {
   const land = buildTile(sampler, 3, 2, 3);
   expect(tile.landIndexCount).toBe(land.indices.length);
   expect(tile.indices.length).toBeGreaterThan(tile.landIndexCount);
-  const firstRiverVertex = Math.min(...tile.indices.subarray(tile.landIndexCount));
-  for (let v = firstRiverVertex; v < tile.biomeIds.length; v++) {
+  const landVertexCount = land.biomeIds.length;
+  expect(Math.min(...tile.indices.subarray(tile.landIndexCount))).toBe(landVertexCount);
+  expect(tile.indices.subarray(0, tile.landIndexCount)).toEqual(land.indices);
+  for (let v = landVertexCount; v < tile.biomeIds.length; v++) {
     expect(tile.biomeIds[v]).toBe(RIVER);
     expect(tile.positions[3 * v + 2]).toBeCloseTo(-0.1, 5);
   }

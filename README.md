@@ -31,7 +31,7 @@ Hodos creates maps for your imagination to thrive.
 
 ### Link parameters
 
-The same seed always produces the same map (since the version that brought zoom detail; older links may show a different map; links from before rivers show the same land, now with rivers and lakes), and these parameters are kept stable.
+The same seed always produces the same map (since the version that brought zoom detail; older links may show a different map; links from before rivers show the same continents and coasts, now with rivers and lakes), and these parameters are kept stable.
 
 | Parameter | Meaning                                                         | Default   |
 | --------- | --------------------------------------------------------------- | --------- |
