@@ -120,10 +120,19 @@ test("a square grid is one stroke of one line per multiple, clipped to the world
   expect(context.calls).toContainEqual(["lineWidth", 3]);
 });
 
-test("a hex grid draws one closed hexagon per cell", () => {
+test("a hex grid draws one closed hexagon per cell, back to its first corner", () => {
   const context = recorder();
   drawGrid(context, view, { type: "hex", size: 500, opacity: 40 });
-  expect(count(context, "closePath")).toBe(count(context, "moveTo"));
-  expect(count(context, "lineTo")).toBe(5 * count(context, "moveTo"));
+  const moves = context.calls.filter(([name]) => name === "moveTo");
+  expect(moves.length).toBeGreaterThan(0);
+  expect(count(context, "lineTo")).toBe(6 * moves.length);
+  // Each hexagon: moveTo, 6 lineTo, the last one on the moveTo point (no closePath, see drawGrid)
+  const calls = context.calls;
+  calls.forEach(([name, ...start], i) => {
+    if (name !== "moveTo") return;
+    expect(calls.slice(i + 1, i + 7).every(([next]) => next === "lineTo")).toBe(true);
+    expect(calls[i + 6].slice(1)).toEqual(start);
+  });
+  expect(count(context, "closePath")).toBe(0);
   expect(count(context, "stroke")).toBe(1);
 });

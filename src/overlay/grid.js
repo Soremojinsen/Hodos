@@ -127,10 +127,11 @@ export function drawGrid(context, view, settings, lineWidth = 1) {
     }
   } else {
     for (const { center } of hexCells(settings.size, bounds)) {
-      const [first, ...others] = hexCorners(center, settings.size).map((c) => toScreen(c.x, c.y));
-      context.moveTo(first.x, first.y);
-      for (const corner of others) context.lineTo(corner.x, corner.y);
-      context.closePath();
+      const corners = hexCorners(center, settings.size).map((c) => toScreen(c.x, c.y));
+      context.moveTo(corners[0].x, corners[0].y);
+      // Back to the first corner rather than closePath(): Chrome strokes a path of thousands of
+      // closed shapes about 10 times slower
+      for (const corner of [...corners.slice(1), corners[0]]) context.lineTo(corner.x, corner.y);
     }
   }
   // One stroke: lines shared by two cells are not darker
