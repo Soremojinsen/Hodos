@@ -3,8 +3,11 @@ import { TILE_PIXEL_SIZE, WORLD_SIZE } from "../../src/constants.js";
 import { WorldSampler } from "../../src/generation/fields.js";
 import { withWater } from "../../src/generation/hydrology.js";
 import {
+  BEND_WIDTHS,
   MAX_SEGMENT_PX,
   MAX_WIDTH_PX,
+  TRUE_WIDTH,
+  TRUE_WIDTH_FLOW,
   MEANDER,
   MIN_WIDTH_PX,
   buildRivers,
@@ -18,6 +21,7 @@ import {
   riverPixels,
   riverWidth,
   riverWidthUniform,
+  trueWidth,
 } from "../../src/generation/rivers.js";
 import { siteAt } from "../../src/generation/tiles.js";
 import { generateWorld } from "../../src/generation/world.js";
@@ -54,21 +58,37 @@ test("each level shows rivers half as large as the level above, down to the smal
   expect(riverThreshold(0)).toBeGreaterThan(riverThreshold(1));
 });
 
-test("rivers are 1 to 5 px wide, wider downstream", () => {
-  for (const z of [0, 3, 7]) {
+test("far out, rivers are lines 1 to 5 px wide, a pixel wider per doubling of the flow", () => {
+  for (const z of [0, 2, 3]) {
     const threshold = riverThreshold(z);
-    expect(riverWidth(threshold, z)).toBeCloseTo(MIN_WIDTH_PX * pixelSize(z));
-    expect(riverWidth(4 * threshold, z)).toBeCloseTo((MIN_WIDTH_PX + 2) * pixelSize(z));
-    expect(riverWidth(1e9, z)).toBeCloseTo(MAX_WIDTH_PX * pixelSize(z));
+    expect(riverPixels(threshold, z)).toBeCloseTo(MIN_WIDTH_PX, 2);
+    expect(riverPixels(4 * threshold, z)).toBeCloseTo(MIN_WIDTH_PX + 2, 2);
+  }
+  expect(riverPixels(1024, 0)).toBeCloseTo(MAX_WIDTH_PX - 2, 2);
+  expect(riverPixels(4096, 1)).toBeCloseTo(MAX_WIDTH_PX, 2);
+});
+
+test("up close, rivers are their real width, as the square root of their flow", () => {
+  expect(trueWidth(TRUE_WIDTH_FLOW)).toBe(TRUE_WIDTH);
+  expect(trueWidth(TRUE_WIDTH_FLOW / 4)).toBeCloseTo(TRUE_WIDTH / 2, 9);
+  expect(riverWidth(TRUE_WIDTH_FLOW, 7)).toBeCloseTo(TRUE_WIDTH, 1);
+  expect(riverWidth(TRUE_WIDTH_FLOW / 4, 7)).toBeCloseTo(TRUE_WIDTH / 2, 1);
+  // Never narrower than either width
+  for (const f of [4, 30, 256, 1000]) {
+    for (const zoom of [0, 2.5, 5, 7]) {
+      expect(riverWidth(f, zoom)).toBeGreaterThanOrEqual(trueWidth(f));
+      expect(riverPixels(f, zoom)).toBeGreaterThanOrEqual(MIN_WIDTH_PX);
+    }
   }
 });
 
-test("zooming in widens rivers gradually, up to a pixel per level", () => {
+test("zooming in only ever widens a river on screen, gradually", () => {
   for (const f of [4, 30, 256, 1000]) {
     for (let zoom = 0; zoom < 7; zoom += 0.05) {
-      const step = riverPixels(f, zoom + 0.05) - riverPixels(f, zoom);
-      expect(step).toBeGreaterThanOrEqual(0);
-      expect(step).toBeLessThanOrEqual(0.05 + 1e-9);
+      const [before, after] = [riverPixels(f, zoom), riverPixels(f, zoom + 0.05)];
+      expect(after).toBeGreaterThanOrEqual(before);
+      // At most a pixel per level for a line, twice as wide per level for a real width
+      expect(after).toBeLessThanOrEqual(before * 2 ** 0.05 + 0.05 + 1e-9);
     }
   }
 });
@@ -86,11 +106,15 @@ test("a level's rivers are never wider than tiles expect, at any zoom it is draw
 test("the shaders get what they need to compute riverPixels", () => {
   for (const zoom of [0, 1.49, 1.51, 4.2, 7]) {
     const view = { pixelsPerUnit: (TILE_PIXEL_SIZE * 2 ** zoom) / WORLD_SIZE };
-    const [logThreshold, min, max, unitsPerPixel] = riverWidthUniform(view);
+    const { line, real } = riverWidthUniform(view);
+    const [logThreshold, min, max, unitsPerPixel] = line;
+    const [unitPixels, blend] = real;
     expect(unitsPerPixel).toBeCloseTo(pixelSize(zoom), 9);
     for (const f of [4, 30, 256, 1000]) {
       // As in world_default.vert
-      const pixels = Math.min(Math.max(min + Math.log2(f) - logThreshold, min), max);
+      const linePixels = Math.min(Math.max(min + Math.log2(f) - logThreshold, min), max);
+      const realPixels = unitPixels * 2 ** (0.5 * Math.log2(f));
+      const pixels = (linePixels ** blend + realPixels ** blend) ** (1 / blend);
       expect(pixels).toBeCloseTo(riverPixels(f, zoom), 9);
     }
   }
@@ -132,6 +156,45 @@ test("a meander keeps its ends, stays near its edge, and has short segments", ()
       const segment = Math.hypot(points[i + 2] - points[i], points[i + 3] - points[i + 1]);
       // Bends lengthen segments by at most a factor √(1 + (2 MEANDER)²) per round
       expect(segment / pixelSize(z)).toBeLessThanOrEqual(2 * MAX_SEGMENT_PX);
+    }
+  }
+});
+
+test("a wide river bends no tighter than its width", () => {
+  const [ax, ay, bx, by] = [1000, 1000, 1040, 1030];
+  for (const width of [2, 7.5, 20]) {
+    const points = meander(ax, ay, bx, by, "key", 7, width);
+    for (let i = 0; i + 3 < points.length; i += 2) {
+      const segment = Math.hypot(points[i + 2] - points[i], points[i + 3] - points[i + 1]);
+      expect(segment).toBeGreaterThanOrEqual(BEND_WIDTHS * width);
+    }
+  }
+  expect(meander(ax, ay, bx, by, "key", 7, 60)).toEqual([ax, ay, bx, by]);
+});
+
+test("a river is no wider in the world at a deeper level, so its course only gains bends", () => {
+  for (const f of [4, 30, 256, 1000, 4096]) {
+    for (let z = 1; z <= 7; z++) {
+      expect(riverWidth(f, z)).toBeLessThanOrEqual(riverWidth(f, z - 1) + 1e-9);
+    }
+  }
+  for (let k = 0; k < rivers.flow.length; k += 97) {
+    for (let z = 1; z <= 7; z++) {
+      const [shallow, deep] = [riverCourse(sampler, k, z - 1), riverCourse(sampler, k, z)];
+      // Without the reach to the sea, which each level finds for itself
+      const ends = (course) => {
+        const b = rivers.to[k];
+        const i = course.findIndex(
+          (v, j) =>
+            j % 2 === 0 && v === rivers.sites[2 * b] && course[j + 1] === rivers.sites[2 * b + 1],
+        );
+        return course.slice(0, i + 2);
+      };
+      const [s, d] = [ends(shallow), ends(deep)];
+      for (let i = 0; i < s.length; i += 2) {
+        const found = d.some((v, j) => j % 2 === 0 && v === s[i] && d[j + 1] === s[i + 1]);
+        expect(found).toBe(true);
+      }
     }
   }
 });

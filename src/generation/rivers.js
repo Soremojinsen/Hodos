@@ -10,20 +10,35 @@ import { MIN_RIVER_FLOW } from "./hydrology.js";
 export const RIVER_BASE_FLOW = 256;
 
 /**
- * River widths on screen, in pixels, at any zoom: a river as large as the smallest drawn at that
- * zoom (see riverThreshold) is MIN_WIDTH_PX wide, and each doubling of the flow adds a pixel, up
- * to MAX_WIDTH_PX. Zooming in by a level adds a pixel to every river, gradually: the shaders
- * widen the rivers for the zoom they are drawn at, so a river keeps its width when the tiles
- * switch level.
+ * A river is drawn as the wider of two widths, blended (see riverPixels), so that it is a line far
+ * out and its real size up close:
+ *
+ * - a line, in pixels: a river as large as the smallest drawn at a zoom (see riverThreshold) is
+ *   MIN_WIDTH_PX wide, and each doubling of the flow adds a pixel, up to MAX_WIDTH_PX;
+ * - its real width in the world: TRUE_WIDTH at TRUE_WIDTH_FLOW, as the square root of the flow
+ *   (the land it drains), as real rivers roughly are.
+ *
+ * Both only grow when zooming in, gradually: the shaders widen the rivers for the zoom they are
+ * drawn at, so a river keeps its width when the tiles switch level.
  */
 export const MIN_WIDTH_PX = 1;
 export const MAX_WIDTH_PX = 5;
+export const TRUE_WIDTH = 7.5;
+export const TRUE_WIDTH_FLOW = 1024;
 
 /**
- * A course is split until its segments are at most MAX_SEGMENT_PX long on screen. Each split moves
- * the middle of a segment sideways by up to MEANDER times the segment's length.
+ * How the two widths blend: the BLEND-norm of the two, which is the wider one, a little rounded
+ * where they are close, so rivers do not start widening faster all at once.
+ */
+export const BLEND = 4;
+
+/**
+ * A course is split until its segments are at most MAX_SEGMENT_PX long on screen, but not below
+ * BEND_WIDTHS times the river's width: smaller bends would only make its banks lumpy. Each split
+ * moves the middle of a segment sideways by up to MEANDER times the segment's length.
  */
 export const MAX_SEGMENT_PX = 8;
+export const BEND_WIDTHS = 1;
 export const MEANDER = 0.25;
 
 /**
@@ -41,9 +56,10 @@ export const MAX_REACH = 250;
 export const DEEP_WATER_PX = 12;
 
 /**
- * The sides of the polygon drawn at each point of a course, joining its segments round.
+ * The sides of the polygon drawn at each point of a course, joining its segments round: on a
+ * river 25 px wide, its edges are within a quarter of a pixel of the circle.
  */
-export const JOIN_SIDES = 8;
+export const JOIN_SIDES = 16;
 
 export const RIVER = BIOME_DEFINITIONS.findIndex((definition) => definition.name === "river");
 
@@ -64,12 +80,21 @@ export const maxReach = (z) => Math.max(MAX_REACH, 3 * DEEP_WATER_PX * pixelSize
 export const riverThreshold = (z) => Math.max(MIN_RIVER_FLOW, RIVER_BASE_FLOW / 2 ** z);
 
 /**
- * The width of a river at a zoom, in pixels. The world shaders compute the same, see
- * riverWidthUniform.
+ * The real width of a river, in world units.
+ */
+export const trueWidth = (flow) => TRUE_WIDTH * Math.sqrt(flow / TRUE_WIDTH_FLOW);
+
+/**
+ * The width of a river at a zoom, in pixels, see MIN_WIDTH_PX. The world shaders compute the
+ * same, see riverWidthUniform.
  */
 export function riverPixels(flow, zoom) {
-  const pixels = MIN_WIDTH_PX + Math.log2(flow / riverThreshold(zoom));
-  return Math.min(Math.max(pixels, MIN_WIDTH_PX), MAX_WIDTH_PX);
+  const line = Math.min(
+    Math.max(MIN_WIDTH_PX + Math.log2(flow / riverThreshold(zoom)), MIN_WIDTH_PX),
+    MAX_WIDTH_PX,
+  );
+  const real = trueWidth(flow) / pixelSize(zoom);
+  return (line ** BLEND + real ** BLEND) ** (1 / BLEND);
 }
 
 /**
@@ -79,32 +104,41 @@ export const riverWidth = (flow, zoom) => riverPixels(flow, zoom) * pixelSize(zo
 
 /**
  * At least half the width of a river at every zoom level z is drawn at, from z - 0.5 to z + 0.5,
- * in world units: its most pixels, of the largest pixels. (Its width in the world shrinks when
- * zooming in, but grows while it is less than 1 / ln 2 pixels wide.)
+ * in world units: its most pixels, of the largest pixels. (Its width in the world mostly shrinks
+ * when zooming in, but not always: a line less than 1 / ln 2 pixels wide grows.)
  */
 export const maxHalfWidth = (flow, z) => (riverPixels(flow, z + 0.5) * pixelSize(z - 0.5)) / 2;
 
 /**
- * What the world shaders need to widen the rivers for a view, see view.js:
- * [log2 of riverThreshold at its zoom, MIN_WIDTH_PX, MAX_WIDTH_PX, world units per pixel].
+ * What the world shaders need to widen the rivers for a view, see view.js: its line widths,
+ * [log2 of riverThreshold at its zoom, MIN_WIDTH_PX, MAX_WIDTH_PX, world units per pixel], and
+ * its real widths, [the pixels of a river of flow 1, BLEND].
  */
 export function riverWidthUniform(view) {
   const zoom = Math.log2((view.pixelsPerUnit * WORLD_SIZE) / TILE_PIXEL_SIZE);
-  return [Math.log2(riverThreshold(zoom)), MIN_WIDTH_PX, MAX_WIDTH_PX, 1 / view.pixelsPerUnit];
+  return {
+    line: [Math.log2(riverThreshold(zoom)), MIN_WIDTH_PX, MAX_WIDTH_PX, 1 / view.pixelsPerUnit],
+    real: [trueWidth(1) * view.pixelsPerUnit, BLEND],
+  };
 }
 
 /**
  * The winding course from a to b at level z: the segment is split in two, then each half, and
- * so on, until the pieces are short enough on screen. The random draws of each round of splits
- * come in the same order whatever the level, so a deeper level only adds bends to a shallower
- * one's course, and a and b never move.
+ * so on, until the pieces are short enough on screen, or would bend a river of the given width
+ * (in world units) too tightly. The random draws of each round of splits come in the same order
+ * whatever the level, so as long as the width does not grow at deeper levels (see riverWidth),
+ * a deeper level only adds bends to a shallower one's course, and a and b never move.
  *
  * @param key the random seed of this course
  * @returns {Number[]} x0, y0, x1, y1, …, from a to b
  */
-export function meander(ax, ay, bx, by, key, z) {
-  const pixels = Math.hypot(bx - ax, by - ay) / pixelSize(z);
-  const rounds = pixels > MAX_SEGMENT_PX ? Math.ceil(Math.log2(pixels / MAX_SEGMENT_PX)) : 0;
+export function meander(ax, ay, bx, by, key, z, width = 0) {
+  const length = Math.hypot(bx - ax, by - ay);
+  const pixels = length / pixelSize(z);
+  let rounds = pixels > MAX_SEGMENT_PX ? Math.ceil(Math.log2(pixels / MAX_SEGMENT_PX)) : 0;
+  if (width > 0) {
+    rounds = Math.min(rounds, Math.max(Math.floor(Math.log2(length / (BEND_WIDTHS * width))), 0));
+  }
   const random = aleaPRNG(key);
   let points = [ax, ay, bx, by];
   for (let round = 0; round < rounds; round++) {
@@ -187,14 +221,15 @@ export function riverCourse(sampler, k, z) {
 }
 
 function findCourse(sampler, k, z) {
-  const { sites, from, to, mouth } = sampler.rivers;
+  const { sites, from, to, flow, mouth } = sampler.rivers;
   const [a, b] = [from[k], to[k]];
   const [ax, ay, bx, by] = [sites[2 * a], sites[2 * a + 1], sites[2 * b], sites[2 * b + 1]];
-  const course = meander(ax, ay, bx, by, `${sampler.seed}:river:${a}:${b}`, z);
+  const width = riverWidth(flow[k], z);
+  const course = meander(ax, ay, bx, by, `${sampler.seed}:river:${a}:${b}`, z, width);
   if (mouth[k] && !deepWater(sampler, bx, by, z)) {
     const water = nearestWater(sampler, bx, by, z);
     if (water) {
-      const reach = meander(bx, by, ...water, `${sampler.seed}:mouth:${a}:${b}`, z);
+      const reach = meander(bx, by, ...water, `${sampler.seed}:mouth:${a}:${b}`, z, width);
       course.push(...reach.slice(2));
     }
   }

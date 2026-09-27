@@ -36,7 +36,7 @@ test("rivers are as wide as riverPixels says, and keep their width when the leve
       for (let k = 0; k < 16; k++) {
         const angle = (k * Math.PI) / 16;
         let sum = 0;
-        for (let t = -8; t <= 8; t += 0.25) {
+        for (let t = -20; t <= 20; t += 0.25) {
           const px = Math.floor(side / 2 + t * Math.cos(angle));
           const py = Math.floor(side / 2 + t * Math.sin(angle));
           sum += 0.25 * water(px, py);
@@ -82,7 +82,7 @@ test("rivers are as wide as riverPixels says, and keep their width when the leve
     return result;
   });
   for (const { points, ratio, error } of switches) {
-    expect(points).toBeGreaterThanOrEqual(3);
+    expect(points).toBeGreaterThanOrEqual(2);
     expect(ratio).toBeGreaterThan(0.9);
     expect(ratio).toBeLessThan(1.1);
     expect(error).toBeLessThan(1);

@@ -191,7 +191,9 @@ export class WorldShaderProgram extends ShaderProgram {
   setView(view) {
     const gl = this.gl;
     gl.uniformMatrix4fv(gl.getUniformLocation(this.glProgram, "view"), false, viewMatrix(view));
-    gl.uniform4fv(gl.getUniformLocation(this.glProgram, "river_width"), riverWidthUniform(view));
+    const { line, real } = riverWidthUniform(view);
+    gl.uniform4fv(gl.getUniformLocation(this.glProgram, "river_width"), line);
+    gl.uniform2fv(gl.getUniformLocation(this.glProgram, "river_real"), real);
   }
 
   /**
