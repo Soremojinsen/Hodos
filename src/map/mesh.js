@@ -1,3 +1,4 @@
+import { RIVER } from "../generation/rivers.js";
 import { DebugWorldShaderProgram, WorldShaderProgram } from "./shader.js";
 
 /**
@@ -33,7 +34,7 @@ export class Tile extends Mesh {
   #data;
   #buffers;
   #indexCount;
-  #landIndexCount;
+  #riverIndexCount;
 
   /**
    * @param data see generation/tiles.js buildTile: z, x, y and the typed arrays to draw
@@ -71,9 +72,12 @@ export class Tile extends Mesh {
       debugColors: upload(gl.ARRAY_BUFFER, data.debugColors),
       biomeIds: upload(gl.ARRAY_BUFFER, data.biomeIds),
       indices: upload(gl.ELEMENT_ARRAY_BUFFER, data.indices),
+      riverPositions: upload(gl.ARRAY_BUFFER, data.riverPositions),
+      riverShapes: upload(gl.ARRAY_BUFFER, data.riverShapes),
+      riverIndices: upload(gl.ELEMENT_ARRAY_BUFFER, data.riverIndices),
     };
     this.#indexCount = data.indices.length;
-    this.#landIndexCount = data.landIndexCount;
+    this.#riverIndexCount = data.riverIndices.length;
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
     // The arrays now live on the GPU
@@ -81,19 +85,25 @@ export class Tile extends Mesh {
   }
 
   render(shaderProgram) {
-    if (shaderProgram instanceof WorldShaderProgram) {
-      let gl = shaderProgram.gl;
-      shaderProgram.bindSurfaceVertexPositionBuffer(this.#buffers.positions);
-      shaderProgram.bindDebugSurfaceColorsBuffer(this.#buffers.debugColors);
-      shaderProgram.bindBiomeIdBuffer(this.#buffers.biomeIds);
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.#buffers.indices);
-      // Debug mode shows the raw cells, without the rivers drawn over them
-      const count =
-        shaderProgram instanceof DebugWorldShaderProgram ? this.#landIndexCount : this.#indexCount;
-      gl.drawElements(gl.TRIANGLES, count, gl.UNSIGNED_SHORT, 0);
-    } else {
+    if (!(shaderProgram instanceof WorldShaderProgram)) {
       console.error("Tile render expects a WorldShaderProgram");
+      return;
     }
+    const gl = shaderProgram.gl;
+    const buffers = this.#buffers;
+    shaderProgram.bindSurfaceVertexPositionBuffer(buffers.positions);
+    shaderProgram.bindDebugSurfaceColorsBuffer(buffers.debugColors);
+    shaderProgram.bindBiomeIdBuffer(buffers.biomeIds);
+    shaderProgram.bindRiverShapeBuffer(null);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.indices);
+    gl.drawElements(gl.TRIANGLES, this.#indexCount, gl.UNSIGNED_SHORT, 0);
+    // Debug mode shows the raw cells, without the rivers drawn over them
+    if (shaderProgram instanceof DebugWorldShaderProgram || this.#riverIndexCount === 0) return;
+    shaderProgram.bindSurfaceVertexPositionBuffer(buffers.riverPositions);
+    shaderProgram.setBiomeId(RIVER);
+    shaderProgram.bindRiverShapeBuffer(buffers.riverShapes);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.riverIndices);
+    gl.drawElements(gl.TRIANGLES, this.#riverIndexCount, gl.UNSIGNED_SHORT, 0);
   }
 
   destroy(gl) {

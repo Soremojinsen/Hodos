@@ -6,7 +6,7 @@ import { BiomesWorldShaderProgram, DebugWorldShaderProgram, WorldShaderProgram }
 import { Tile } from "./mesh.js";
 import { levelForView, levelForZoom, paddedView, tileKey, tilesInView } from "./tile-grid.js";
 import { TileManager } from "./tiles.js";
-import { cameraView, viewMatrix } from "./view.js";
+import { cameraView } from "./view.js";
 import biomesFragment from "./shaders/world_biomes.frag?raw";
 import biomesVertex from "./shaders/world_biomes.vert?raw";
 import debugFragment from "./shaders/world_debug.frag?raw";
@@ -271,7 +271,7 @@ export class MapRenderer {
       }
       gl.viewport(0, 0, width, height);
       this.#useProgram(this.#programFor(mode));
-      this.#activeWorldShaderProgram.setViewMatrix(viewMatrix(view));
+      this.#activeWorldShaderProgram.setView(view);
       this.#drawScene(view, level);
       const pixels = new Uint8Array(width * height * 4);
       gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
@@ -509,7 +509,7 @@ export class Camera {
   updateGl() {
     let program = this.#renderer.worldShaderProgram;
     if (!program) return; // Not loaded (yet)
-    program.setViewMatrix(viewMatrix(this.view));
+    program.setView(this.view);
     this.#renderer.viewChanged();
   }
 }

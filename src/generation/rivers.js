@@ -10,8 +10,11 @@ import { MIN_RIVER_FLOW } from "./hydrology.js";
 export const RIVER_BASE_FLOW = 256;
 
 /**
- * River widths on screen, in pixels: the smallest river of a level is MIN_WIDTH_PX wide, and each
- * doubling of the flow adds a pixel, up to MAX_WIDTH_PX.
+ * River widths on screen, in pixels, at any zoom: a river as large as the smallest drawn at that
+ * zoom (see riverThreshold) is MIN_WIDTH_PX wide, and each doubling of the flow adds a pixel, up
+ * to MAX_WIDTH_PX. Zooming in by a level adds a pixel to every river, gradually: the shaders
+ * widen the rivers for the zoom they are drawn at, so a river keeps its width when the tiles
+ * switch level.
  */
 export const MIN_WIDTH_PX = 1;
 export const MAX_WIDTH_PX = 5;
@@ -45,7 +48,7 @@ export const JOIN_SIDES = 8;
 export const RIVER = BIOME_DEFINITIONS.findIndex((definition) => definition.name === "river");
 
 /**
- * The side of a screen pixel at level z, in world units.
+ * The side of a screen pixel at zoom z, in world units.
  */
 export const pixelSize = (z) => WORLD_SIZE / 2 ** z / TILE_PIXEL_SIZE;
 
@@ -55,16 +58,39 @@ export const pixelSize = (z) => WORLD_SIZE / 2 ** z / TILE_PIXEL_SIZE;
 export const maxReach = (z) => Math.max(MAX_REACH, 3 * DEEP_WATER_PX * pixelSize(z));
 
 /**
- * The smallest flow of the rivers drawn at level z.
+ * The smallest flow of the rivers drawn at level z. At a zoom between levels, the flow that is
+ * MIN_WIDTH_PX wide there.
  */
 export const riverThreshold = (z) => Math.max(MIN_RIVER_FLOW, RIVER_BASE_FLOW / 2 ** z);
 
 /**
- * The width of a river at level z, in world units.
+ * The width of a river at a zoom, in pixels. The world shaders compute the same, see
+ * riverWidthUniform.
  */
-export function riverWidth(flow, z) {
-  const pixels = MIN_WIDTH_PX + Math.log2(flow / riverThreshold(z));
-  return Math.min(Math.max(pixels, MIN_WIDTH_PX), MAX_WIDTH_PX) * pixelSize(z);
+export function riverPixels(flow, zoom) {
+  const pixels = MIN_WIDTH_PX + Math.log2(flow / riverThreshold(zoom));
+  return Math.min(Math.max(pixels, MIN_WIDTH_PX), MAX_WIDTH_PX);
+}
+
+/**
+ * The width of a river at a zoom, in world units.
+ */
+export const riverWidth = (flow, zoom) => riverPixels(flow, zoom) * pixelSize(zoom);
+
+/**
+ * At least half the width of a river at every zoom level z is drawn at, from z - 0.5 to z + 0.5,
+ * in world units: its most pixels, of the largest pixels. (Its width in the world shrinks when
+ * zooming in, but grows while it is less than 1 / ln 2 pixels wide.)
+ */
+export const maxHalfWidth = (flow, z) => (riverPixels(flow, z + 0.5) * pixelSize(z - 0.5)) / 2;
+
+/**
+ * What the world shaders need to widen the rivers for a view, see view.js:
+ * [log2 of riverThreshold at its zoom, MIN_WIDTH_PX, MAX_WIDTH_PX, world units per pixel].
+ */
+export function riverWidthUniform(view) {
+  const zoom = Math.log2((view.pixelsPerUnit * WORLD_SIZE) / TILE_PIXEL_SIZE);
+  return [Math.log2(riverThreshold(zoom)), MIN_WIDTH_PX, MAX_WIDTH_PX, 1 / view.pixelsPerUnit];
 }
 
 /**
@@ -176,10 +202,10 @@ function findCourse(sampler, k, z) {
 }
 /**
  * The courses of the rivers drawn at level z that may touch an area, largest first, with their
- * half width in world units.
+ * flow and their largest half width at that level (see maxHalfWidth), in world units.
  *
  * @param sampler {WorldSampler}
- * @returns {Iterable<{course: Number[], half: Number}>} course as in riverCourse
+ * @returns {Iterable<{course: Number[], flow: Number, half: Number}>} course as in riverCourse
  */
 export function* riverCourses(sampler, z, [minX, minY, maxX, maxY]) {
   const rivers = sampler.rivers;
@@ -190,7 +216,7 @@ export function* riverCourses(sampler, z, [minX, minY, maxX, maxY]) {
   for (let k = 0; k < flow.length && flow[k] >= threshold; k++) {
     const [a, b] = [from[k], to[k]];
     const [ax, ay, bx, by] = [sites[2 * a], sites[2 * a + 1], sites[2 * b], sites[2 * b + 1]];
-    const half = riverWidth(flow[k], z) / 2;
+    const half = maxHalfWidth(flow[k], z);
     // A course strays at most about 0.36 of its length from its edge (and its reach from b)
     const pad = Math.hypot(bx - ax, by - ay) / 2 + half + (mouth[k] ? 1.4 * maxReach(z) : 0);
     if (
@@ -199,7 +225,7 @@ export function* riverCourses(sampler, z, [minX, minY, maxX, maxY]) {
       Math.max(ay, by) + pad >= minY &&
       Math.min(ay, by) - pad <= maxY
     ) {
-      yield { course: riverCourse(sampler, k, z), half };
+      yield { course: riverCourse(sampler, k, z), flow: flow[k], half };
     }
   }
 }
@@ -209,14 +235,20 @@ export function* riverCourses(sampler, z, [minX, minY, maxX, maxY]) {
  * polygon per point of each course that touch the area, at sea altitude so the Parchemin
  * rendering paints them as water.
  *
+ * Every vertex sits on its course; the shaders move it out by half the river's width at the
+ * zoom drawn (see riverWidthUniform), along its shape: a direction of length 1 (0 at the centre
+ * of a join) and the log2 of the river's flow.
+ *
  * A tile passes the area its cells cover, a little past its edge, so two neighbouring tiles
  * draw the same pieces of river along their border, whichever is drawn last.
  *
  * @param sampler {WorldSampler}
- * @returns {{positions: Number[], indices: Number[]}} indices from 0
+ * @returns {{positions: Number[], shapes: Number[], indices: Number[]}} x, y, altitude and
+ *          dx, dy, log2 flow per vertex; indices from 0
  */
 export function buildRivers(sampler, z, area) {
   const positions = [];
+  const shapes = [];
   const indices = [];
   const [minX, minY, maxX, maxY] = area;
   const touches = (x0, y0, x1, y1, pad) =>
@@ -224,48 +256,51 @@ export function buildRivers(sampler, z, area) {
     Math.min(x0, x1) - pad <= maxX &&
     Math.max(y0, y1) + pad >= minY &&
     Math.min(y0, y1) - pad <= maxY;
-  const addVertex = (px, py) => {
-    positions.push(px, py, SEA_ALTITUDE);
-    return positions.length / 3 - 1;
-  };
 
-  for (const { course, half } of riverCourses(sampler, z, area)) {
+  for (const { course, flow, half } of riverCourses(sampler, z, area)) {
+    const logFlow = Math.log2(flow);
+    const addVertex = (px, py, dx, dy) => {
+      positions.push(px, py, SEA_ALTITUDE);
+      shapes.push(dx, dy, logFlow);
+      return positions.length / 3 - 1;
+    };
     for (let i = 0; i + 3 < course.length; i += 2) {
       const [px, py, qx, qy] = [course[i], course[i + 1], course[i + 2], course[i + 3]];
       const length = Math.hypot(qx - px, qy - py);
       if (length === 0 || !touches(px, py, qx, qy, half)) continue;
-      const [nx, ny] = [((py - qy) / length) * half, ((qx - px) / length) * half];
-      const first = addVertex(px + nx, py + ny);
-      addVertex(px - nx, py - ny);
-      addVertex(qx - nx, qy - ny);
-      addVertex(qx + nx, qy + ny);
+      const [nx, ny] = [(py - qy) / length, (qx - px) / length];
+      const first = addVertex(px, py, nx, ny);
+      addVertex(px, py, -nx, -ny);
+      addVertex(qx, qy, -nx, -ny);
+      addVertex(qx, qy, nx, ny);
       indices.push(first, first + 1, first + 2, first, first + 2, first + 3);
     }
     for (let i = 0; i < course.length; i += 2) {
       const [px, py] = [course[i], course[i + 1]];
       if (!touches(px, py, px, py, half)) continue;
-      const center = addVertex(px, py);
+      const center = addVertex(px, py, 0, 0);
       for (let side = 0; side < JOIN_SIDES; side++) {
         const angle = (2 * Math.PI * side) / JOIN_SIDES;
-        addVertex(px + half * Math.cos(angle), py + half * Math.sin(angle));
+        addVertex(px, py, Math.cos(angle), Math.sin(angle));
       }
       for (let side = 0; side < JOIN_SIDES; side++) {
         indices.push(center, center + 1 + side, center + 1 + ((side + 1) % JOIN_SIDES));
       }
     }
   }
-  return { positions, indices };
+  return { positions, shapes, indices };
 }
 
 /**
- * Whether a river drawn at level z passes within margin of (x, y), in world units: the river's
- * own width, plus margin on each side.
+ * Whether a river of level z, drawn at a zoom, passes within margin of (x, y), in world units:
+ * the river's own width, plus margin on each side.
  *
  * @param sampler {WorldSampler}
+ * @param options {{zoom: Number, margin: Number}} the zoom is the level's by default
  */
-export function riverAt(sampler, x, y, z, margin = 0) {
-  for (const { course, half } of riverCourses(sampler, z, [x, y, x, y])) {
-    const reach = half + margin;
+export function riverAt(sampler, x, y, z, { zoom = z, margin = 0 } = {}) {
+  for (const { course, flow } of riverCourses(sampler, z, [x, y, x, y])) {
+    const reach = riverWidth(flow, zoom) / 2 + margin;
     for (let i = 0; i + 3 < course.length; i += 2) {
       if (segmentDistance(x, y, course[i], course[i + 1], course[i + 2], course[i + 3]) <= reach) {
         return true;

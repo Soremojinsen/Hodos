@@ -3,7 +3,6 @@ import { WorldSampler } from "../generation/fields.js";
 import { getRandomSeed } from "../generation/util.js";
 import { inspectAt } from "./inspect.js";
 import { MapRenderer } from "./renderer.js";
-import { levelForZoom } from "./tile-grid.js";
 import { worldToScreen } from "./view.js";
 
 /**
@@ -108,7 +107,7 @@ export class WorldMap {
    */
   inspect(x, y) {
     if (!this.#sampler) return null;
-    return inspectAt(this.#sampler, x, y, levelForZoom(this.camera.zoom));
+    return inspectAt(this.#sampler, x, y, this.camera.zoom);
   }
 
   get seed() {

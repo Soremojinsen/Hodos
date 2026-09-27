@@ -2,6 +2,7 @@ import { WORLD_SIZE } from "../constants.js";
 import { BIOME_DEFINITIONS } from "../generation/biomes.js";
 import { RIVER, pixelSize, riverAt } from "../generation/rivers.js";
 import { siteAt } from "../generation/tiles.js";
+import { levelForZoom } from "./tile-grid.js";
 
 /**
  * The altitude bands of the Parchemin rendering (shaders/world_default.frag), lowest first.
@@ -25,15 +26,16 @@ const LAKE = BIOME_DEFINITIONS.findIndex((definition) => definition.name === "la
 export const RIVER_MARGIN_PX = 1;
 
 /**
- * What is at a world point at a tile level: the biome name, the relief band and the land mass
- * of the cell drawn there, or the river drawn over it. Lakes and rivers are fresh water, not
- * sea; a river keeps the land mass it flows through. It only reads the sampler, so the map
+ * What the map shows at a world point at a zoom: the biome name, the relief band and the land
+ * mass of the cell drawn there, or the river drawn over it. Lakes and rivers are fresh water,
+ * not sea; a river keeps the land mass it flows through. It only reads the sampler, so the map
  * stays the same.
  *
  * @param sampler {WorldSampler}
  * @returns {{biome: string, relief: string, landmass: Object|null}|null} null outside the world
  */
-export function inspectAt(sampler, x, y, level) {
+export function inspectAt(sampler, x, y, zoom) {
+  const level = levelForZoom(zoom);
   if (!(x >= 0 && x <= WORLD_SIZE && y >= 0 && y <= WORLD_SIZE)) return null;
   const [siteX, siteY] = siteAt(sampler.seed, x, y, level);
   const cell = sampler.sampleAt(siteX, siteY, level);
@@ -43,7 +45,10 @@ export function inspectAt(sampler, x, y, level) {
       cell.continent > 0 ? { type: "continent", number: cell.continent } : { type: "island" };
   }
   let biome = cell.biome;
-  if (cell.land && riverAt(sampler, x, y, level, RIVER_MARGIN_PX * pixelSize(level))) {
+  if (
+    cell.land &&
+    riverAt(sampler, x, y, level, { zoom, margin: RIVER_MARGIN_PX * pixelSize(zoom) })
+  ) {
     biome = RIVER;
   }
   const relief = biome === LAKE || biome === RIVER ? "freshwater" : reliefOf(cell.altitude);

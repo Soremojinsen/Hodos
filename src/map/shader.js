@@ -1,3 +1,6 @@
+import { riverWidthUniform } from "../generation/rivers.js";
+import { viewMatrix } from "./view.js";
+
 /**
  * A WebGL shader, compiled from GLSL source bundled with the page.
  */
@@ -95,6 +98,9 @@ export class ShaderProgram {
     this.#glProgram = this.#gl.createProgram();
     this.#vertexShader.linkTo(this.#glProgram);
     this.#fragmentShader.linkTo(this.#glProgram);
+    // Attribute 0 should always read an array: some drivers are slow otherwise, and the world
+    // programs give other attributes constant values while drawing
+    this.#gl.bindAttribLocation(this.#glProgram, 0, "coordinates");
     this.#gl.linkProgram(this.#glProgram);
     if (!this.#gl.getProgramParameter(this.#glProgram, this.#gl.LINK_STATUS)) {
       const log = this.#gl.getProgramInfoLog(this.#glProgram);
@@ -127,11 +133,14 @@ export class ShaderProgram {
  */
 export class WorldShaderProgram extends ShaderProgram {
   #glCoordsAttrib;
+  // -1 in the programs that do not draw rivers
+  #glRiverShapeAttrib;
 
   use() {
     super.use();
     this.#glCoordsAttrib = this.gl.getAttribLocation(this.glProgram, "coordinates");
     this.gl.enableVertexAttribArray(this.#glCoordsAttrib);
+    this.#glRiverShapeAttrib = this.gl.getAttribLocation(this.glProgram, "river_shape");
   }
 
   bindSurfaceVertexPositionBuffer(buffer) {
@@ -139,7 +148,31 @@ export class WorldShaderProgram extends ShaderProgram {
     this.gl.vertexAttribPointer(this.#glCoordsAttrib, 3, this.gl.FLOAT, false, 0, 0);
   }
 
+  /**
+   * The river shapes of the vertices drawn next (see generation/rivers.js buildRivers), or
+   * null for vertices that stay where they are, like the cells'.
+   */
+  bindRiverShapeBuffer(buffer) {
+    const attrib = this.#glRiverShapeAttrib;
+    if (attrib < 0) return;
+    if (buffer) {
+      this.gl.enableVertexAttribArray(attrib);
+      this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
+      this.gl.vertexAttribPointer(attrib, 3, this.gl.FLOAT, false, 0, 0);
+    } else {
+      this.gl.disableVertexAttribArray(attrib);
+      this.gl.vertexAttrib3f(attrib, 0, 0, 0);
+    }
+  }
+
   bindBiomeIdBuffer() {
+    // This is a no-op here, but is used in case of the BiomesWorldShaderProgram
+  }
+
+  /**
+   * One biome for every vertex drawn next, in place of a biome id buffer.
+   */
+  setBiomeId() {
     // This is a no-op here, but is used in case of the BiomesWorldShaderProgram
   }
 
@@ -149,11 +182,16 @@ export class WorldShaderProgram extends ShaderProgram {
 
   stopUsing() {
     this.gl.disableVertexAttribArray(this.#glCoordsAttrib);
+    if (this.#glRiverShapeAttrib >= 0) this.gl.disableVertexAttribArray(this.#glRiverShapeAttrib);
   }
 
-  setViewMatrix(matrix) {
-    let pointer = this.gl.getUniformLocation(this.glProgram, "view");
-    this.gl.uniformMatrix4fv(pointer, false, matrix);
+  /**
+   * Draws the view next, see view.js: its matrix, and the river widths at its zoom.
+   */
+  setView(view) {
+    const gl = this.gl;
+    gl.uniformMatrix4fv(gl.getUniformLocation(this.glProgram, "view"), false, viewMatrix(view));
+    gl.uniform4fv(gl.getUniformLocation(this.glProgram, "river_width"), riverWidthUniform(view));
   }
 
   /**
@@ -197,8 +235,14 @@ export class BiomesWorldShaderProgram extends WorldShaderProgram {
   }
 
   bindBiomeIdBuffer(buffer) {
+    this.gl.enableVertexAttribArray(this.#glBiomeIdAttrib);
     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
     this.gl.vertexAttribPointer(this.#glBiomeIdAttrib, 1, this.gl.FLOAT, false, 0, 0);
+  }
+
+  setBiomeId(id) {
+    this.gl.disableVertexAttribArray(this.#glBiomeIdAttrib);
+    this.gl.vertexAttrib1f(this.#glBiomeIdAttrib, id);
   }
 
   /**

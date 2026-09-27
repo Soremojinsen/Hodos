@@ -4,7 +4,6 @@ import { expect, test } from "vitest";
 import { WORLD_SIZE } from "../../src/constants.js";
 import { WorldSampler } from "../../src/generation/fields.js";
 import { withWater } from "../../src/generation/hydrology.js";
-import { RIVER } from "../../src/generation/rivers.js";
 import {
   TILE_CELLS_SIDE,
   buildTile,
@@ -233,17 +232,19 @@ test("the cells of a level cover the world exactly: straight edges, no notches",
 
 const watered = new WorldSampler(withWater(generateWorld(SEED)));
 
-test("rivers come after the cells, in the river biome at sea level", () => {
+test("rivers are a mesh of their own, at sea level, over the same cells", () => {
   const tile = buildTile(watered, 3, 2, 3);
   const land = buildTile(sampler, 3, 2, 3);
-  expect(tile.landIndexCount).toBe(land.indices.length);
-  expect(tile.indices.length).toBeGreaterThan(tile.landIndexCount);
-  const landVertexCount = land.biomeIds.length;
-  expect(Math.min(...tile.indices.subarray(tile.landIndexCount))).toBe(landVertexCount);
-  expect(tile.indices.subarray(0, tile.landIndexCount)).toEqual(land.indices);
-  for (let v = landVertexCount; v < tile.biomeIds.length; v++) {
-    expect(tile.biomeIds[v]).toBe(RIVER);
-    expect(tile.positions[3 * v + 2]).toBeCloseTo(-0.1, 5);
+  for (const key of ["positions", "biomeIds", "debugColors", "indices"]) {
+    expect(tile[key]).toEqual(land[key]);
+  }
+  expect(land.riverIndices).toHaveLength(0);
+  expect(tile.riverIndices.length).toBeGreaterThan(0);
+  const vertexCount = tile.riverPositions.length / 3;
+  expect(tile.riverShapes).toHaveLength(3 * vertexCount);
+  expect(Math.max(...tile.riverIndices)).toBeLessThan(vertexCount);
+  for (let v = 0; v < vertexCount; v++) {
+    expect(tile.riverPositions[3 * v + 2]).toBeCloseTo(-0.1, 5);
   }
 });
 
@@ -255,6 +256,7 @@ test("tiles stay within 16-bit indices at every level, even around a river mouth
     const size = tileSize(z);
     const tile = buildTile(watered, z, Math.floor(bx / size), Math.floor(by / size));
     expect(tile.biomeIds.length).toBeLessThanOrEqual(0x10000);
+    expect(tile.riverPositions.length / 3).toBeLessThanOrEqual(0x10000);
   }
 });
 
@@ -263,9 +265,12 @@ test("tile 2/1/1 of seed 12345 with water stays the same", () => {
   expect({
     vertices: tile.biomeIds.length,
     triangles: tile.indices.length / 3,
-    landTriangles: tile.landIndexCount / 3,
+    riverTriangles: tile.riverIndices.length / 3,
     positions: fnv(tile.positions),
     biomeIds: fnv(tile.biomeIds),
     indices: fnv(tile.indices),
+    riverPositions: fnv(tile.riverPositions),
+    riverShapes: fnv(tile.riverShapes),
+    riverIndices: fnv(tile.riverIndices),
   }).toMatchSnapshot();
 });

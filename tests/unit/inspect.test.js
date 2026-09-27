@@ -107,7 +107,7 @@ describe("water", () => {
       const y = 4000;
       const info = inspectAt(watered, x, y, z);
       if (!info.landmass) continue;
-      if (riverAt(watered, x, y, z, margin)) {
+      if (riverAt(watered, x, y, z, { margin })) {
         rivers++;
         expect(info.biome).toBe("river");
       } else {

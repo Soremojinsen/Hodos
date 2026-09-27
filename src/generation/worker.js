@@ -24,6 +24,9 @@ self.onmessage = ({ data }) => {
         tile.biomeIds.buffer,
         tile.debugColors.buffer,
         tile.indices.buffer,
+        tile.riverPositions.buffer,
+        tile.riverShapes.buffer,
+        tile.riverIndices.buffer,
       ]);
     }
   } catch (error) {

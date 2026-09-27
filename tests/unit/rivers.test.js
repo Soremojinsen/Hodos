@@ -9,21 +9,34 @@ import {
   MIN_WIDTH_PX,
   buildRivers,
   deepWater,
+  maxHalfWidth,
   meander,
+  pixelSize,
   nearestWater,
   riverCourse,
   riverThreshold,
+  riverPixels,
   riverWidth,
+  riverWidthUniform,
 } from "../../src/generation/rivers.js";
 import { siteAt } from "../../src/generation/tiles.js";
 import { generateWorld } from "../../src/generation/world.js";
 
 const sampler = new WorldSampler(withWater(generateWorld("12345")));
 const rivers = sampler.rivers;
-const pixelSize = (z) => WORLD_SIZE / 2 ** z / TILE_PIXEL_SIZE;
 
-// Whether (px, py) is inside one of the triangles
-const covered = ({ positions, indices }, px, py) => {
+// The vertices of river triangles where the shaders draw them at a zoom
+const placed = ({ positions, shapes }, zoom) =>
+  positions.map((value, i) => {
+    if (i % 3 === 2) return value;
+    const v = Math.floor(i / 3);
+    return value + (shapes[i] * riverWidth(2 ** shapes[3 * v + 2], zoom)) / 2;
+  });
+
+// Whether (px, py) is inside one of the triangles, drawn at a zoom
+const covered = (triangles, px, py, zoom) => {
+  const positions = placed(triangles, zoom);
+  const { indices } = triangles;
   const at = (i) => [positions[3 * i], positions[3 * i + 1]];
   const side = ([ax, ay], [bx, by]) => (bx - ax) * (py - ay) - (by - ay) * (px - ax);
   for (let i = 0; i < indices.length; i += 3) {
@@ -47,6 +60,59 @@ test("rivers are 1 to 5 px wide, wider downstream", () => {
     expect(riverWidth(threshold, z)).toBeCloseTo(MIN_WIDTH_PX * pixelSize(z));
     expect(riverWidth(4 * threshold, z)).toBeCloseTo((MIN_WIDTH_PX + 2) * pixelSize(z));
     expect(riverWidth(1e9, z)).toBeCloseTo(MAX_WIDTH_PX * pixelSize(z));
+  }
+});
+
+test("zooming in widens rivers gradually, up to a pixel per level", () => {
+  for (const f of [4, 30, 256, 1000]) {
+    for (let zoom = 0; zoom < 7; zoom += 0.05) {
+      const step = riverPixels(f, zoom + 0.05) - riverPixels(f, zoom);
+      expect(step).toBeGreaterThanOrEqual(0);
+      expect(step).toBeLessThanOrEqual(0.05 + 1e-9);
+    }
+  }
+});
+
+test("a level's rivers are never wider than tiles expect, at any zoom it is drawn at", () => {
+  for (const f of [4, 5, 6, 30, 256, 1000]) {
+    for (let z = 0; z <= 7; z++) {
+      for (let zoom = z - 0.5; zoom <= z + 0.5; zoom += 0.01) {
+        expect(riverWidth(f, zoom) / 2).toBeLessThanOrEqual(maxHalfWidth(f, z) + 1e-9);
+      }
+    }
+  }
+});
+
+test("the shaders get what they need to compute riverPixels", () => {
+  for (const zoom of [0, 1.49, 1.51, 4.2, 7]) {
+    const view = { pixelsPerUnit: (TILE_PIXEL_SIZE * 2 ** zoom) / WORLD_SIZE };
+    const [logThreshold, min, max, unitsPerPixel] = riverWidthUniform(view);
+    expect(unitsPerPixel).toBeCloseTo(pixelSize(zoom), 9);
+    for (const f of [4, 30, 256, 1000]) {
+      // As in world_default.vert
+      const pixels = Math.min(Math.max(min + Math.log2(f) - logThreshold, min), max);
+      expect(pixels).toBeCloseTo(riverPixels(f, zoom), 9);
+    }
+  }
+});
+
+test("river vertices sit on their course, moved by a unit direction, or none at a join's centre", () => {
+  const a = rivers.from[0];
+  const [x, y] = [rivers.sites[2 * a], rivers.sites[2 * a + 1]];
+  const { positions, shapes, indices } = buildRivers(sampler, 3, [
+    x - 500,
+    y - 500,
+    x + 500,
+    y + 500,
+  ]);
+  expect(indices.length).toBeGreaterThan(0);
+  expect(shapes).toHaveLength(positions.length);
+  const flows = new Set(Array.from(rivers.flow, (f) => Math.log2(f)));
+  for (let v = 0; v < positions.length / 3; v++) {
+    const length = Math.hypot(shapes[3 * v], shapes[3 * v + 1]);
+    expect(length === 0 || Math.abs(length - 1) < 1e-9).toBe(true);
+    expect(flows.has(shapes[3 * v + 2])).toBe(true);
+    expect(positions[3 * v + 2]).toBe(-0.1);
   }
 });
 
@@ -117,7 +183,8 @@ test("a tile draws every point of the rivers that crosses it, so tiles join with
         const [px, py] = [course[i], course[i + 1]];
         if (px < area[0] || px > area[2] || py < area[1] || py > area[3]) continue;
         inside++;
-        expect(covered(triangles, px, py)).toBe(true);
+        // At the deepest zoom the level is drawn at, where rivers are narrowest in the world
+        expect(covered(triangles, px, py, z + 0.49)).toBe(true);
       }
     }
     expect(inside).toBeGreaterThan(0);
@@ -147,6 +214,7 @@ test("without water there are no rivers", () => {
   const dry = new WorldSampler(generateWorld("12345"));
   expect(buildRivers(dry, 0, [0, 0, WORLD_SIZE, WORLD_SIZE])).toEqual({
     positions: [],
+    shapes: [],
     indices: [],
   });
 });
