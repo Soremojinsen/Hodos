@@ -16,6 +16,7 @@ import {
   meander,
   pixelSize,
   nearestWater,
+  riverAt,
   riverCourse,
   riverThreshold,
   riverPixels,
@@ -271,6 +272,29 @@ test("a tile draws no river smaller than its level shows", () => {
     const larger = rivers.to.some((b, j) => rivers.flow[j] >= riverThreshold(z) && b === a);
     if (!larger) expect(triangles.indices.some(near)).toBe(false);
   }
+});
+
+test("a river is found anywhere within the margin of its edge, even far out", () => {
+  // At zoom 0.5 (level 1) a pixel is about 28 world units, more than the course of a short
+  // edge strays: the margin reaches past what the edge's own width would
+  const [z, zoom] = [1, 0.5];
+  const margin = pixelSize(zoom);
+  let missed = 0;
+  for (let k = 0; k < rivers.flow.length && rivers.flow[k] >= riverThreshold(z); k++) {
+    const course = riverCourse(sampler, k, z);
+    const reach = riverWidth(rivers.flow[k], zoom) / 2 + margin;
+    for (let i = 0; i + 3 < course.length; i += 2) {
+      const [px, py, qx, qy] = course.slice(i, i + 4);
+      const length = Math.hypot(qx - px, qy - py);
+      // Just inside the margin, on each side of the segment's middle
+      for (const side of [1, -1]) {
+        const x = (px + qx) / 2 + (side * (py - qy) * 0.99 * reach) / length;
+        const y = (py + qy) / 2 + (side * (qx - px) * 0.99 * reach) / length;
+        if (!riverAt(sampler, x, y, z, { zoom, margin })) missed++;
+      }
+    }
+  }
+  expect(missed).toBe(0);
 });
 
 test("without water there are no rivers", () => {

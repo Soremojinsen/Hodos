@@ -334,7 +334,9 @@ export function buildRivers(sampler, z, area) {
  * @param options {{zoom: Number, margin: Number}} the zoom is the level's by default
  */
 export function riverAt(sampler, x, y, z, { zoom = z, margin = 0 } = {}) {
-  for (const { course, flow } of riverCourses(sampler, z, [x, y, x, y])) {
+  // The courses that may pass within their width of the area, so within the margin of (x, y)
+  const area = [x - margin, y - margin, x + margin, y + margin];
+  for (const { course, flow } of riverCourses(sampler, z, area)) {
     const reach = riverWidth(flow, zoom) / 2 + margin;
     for (let i = 0; i + 3 < course.length; i += 2) {
       if (segmentDistance(x, y, course[i], course[i + 1], course[i + 2], course[i + 3]) <= reach) {
