@@ -94,7 +94,10 @@ export class MapRenderer {
       this.#loadShaders();
       this.#loadBiomeColors();
       // The level-0 tile is the fallback of every other tile: it is loaded first and never released
-      await this.#tiles.ensure([{ z: 0, x: 0, y: 0 }]);
+      const fallback = this.#tiles.ensure([{ z: 0, x: 0, y: 0 }]);
+      // The camera's tiles come next, so the other workers build them meanwhile
+      this.#tiles.want(tilesInView(this.camera.view, levelForZoom(this.camera.zoom), 1));
+      await fallback;
       this.#loaded = true;
     } catch (error) {
       this.showError("error.render");

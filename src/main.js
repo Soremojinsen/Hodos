@@ -69,6 +69,9 @@ const exportDialog = setupExportDialog(worldMap, overlay);
 // Browsers restore form fields on reload: the link decides the mode
 document.querySelector(`#mode-form input[value="${initialState.mode}"]`).checked = true;
 
+// The link's view before loading, so its tiles are built with the first ones
+resize();
+worldMap.controller.setView(initialState.x, initialState.y, initialState.z);
 worldMap
   .load()
   .then(() => {
