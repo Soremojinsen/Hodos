@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { openMap } from "./helpers.js";
+import { camera, openMap } from "./helpers.js";
 
 const mapSeed = (page) => page.evaluate(() => window.hodos.seed);
 
@@ -116,4 +116,19 @@ test("without clipboard access the link is shown to copy by hand", async ({ page
   await page.getByRole("button", { name: "Copier le lien" }).click();
   await expect(page.locator("#notice")).toContainText("Copiez ce lien :");
   await expect(page.locator("#notice .notice-link")).toHaveValue(page.url());
+});
+
+test("clicking the map after the link is shown to copy by hand gives the keys back to the map", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(Navigator.prototype, "clipboard", { get: () => undefined });
+  });
+  await openMap(page);
+  await page.getByRole("button", { name: "Copier le lien" }).click();
+  await expect(page.locator("#notice .notice-link")).toBeFocused();
+
+  await page.mouse.click(500, 350);
+  await page.keyboard.press("ArrowRight");
+  expect((await camera(page)).x).toBeGreaterThan(0);
 });

@@ -36,6 +36,9 @@ export function setupControls(worldMap) {
   mapElement.addEventListener("pointerdown", (e) => {
     if (e.target.closest("button")) return;
     e.preventDefault();
+    // Cancelling the press also keeps the focus where it was, like on the link shown to copy by
+    // hand, whose field would keep the arrow and +/- keys from the map
+    document.activeElement?.blur();
     activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     lastPinchDistance = activePointers.size === 2 ? pinchDistance() : null;
   });
