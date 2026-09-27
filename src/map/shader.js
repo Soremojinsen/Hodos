@@ -203,7 +203,7 @@ export class WorldShaderProgram extends ShaderProgram {
    * @param maxId         the maximum id stored in the texture
    */
   setBiomesColors() {
-    // This is a no-op here, but is used in case of the DebugWorldShaderProgram
+    // This is a no-op here, but is used in case of the BiomesWorldShaderProgram
   }
 }
 

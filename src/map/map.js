@@ -107,7 +107,9 @@ export class WorldMap {
    */
   inspect(x, y) {
     if (!this.#sampler) return null;
-    return inspectAt(this.#sampler, x, y, this.camera.zoom);
+    return inspectAt(this.#sampler, x, y, this.camera.zoom, {
+      rivers: this.#renderer.renderingMode !== "debug",
+    });
   }
 
   get seed() {

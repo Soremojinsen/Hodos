@@ -32,9 +32,10 @@ export const RIVER_MARGIN_PX = 1;
  * stays the same.
  *
  * @param sampler {WorldSampler}
+ * @param options.rivers {boolean} whether rivers are drawn: the debug mode shows the raw cells
  * @returns {{biome: string, relief: string, landmass: Object|null}|null} null outside the world
  */
-export function inspectAt(sampler, x, y, zoom) {
+export function inspectAt(sampler, x, y, zoom, { rivers = true } = {}) {
   const level = levelForZoom(zoom);
   if (!(x >= 0 && x <= WORLD_SIZE && y >= 0 && y <= WORLD_SIZE)) return null;
   const [siteX, siteY] = siteAt(sampler.seed, x, y, level);
@@ -46,6 +47,7 @@ export function inspectAt(sampler, x, y, zoom) {
   }
   let biome = cell.biome;
   if (
+    rivers &&
     cell.land &&
     riverAt(sampler, x, y, level, { zoom, margin: RIVER_MARGIN_PX * pixelSize(zoom) })
   ) {

@@ -99,6 +99,22 @@ describe("water", () => {
     }
   });
 
+  test("without rivers drawn (the debug mode), the cell under a river is found", () => {
+    const k = flow.findIndex((_, e) => !watered.rivers.mouth[e]);
+    const [a, b] = [from[k], to[k]];
+    const [x, y] = [(sites[2 * a] + sites[2 * b]) / 2, (sites[2 * a + 1] + sites[2 * b + 1]) / 2];
+    const z = 3;
+    const course = riverCourses(watered, z, [x, y, x, y]).next().value.course;
+    const [px, py] = [course[2], course[3]];
+    expect(inspectAt(watered, px, py, z).biome).toBe("river");
+    const cell = watered.sampleAt(...siteAt("12345", px, py, z), z);
+    expect(inspectAt(watered, px, py, z, { rivers: false })).toEqual({
+      biome: BIOME_DEFINITIONS[cell.biome].name,
+      relief: reliefOf(cell.altitude),
+      landmass: inspectAt(watered, px, py, z).landmass,
+    });
+  });
+
   test("land away from rivers keeps its cell's biome", () => {
     const z = 3;
     const margin = RIVER_MARGIN_PX * pixelSize(z);
