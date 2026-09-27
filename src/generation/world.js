@@ -45,6 +45,7 @@ export class MapGenerator {
     this.generateAltitude();
     this.generateBiome();
     this.generateCorruptedBurn();
+    this.numberLandMasses();
   }
 
   /**
@@ -251,6 +252,35 @@ export class MapGenerator {
         }
       }
     }
+  }
+
+  /**
+   * Numbers the continents by land mass, from 1: two burns that met are one continent, and the
+   * island cells against a continent are part of it. Land masses of islands alone keep 0.
+   * They are numbered in the order of their first burn.
+   */
+  numberLandMasses() {
+    const masses = [];
+    const seen = new Uint8Array(this.cells.length);
+    this.cells.forEach((cell, start) => {
+      if (seen[start] || cell.isMaritime()) return;
+      seen[start] = 1;
+      const mass = [start];
+      for (let i = 0; i < mass.length; i++) {
+        for (const next of this.delaunay.neighbors(mass[i])) {
+          if (!seen[next] && !this.cells[next].isMaritime()) {
+            seen[next] = 1;
+            mass.push(next);
+          }
+        }
+      }
+      const burns = mass.map((i) => this.cells[i].continentNumber).filter((number) => number > 0);
+      if (burns.length > 0) masses.push({ mass, first: Math.min(...burns) });
+    });
+    masses.sort((a, b) => a.first - b.first);
+    masses.forEach(({ mass }, index) => {
+      for (const i of mass) this.cells[i].continentNumber = index + 1;
+    });
   }
 
   /**

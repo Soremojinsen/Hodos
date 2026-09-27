@@ -107,3 +107,22 @@ test("generateWorld gives the same base world for the same seed", () => {
   expect(generateWorld("abc")).toEqual(generateWorld("abc"));
   expect(generateWorld("abc")).not.toEqual(generateWorld("abd"));
 });
+
+test.each(TEN_SEEDS)("seed %s: each land mass has one continent number, from 1 up", (seed) => {
+  const generator = new MapGenerator(seed);
+  generator.generate();
+  const cells = generator.cells;
+  const land = (i) => !cells[i].isMaritime();
+  const numbers = new Set();
+  cells.forEach((cell, i) => {
+    if (!land(i)) return expect(cell.continentNumber).toBe(0);
+    if (cell.continentNumber > 0) numbers.add(cell.continentNumber);
+    for (const next of generator.delaunay.neighbors(i)) {
+      // An island cell against a continent is part of it
+      if (land(next)) expect(cells[next].continentNumber).toBe(cell.continentNumber);
+    }
+  });
+  expect([...numbers].sort((a, b) => a - b)).toEqual(
+    Array.from({ length: numbers.size }, (_, i) => i + 1),
+  );
+});
