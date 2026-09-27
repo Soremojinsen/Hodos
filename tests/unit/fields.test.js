@@ -1,11 +1,19 @@
+import { Delaunay } from "d3-delaunay";
 import { expect, test } from "vitest";
 import { WORLD_SIZE } from "../../src/constants.js";
 import { BIOME_DEFINITIONS } from "../../src/generation/biomes.js";
-import { SEA_ALTITUDE, WARP_AMPLITUDE, WorldSampler } from "../../src/generation/fields.js";
+import {
+  LAKE_WARP_AMPLITUDE,
+  SEA_ALTITUDE,
+  WARP_AMPLITUDE,
+  WorldSampler,
+} from "../../src/generation/fields.js";
+import { withWater } from "../../src/generation/hydrology.js";
 import { generateWorld } from "../../src/generation/world.js";
 import { aleaPRNG } from "../../src/vendor/alea-prng.js";
 
 const base = generateWorld("12345");
+const LAKE = BIOME_DEFINITIONS.findIndex((definition) => definition.name === "lake");
 
 const randomPoints = (n) => {
   const random = aleaPRNG("points");
@@ -78,4 +86,33 @@ test.each([1, 2, 3, 4, 5, 6])("level %i and the next agree almost everywhere", (
     ([x, y]) => sampler.sampleAt(x, y, level).biome !== sampler.sampleAt(x, y, level + 1).biome,
   );
   expect(different.length).toBeLessThan(points.length * 0.05);
+});
+
+test("with water, lakes are drawn where the lake warp lands on a lake point", () => {
+  const watered = withWater(base);
+  const sampler = new WorldSampler(watered);
+  const dry = new WorldSampler(base);
+  const lakes = new Delaunay(watered.waterSites);
+  let lakeCount = 0;
+  for (const [x, y] of randomPoints(3000)) {
+    const sample = sampler.sampleAt(x, y, 3);
+    const inLake =
+      dry.sampleAt(x, y, 3).land && watered.lakes[lakes.find(...sampler.lakeWarp(x, y, 3))];
+    if (inLake) {
+      lakeCount++;
+      expect(sample).toEqual({ biome: LAKE, continent: 0, land: false, altitude: SEA_ALTITUDE });
+    } else {
+      expect(sample).toEqual(dry.sampleAt(x, y, 3));
+    }
+  }
+  expect(lakeCount).toBeGreaterThan(0);
+});
+
+test("the lake warp moves a point by at most twice its amplitude on each axis", () => {
+  const sampler = new WorldSampler(base);
+  for (const [x, y] of randomPoints(200)) {
+    const [wx, wy] = sampler.lakeWarp(x, y, 7);
+    expect(Math.abs(wx - x)).toBeLessThanOrEqual(2 * LAKE_WARP_AMPLITUDE);
+    expect(Math.abs(wy - y)).toBeLessThanOrEqual(2 * LAKE_WARP_AMPLITUDE);
+  }
 });

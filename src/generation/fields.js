@@ -28,7 +28,20 @@ export const ALTITUDE_DETAIL = 0.1;
 
 export const SEA_ALTITUDE = -0.1;
 
+/**
+ * How far, in world units, the largest octave of the lake warp moves a point: about the water
+ * mesh spacing, so lake shores wave without leaving the basin the rivers flow into.
+ */
+export const LAKE_WARP_AMPLITUDE = 40;
+
+/**
+ * The wavelength of the largest lake warp octave, in world units; halved at each level.
+ */
+export const LAKE_WARP_WAVELENGTH = 160;
+
 const MARITIME = BIOME_DEFINITIONS.map((definition) => definition.maritime === true);
+
+const LAKE = BIOME_DEFINITIONS.findIndex((definition) => definition.name === "lake");
 
 /**
  * What the map is at any point and level of detail, read from the coarse world.
@@ -39,19 +52,57 @@ export class WorldSampler {
   #delaunay;
   #noise;
   #hint = 0;
+  #water = null;
+  #waterHint = 0;
 
   /**
-   * @param base see world.js MapGenerator#toBaseWorld
+   * @param base see world.js MapGenerator#toBaseWorld, with or without its water (see
+   *             hydrology.js withWater); without water, there are no lakes nor rivers
    */
   constructor(base) {
     this.#base = base;
     this.#delaunay = new Delaunay(base.sites);
     this.#noise = createNoise();
     this.#noise.seed(hashSeed(base.seed));
+    if (base.waterSites) this.#water = new Delaunay(base.waterSites);
   }
 
   get seed() {
     return this.#base.seed;
+  }
+
+  /**
+   * The river edges and the water mesh they join, see hydrology.js generateWater; null without water.
+   *
+   * @returns {{sites: Float64Array, from: Uint32Array, to: Uint32Array, flow: Float32Array,
+   *            mouth: Uint8Array}|null}
+   */
+  get rivers() {
+    if (!this.#water) return null;
+    const base = this.#base;
+    return {
+      sites: base.waterSites,
+      from: base.riverFrom,
+      to: base.riverTo,
+      flow: base.riverFlow,
+      mouth: base.riverMouth,
+    };
+  }
+
+  /**
+   * The point whose nearest water mesh point tells whether (x, y) is in a lake: a smaller warp
+   * than the coast's, one octave per level, so shores gain detail and stay on their basin.
+   */
+  lakeWarp(x, y, level) {
+    let dx = 0;
+    let dy = 0;
+    for (let k = 0; k <= level; k++) {
+      const frequency = 2 ** k / LAKE_WARP_WAVELENGTH;
+      const amplitude = LAKE_WARP_AMPLITUDE / 2 ** k;
+      dx += amplitude * this.#noise.simplex3(x * frequency, y * frequency, 100.5 + 2 * k);
+      dy += amplitude * this.#noise.simplex3(x * frequency, y * frequency, 101.5 + 2 * k);
+    }
+    return [x + dx, y + dy];
   }
 
   /**
@@ -97,6 +148,14 @@ export class WorldSampler {
     this.#hint = cell;
     const biome = this.#base.biomes[cell];
     const land = !MARITIME[biome];
+    if (land && this.#water) {
+      const [lx, ly] = this.lakeWarp(x, y, level);
+      const point = this.#water.find(lx, ly, this.#waterHint);
+      this.#waterHint = point;
+      if (this.#base.lakes[point]) {
+        return { biome: LAKE, continent: 0, land: false, altitude: SEA_ALTITUDE };
+      }
+    }
     return {
       biome,
       continent: land ? this.#base.continents[cell] : 0,
