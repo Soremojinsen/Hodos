@@ -1,5 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
+import { WorldSampler } from "../../src/generation/fields.js";
+import { withWater } from "../../src/generation/hydrology.js";
+import { generateWorld } from "../../src/generation/world.js";
 import { countColors, openMap, waitForTiles } from "./helpers.js";
 
 const frameCount = (page) => page.evaluate(() => window.hodos.renderer.frameCount);
@@ -93,4 +96,39 @@ test("a coast drawn at level 5 differs from the same view drawn at level 3", asy
     return count / (deep.length / 4);
   });
   expect(different).toBeGreaterThan(0.01);
+});
+
+test("rivers are drawn as water in the Parchemin rendering, not in debug mode", async ({
+  page,
+}) => {
+  // The source of the largest river whose both ends are land at level 5: a point of its course
+  const sampler = new WorldSampler(withWater(generateWorld("12345")));
+  const { sites, from, to } = sampler.rivers;
+  const land = (i) => sampler.sampleAt(sites[2 * i], sites[2 * i + 1], 5).land;
+  const k = from.findIndex((a, j) => land(a) && land(to[j]));
+  const [x, y] = [sites[2 * from[k]], sites[2 * from[k] + 1]];
+
+  await openMap(page);
+  const centre = (mode) =>
+    page.evaluate(
+      async ([x, y, mode]) => {
+        const renderer = window.hodos.renderer;
+        const view = { centerX: x, centerY: y, pixelsPerUnit: (256 * 2 ** 5) / 10000 };
+        Object.assign(view, { width: 16, height: 16 });
+        const release = await renderer.ensureTiles(view, 5);
+        try {
+          const pixels = renderer.renderToPixels(view, 5, mode);
+          const i = 4 * (8 * 16 + 8);
+          return [pixels[i], pixels[i + 1], pixels[i + 2]];
+        } finally {
+          release();
+        }
+      },
+      [x, y, mode],
+    );
+  // The water color of shaders/world_default.frag
+  const water = [0.278, 0.47, 0.525].map((c) => Math.round(c * 255));
+  const near = (color) => color.every((c, i) => Math.abs(c - water[i]) <= 2);
+  expect(near(await centre("default"))).toBe(true);
+  expect(near(await centre("debug"))).toBe(false);
 });

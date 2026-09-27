@@ -1,4 +1,4 @@
-import { WorldShaderProgram } from "./shader.js";
+import { DebugWorldShaderProgram, WorldShaderProgram } from "./shader.js";
 
 /**
  * A mesh is a collection of points that gets renders into the canvas.
@@ -33,6 +33,7 @@ export class Tile extends Mesh {
   #data;
   #buffers;
   #indexCount;
+  #landIndexCount;
 
   /**
    * @param data see generation/tiles.js buildTile: z, x, y and the typed arrays to draw
@@ -72,6 +73,7 @@ export class Tile extends Mesh {
       indices: upload(gl.ELEMENT_ARRAY_BUFFER, data.indices),
     };
     this.#indexCount = data.indices.length;
+    this.#landIndexCount = data.landIndexCount;
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
     // The arrays now live on the GPU
@@ -85,7 +87,10 @@ export class Tile extends Mesh {
       shaderProgram.bindDebugSurfaceColorsBuffer(this.#buffers.debugColors);
       shaderProgram.bindBiomeIdBuffer(this.#buffers.biomeIds);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.#buffers.indices);
-      gl.drawElements(gl.TRIANGLES, this.#indexCount, gl.UNSIGNED_SHORT, 0);
+      // Debug mode shows the raw cells, without the rivers drawn over them
+      const count =
+        shaderProgram instanceof DebugWorldShaderProgram ? this.#landIndexCount : this.#indexCount;
+      gl.drawElements(gl.TRIANGLES, count, gl.UNSIGNED_SHORT, 0);
     } else {
       console.error("Tile render expects a WorldShaderProgram");
     }

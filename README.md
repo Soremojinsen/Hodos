@@ -23,6 +23,7 @@ Hodos creates maps for your imagination to thrive.
 - **Find a map:** _Nouvelle carte_ rolls a new seed, and the browser's Back button returns to the previous map. Any word or number can be a seed.
 - **Share a map:** _Copier le lien_ copies a link to the map as you see it: seed, view, mode and grid.
 - **Explore:** recenter and full-screen buttons; _Infos au survol_ shows the biome, relief and land mass under the pointer.
+- **Rivers and lakes:** rivers run downhill to the sea or into lakes, and zooming in reveals smaller tributaries.
 - **Zoom in for detail:** each zoom level has its own finer map, with more jagged coasts, islets and bays, and more intricate borders between biomes.
 - **Grid:** a square or hexagonal grid over the map, with a size and an opacity, for games.
 - **Export and print:** the whole world or the current view as a PNG up to 4096 px, or printed on 1, 2 × 2 or 3 × 3 A4 sheets.
@@ -30,7 +31,7 @@ Hodos creates maps for your imagination to thrive.
 
 ### Link parameters
 
-The same seed always produces the same map (since the version that brought zoom detail; older links may show a different map), and these parameters are kept stable.
+The same seed always produces the same map (since the version that brought zoom detail; older links may show a different map; links from before rivers show the same land, now with rivers and lakes), and these parameters are kept stable.
 
 | Parameter | Meaning                                                         | Default   |
 | --------- | --------------------------------------------------------------- | --------- |

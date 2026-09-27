@@ -3,6 +3,8 @@ import { polygonArea } from "d3-polygon";
 import { expect, test } from "vitest";
 import { WORLD_SIZE } from "../../src/constants.js";
 import { WorldSampler } from "../../src/generation/fields.js";
+import { withWater } from "../../src/generation/hydrology.js";
+import { RIVER } from "../../src/generation/rivers.js";
 import {
   TILE_CELLS_SIDE,
   buildTile,
@@ -227,4 +229,41 @@ test("the cells of a level cover the world exactly: straight edges, no notches",
     }
     expect(area / WORLD_SIZE ** 2).toBeCloseTo(1, 9);
   }
+});
+
+const watered = new WorldSampler(withWater(generateWorld(SEED)));
+
+test("rivers come after the cells, in the river biome at sea level", () => {
+  const tile = buildTile(watered, 3, 2, 3);
+  const land = buildTile(sampler, 3, 2, 3);
+  expect(tile.landIndexCount).toBe(land.indices.length);
+  expect(tile.indices.length).toBeGreaterThan(tile.landIndexCount);
+  const firstRiverVertex = Math.min(...tile.indices.subarray(tile.landIndexCount));
+  for (let v = firstRiverVertex; v < tile.biomeIds.length; v++) {
+    expect(tile.biomeIds[v]).toBe(RIVER);
+    expect(tile.positions[3 * v + 2]).toBeCloseTo(-0.1, 5);
+  }
+});
+
+test("tiles stay within 16-bit indices at every level, even around a river mouth", () => {
+  const { sites, to, mouth } = watered.rivers;
+  const k = mouth.indexOf(1);
+  const [bx, by] = [sites[2 * to[k]], sites[2 * to[k] + 1]];
+  for (let z = 0; z <= 7; z++) {
+    const size = tileSize(z);
+    const tile = buildTile(watered, z, Math.floor(bx / size), Math.floor(by / size));
+    expect(tile.biomeIds.length).toBeLessThanOrEqual(0x10000);
+  }
+});
+
+test("tile 2/1/1 of seed 12345 with water stays the same", () => {
+  const tile = buildTile(watered, 2, 1, 1);
+  expect({
+    vertices: tile.biomeIds.length,
+    triangles: tile.indices.length / 3,
+    landTriangles: tile.landIndexCount / 3,
+    positions: fnv(tile.positions),
+    biomeIds: fnv(tile.biomeIds),
+    indices: fnv(tile.indices),
+  }).toMatchSnapshot();
 });

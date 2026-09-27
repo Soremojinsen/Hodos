@@ -10,3 +10,14 @@ exports[`tile 2/1/1 of seed 12345 stays the same 1`] = `
   "vertices": 7169,
 }
 `;
+
+exports[`tile 2/1/1 of seed 12345 with water stays the same 1`] = `
+{
+  "biomeIds": 2508923333,
+  "indices": 4015924526,
+  "landTriangles": 6145,
+  "positions": 3648713098,
+  "triangles": 6597,
+  "vertices": 7723,
+}
+`;

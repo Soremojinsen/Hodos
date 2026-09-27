@@ -1,4 +1,5 @@
 import { WorldSampler } from "./fields.js";
+import { withWater } from "./hydrology.js";
 import { buildTile } from "./tiles.js";
 import { generateWorld } from "./world.js";
 
@@ -13,7 +14,7 @@ let sampler;
 self.onmessage = ({ data }) => {
   try {
     if (data.type === "init") {
-      const base = generateWorld(data.seed);
+      const base = withWater(generateWorld(data.seed));
       sampler = new WorldSampler(base);
       self.postMessage({ type: "world", base });
     } else if (data.type === "tile") {

@@ -2,6 +2,7 @@ import { Delaunay } from "d3-delaunay";
 import { WORLD_SIZE } from "../constants.js";
 import { aleaPRNG } from "../vendor/alea-prng.js";
 import { BIOME_DEFINITIONS } from "./biomes.js";
+import { RIVER, buildRivers } from "./rivers.js";
 
 /**
  * Every tile has TILE_CELLS_SIDE² cells, whatever its level: about 8 px wide on screen.
@@ -92,17 +93,30 @@ export function tileCells(seed, z, x, y) {
  * Everything the GPU needs to draw a tile, as typed arrays a worker can transfer.
  * Each cell is a fan of triangles around its site. The cell's biome is its site's; altitudes
  * are sampled at each vertex, so a land cell with a corner at sea slopes down to the coast.
+ * The rivers come after the cells, see rivers.js buildRivers: the first landIndexCount indices
+ * are the cells'.
  *
  * @param sampler {WorldSampler}
  */
 export function buildTile(sampler, z, x, y) {
   const cells = tileCells(sampler.seed, z, x, y);
-  const vertexCount = cells.reduce((n, cell) => n + 1 + cell.ring.length, 0);
-  const indexCount = cells.reduce((n, cell) => n + 3 * cell.ring.length, 0);
+  const size = tileSize(z);
+  // Cells may reach about a cell past the tile's edge, see tileCells
+  const margin = size / TILE_CELLS_SIDE;
+  const rivers = buildRivers(sampler, z, [
+    x * size - margin,
+    y * size - margin,
+    (x + 1) * size + margin,
+    (y + 1) * size + margin,
+  ]);
+  const landVertexCount = cells.reduce((n, cell) => n + 1 + cell.ring.length, 0);
+  const landIndexCount = cells.reduce((n, cell) => n + 3 * cell.ring.length, 0);
+  const vertexCount = landVertexCount + rivers.positions.length / 3;
+  if (vertexCount > 0x10000) throw new Error(`Tile ${z}/${x}/${y} has too many vertices`);
   const positions = new Float32Array(3 * vertexCount);
   const biomeIds = new Float32Array(vertexCount);
   const debugColors = new Float32Array(3 * vertexCount);
-  const indices = new Uint16Array(indexCount);
+  const indices = new Uint16Array(landIndexCount + rivers.indices.length);
   let vertex = 0;
   let index = 0;
   for (const cell of cells) {
@@ -124,7 +138,16 @@ export function buildTile(sampler, z, x, y) {
       indices[index++] = center + 1 + ((j + 1) % corners);
     }
   }
-  return { z, x, y, positions, biomeIds, debugColors, indices };
+  positions.set(rivers.positions, 3 * landVertexCount);
+  biomeIds.fill(RIVER, landVertexCount);
+  for (let v = landVertexCount; v < vertexCount; v++) {
+    debugColors.set(BIOME_DEFINITIONS[RIVER].debug, 3 * v);
+  }
+  indices.set(
+    rivers.indices.map((i) => i + landVertexCount),
+    landIndexCount,
+  );
+  return { z, x, y, positions, biomeIds, debugColors, indices, landIndexCount };
 }
 
 /**
