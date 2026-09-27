@@ -6,22 +6,44 @@ import { MapRenderer } from "./renderer.js";
 import { levelForZoom } from "./tile-grid.js";
 import { worldToScreen } from "./view.js";
 
+/**
+ * How many workers build tiles at most, and how many tile requests each may queue: few, so a
+ * zoom or pan quickly takes over.
+ */
+export const MAX_WORKERS = 4;
+export const REQUESTS_PER_WORKER = 2;
+
+/**
+ * One worker per core the page can spare (one is left to the page), up to MAX_WORKERS.
+ */
+export const workerCount = (cores = navigator.hardwareConcurrency) =>
+  Math.min(Math.max((cores || 2) - 1, 1), MAX_WORKERS);
+
 export class WorldMap {
   #seed;
-  #worker;
+  // {worker, pending}: pending counts the tiles requested from the worker, not yet answered
+  #workers;
   #sampler;
   #renderer;
   #controller;
 
   constructor(div, seed) {
     this.#seed = seed || getRandomSeed();
-    this.#worker = new Worker(new URL("../generation/worker.js", import.meta.url), {
-      type: "module",
+    this.#workers = Array.from({ length: workerCount() }, () => ({
+      worker: new Worker(new URL("../generation/worker.js", import.meta.url), { type: "module" }),
+      pending: 0,
+    }));
+    this.#renderer = new MapRenderer(div, (tile) => this.#requestTile(tile), {
+      maxInFlight: REQUESTS_PER_WORKER * this.#workers.length,
     });
-    this.#renderer = new MapRenderer(div, (tile) =>
-      this.#worker.postMessage({ type: "tile", ...tile }),
-    );
     this.#controller = new MapController(this);
+  }
+
+  // Asks the least busy worker for a tile
+  #requestTile(tile) {
+    const idlest = this.#workers.reduce((a, b) => (b.pending < a.pending ? b : a));
+    idlest.pending++;
+    idlest.worker.postMessage({ type: "tile", ...tile });
   }
 
   resize(width, height) {
@@ -29,36 +51,42 @@ export class WorldMap {
   }
 
   /**
-   * Generates the world in the worker and loads the level-0 tile.
+   * Generates the world in the workers and loads the level-0 tile. Each worker generates the
+   * same world from the seed, all at once, rather than wait for one to pass it on.
    */
   async load() {
     const world = new Promise((resolve, reject) => {
-      this.#worker.onmessage = ({ data }) => {
-        if (data.type === "world") {
-          resolve(data.base);
-        } else if (data.type === "tile") {
-          this.#renderer.tiles.receive(data.tile);
-        } else if (data.type === "error" && data.request.type === "init") {
-          reject(new Error(data.message));
-        } else if (data.type === "error") {
-          const { z, x, y } = data.request;
-          console.error(`Tile ${z}/${x}/${y} could not be built:`, data.message);
-          this.#renderer.tiles.fail({ z, x, y }, new Error(data.message));
-        }
-      };
-      this.#worker.onerror = (event) => {
-        reject(new Error(event.message || "The map generation worker failed"));
-      };
+      for (const entry of this.#workers) {
+        entry.worker.onmessage = ({ data }) => {
+          if (data.type === "world") {
+            // Every worker sends the same world: the first one is kept
+            resolve(data.base);
+          } else if (data.type === "tile") {
+            entry.pending--;
+            this.#renderer.tiles.receive(data.tile);
+          } else if (data.type === "error" && data.request.type === "init") {
+            reject(new Error(data.message));
+          } else if (data.type === "error") {
+            entry.pending--;
+            const { z, x, y } = data.request;
+            console.error(`Tile ${z}/${x}/${y} could not be built:`, data.message);
+            this.#renderer.tiles.fail({ z, x, y }, new Error(data.message));
+          }
+        };
+        entry.worker.onerror = (event) => {
+          reject(new Error(event.message || "The map generation worker failed"));
+        };
+      }
     }).catch((error) => {
       this.#renderer.showError("error.render");
       throw error;
     });
-    this.#worker.postMessage({ type: "init", seed: this.#seed });
+    for (const { worker } of this.#workers) worker.postMessage({ type: "init", seed: this.#seed });
     try {
       const [base] = await Promise.all([world, this.#renderer.load()]);
       this.#sampler = new WorldSampler(base);
     } catch (error) {
-      this.#worker.terminate();
+      for (const { worker } of this.#workers) worker.terminate();
       throw error;
     }
     this.#controller.setupCallback();

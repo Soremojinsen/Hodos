@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { MapController } from "../../src/map/map.js";
+import { MAX_WORKERS, MapController, workerCount } from "../../src/map/map.js";
 
 test("zoom is clamped to [0, 7] instead of ignored", () => {
   const camera = { zoom: 1, updateGl: () => {} };
@@ -21,4 +21,13 @@ test("moving keeps the camera within the world, as setView and links do", () => 
   controller.move(-20000, 20000);
   expect(camera.posX).toBe(-5000);
   expect(camera.posY).toBe(5000);
+});
+
+test("tiles are built by one worker per spare core, at least one, at most MAX_WORKERS", () => {
+  expect(workerCount(1)).toBe(1);
+  expect(workerCount(2)).toBe(1);
+  expect(workerCount(3)).toBe(2);
+  expect(workerCount(16)).toBe(MAX_WORKERS);
+  // Browsers that do not tell
+  expect(workerCount(0)).toBe(1);
 });

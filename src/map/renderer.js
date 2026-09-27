@@ -36,7 +36,11 @@ export class MapRenderer {
   #drawnTiles = [];
   #errorShown = false;
 
-  constructor(div, requestTile) {
+  /**
+   * @param requestTile {function({z, x, y})} starts building a tile, see TileManager
+   * @param options     {{maxInFlight: Number}} how many tiles may be building at once
+   */
+  constructor(div, requestTile, { maxInFlight } = {}) {
     this.#div = div;
     this.#div.classList.add("hodos-map");
     this.#canvas = document.createElement("canvas");
@@ -59,6 +63,7 @@ export class MapRenderer {
     });
     this.#tiles = new TileManager({
       request: requestTile,
+      maxInFlight,
       bake: (data) => {
         const tile = new Tile(data);
         tile.bake(this.#gl);

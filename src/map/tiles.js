@@ -1,7 +1,8 @@
 import { tileKey } from "./tile-grid.js";
 
 /**
- * How many tiles the worker may be building at once. Few, so a zoom or pan quickly takes over.
+ * How many tiles may be building at once, by default (see map.js for the workers). Few, so a
+ * zoom or pan quickly takes over.
  */
 export const MAX_TILE_REQUESTS = 2;
 
