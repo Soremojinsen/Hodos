@@ -120,6 +120,22 @@ export const BIOME_DEFINITIONS = [
     high: [0.64, 0.48, 0.59],
     debug: [1, 0.75, 0.8],
   },
+  {
+    name: "lake",
+    pool: "Water",
+    maritime: true,
+    low: [0.28, 0.47, 0.53],
+    high: [0.28, 0.47, 0.53],
+    debug: [0, 0.6, 1],
+  },
+  {
+    name: "river",
+    pool: "Water",
+    maritime: true,
+    low: [0.28, 0.47, 0.53],
+    high: [0.28, 0.47, 0.53],
+    debug: [0, 0.6, 1],
+  },
 ];
 
 /**

@@ -55,6 +55,8 @@ export default {
   "biome.Mountain": "Mountain",
   "biome.Corrupted": "Corrupted lands",
   "biome.Fairy": "Fairy island",
+  "biome.lake": "Lake",
+  "biome.river": "River",
   "export.title": "Export",
   "export.area": "Area:",
   "export.world": "Whole world",
