@@ -1,4 +1,5 @@
 import { expect, test } from "vitest";
+import { levelForZoom } from "../../src/map/tile-grid.js";
 import {
   DEFAULT_GRID,
   normalizeGrid,
@@ -48,6 +49,14 @@ test("positions are rounded to units and zoom to hundredths", () => {
   const search = serializeState({ seed: "s", ...DEFAULTS, x: 195.3125, y: -0.4, z: 1.23456 });
   expect(search).toBe("?seed=s&x=195&z=1.23");
 });
+
+test.each([0.496, 2.4999, 3.495, 6.499, 2.4999999999999996])(
+  "a link at zoom %d opens at the same tile level, not the next one",
+  (z) => {
+    const search = serializeState({ seed: "s", ...DEFAULTS, z });
+    expect(levelForZoom(parseState(search).z)).toBe(levelForZoom(z));
+  },
+);
 
 test("grid size and opacity are only written for a grid, and only when not default", () => {
   expect(

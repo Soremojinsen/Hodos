@@ -1,4 +1,5 @@
 import { DEFAULT_VIEW, MAX_ZOOM, MIN_ZOOM, WORLD_SIZE } from "../constants.js";
+import { levelForZoom } from "../map/tile-grid.js";
 
 /**
  * The state a link carries: the map seed, the camera, the rendering mode and the grid.
@@ -74,7 +75,10 @@ export function serializeState(state) {
   params.set("seed", state.seed);
   const x = Math.round(state.x);
   const y = Math.round(state.y);
-  const z = Math.round(state.z * 100) / 100;
+  // Hundredths, but rounded down where rounding up would reach the next tile level: the link
+  // would open on other coasts and rivers
+  let z = Math.round(state.z * 100) / 100;
+  if (levelForZoom(z) !== levelForZoom(state.z)) z = Math.floor(state.z * 100) / 100;
   if (x !== DEFAULT_VIEW.x) params.set("x", x);
   if (y !== DEFAULT_VIEW.y) params.set("y", y);
   if (z !== DEFAULT_VIEW.z) params.set("z", z);
