@@ -71,3 +71,27 @@ test("an opacity from the link that isn't a multiple of 5 survives moving anothe
   await expect(page).toHaveURL(/gs=600/);
   await expect(page).toHaveURL(/go=37/);
 });
+
+test("the grid stays the size of the map when a browser zoom keeps the device pixels", async ({
+  page,
+}) => {
+  await openMap(page, "./?seed=12345&grid=square");
+  await expect.poll(() => overlayInk(page)).toBeGreaterThan(1000);
+  // Zooming the page to 200 %: half the CSS pixels, twice the device pixels per CSS pixel
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Emulation.setDeviceMetricsOverride", {
+    width: 500,
+    height: 350,
+    deviceScaleFactor: 2,
+    mobile: false,
+  });
+  const sizes = () =>
+    page.evaluate(() =>
+      [".hodos-canvas", ".hodos-overlay"].map((selector) => {
+        const { width, height } = document.querySelector(selector).getBoundingClientRect();
+        return [width, height];
+      }),
+    );
+  await expect.poll(async () => (await sizes())[0]).toEqual([500, 350]);
+  await expect.poll(async () => (await sizes())[1]).toEqual([500, 350]);
+});

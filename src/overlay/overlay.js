@@ -41,12 +41,13 @@ export class GridOverlay {
   draw() {
     const renderer = this.#worldMap.renderer;
     const { width, height } = renderer.canvas;
+    // A browser zoom can change the CSS size alone, keeping the device pixels
+    this.#canvas.style.width = `${renderer.width}px`;
+    this.#canvas.style.height = `${renderer.height}px`;
     if (this.#canvas.width !== width || this.#canvas.height !== height) {
       // Resizing also clears the canvas
       this.#canvas.width = width;
       this.#canvas.height = height;
-      this.#canvas.style.width = `${renderer.width}px`;
-      this.#canvas.style.height = `${renderer.height}px`;
     } else {
       this.#context.setTransform(1, 0, 0, 1, 0, 0);
       this.#context.clearRect(0, 0, width, height);
