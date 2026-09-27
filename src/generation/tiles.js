@@ -15,6 +15,13 @@ export const TILE_CELLS_SIDE = 32;
 const JITTER = 0.8;
 
 /**
+ * How many cells past a tile's edge the points that shape its cells can be. Every grid square
+ * has a point, so a circle with no point inside is less than √2 cells in radius: the Delaunay
+ * triangles of a tile's points, whose circles are empty, reach at most 2√2 ≈ 2.8 cells past it.
+ */
+const NEIGHBOUR_BAND = 4;
+
+/**
  * The side of a tile of level z, in world units.
  */
 export const tileSize = (z) => WORLD_SIZE / 2 ** z;
@@ -60,20 +67,29 @@ export function tilePoints(seed, z, x, y) {
  * reach a little past the tile's edge, and the neighbour, which does not keep them, would
  * compute the same polygons.
  *
+ * Only the neighbours' points within NEIGHBOUR_BAND cells of the tile are triangulated: the
+ * others cannot change its cells.
+ *
  * @returns {{site: Number[], ring: Number[][]}[]} rings without the closing point
  */
 export function tileCells(seed, z, x, y) {
   const size = tileSize(z);
+  const band = (NEIGHBOUR_BAND * size) / TILE_CELLS_SIDE;
+  const [minX, minY] = [x * size - band, y * size - band];
+  const [maxX, maxY] = [(x + 1) * size + band, (y + 1) * size + band];
   // The tile's own points first, so they are the first cells of the Voronoi
-  const blocks = [tilePoints(seed, z, x, y)];
+  const points = [...tilePoints(seed, z, x, y)];
   for (let dy = -1; dy <= 1; dy++) {
     for (let dx = -1; dx <= 1; dx++) {
-      if (dx !== 0 || dy !== 0) blocks.push(tilePoints(seed, z, x + dx, y + dy));
+      if (dx === 0 && dy === 0) continue;
+      const block = tilePoints(seed, z, x + dx, y + dy);
+      for (let i = 0; i < block.length; i += 2) {
+        const [px, py] = [block[i], block[i + 1]];
+        if (px >= minX && px <= maxX && py >= minY && py <= maxY) points.push(px, py);
+      }
     }
   }
-  const points = new Float64Array(blocks.length * blocks[0].length);
-  blocks.forEach((block, i) => points.set(block, i * block.length));
-  const voronoi = new Delaunay(points).voronoi([
+  const voronoi = new Delaunay(Float64Array.from(points)).voronoi([
     (x - 1) * size,
     (y - 1) * size,
     (x + 2) * size,
@@ -119,6 +135,17 @@ export function buildTile(sampler, z, x, y) {
   const indices = new Uint16Array(landIndexCount + rivers.indices.length);
   let vertex = 0;
   let index = 0;
+  // Cells share their corners: sample each corner once
+  const cornerAltitudes = new Map();
+  const cornerAltitude = (px, py) => {
+    const key = `${px},${py}`;
+    let altitude = cornerAltitudes.get(key);
+    if (altitude === undefined) {
+      altitude = sampler.sampleAt(px, py, z).altitude;
+      cornerAltitudes.set(key, altitude);
+    }
+    return altitude;
+  };
   for (const cell of cells) {
     const sample = sampler.sampleAt(cell.site[0], cell.site[1], z);
     const debugColor = BIOME_DEFINITIONS[sample.biome].debug;
@@ -130,7 +157,7 @@ export function buildTile(sampler, z, x, y) {
     };
     const center = vertex;
     addVertex(cell.site[0], cell.site[1], sample.altitude);
-    for (const [px, py] of cell.ring) addVertex(px, py, sampler.sampleAt(px, py, z).altitude);
+    for (const [px, py] of cell.ring) addVertex(px, py, cornerAltitude(px, py));
     const corners = cell.ring.length;
     for (let j = 0; j < corners; j++) {
       indices[index++] = center;

@@ -5,7 +5,7 @@ exports[`tile 2/1/1 of seed 12345 stays the same 1`] = `
   "biomeIds": 1789090434,
   "debugColors": 519870909,
   "indices": 3061001994,
-  "positions": 3859563182,
+  "positions": 1058526066,
   "triangles": 6145,
   "vertices": 7169,
 }
@@ -16,7 +16,7 @@ exports[`tile 2/1/1 of seed 12345 with water stays the same 1`] = `
   "biomeIds": 2934647605,
   "indices": 3785782168,
   "landTriangles": 6145,
-  "positions": 1646115194,
+  "positions": 3761821686,
   "triangles": 6835,
   "vertices": 8024,
 }
