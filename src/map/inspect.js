@@ -1,5 +1,6 @@
 import { WORLD_SIZE } from "../constants.js";
 import { BIOME_DEFINITIONS } from "../generation/biomes.js";
+import { RIVER, pixelSize, riverAt } from "../generation/rivers.js";
 import { siteAt } from "../generation/tiles.js";
 
 /**
@@ -16,9 +17,18 @@ export const RELIEF_BANDS = [
 export const reliefOf = (altitude) =>
   RELIEF_BANDS.find((band) => altitude < band.below)?.relief ?? "peak";
 
+const LAKE = BIOME_DEFINITIONS.findIndex((definition) => definition.name === "lake");
+
+/**
+ * How far past a river's edge, in pixels, the pointer still finds it: rivers can be 1 px wide.
+ */
+export const RIVER_MARGIN_PX = 1;
+
 /**
  * What is at a world point at a tile level: the biome name, the relief band and the land mass
- * of the cell drawn there. It only reads the sampler, so the map stays the same.
+ * of the cell drawn there, or the river drawn over it. Lakes and rivers are fresh water, not
+ * sea; a river keeps the land mass it flows through. It only reads the sampler, so the map
+ * stays the same.
  *
  * @param sampler {WorldSampler}
  * @returns {{biome: string, relief: string, landmass: Object|null}|null} null outside the world
@@ -32,5 +42,10 @@ export function inspectAt(sampler, x, y, level) {
     landmass =
       cell.continent > 0 ? { type: "continent", number: cell.continent } : { type: "island" };
   }
-  return { biome: BIOME_DEFINITIONS[cell.biome].name, relief: reliefOf(cell.altitude), landmass };
+  let biome = cell.biome;
+  if (cell.land && riverAt(sampler, x, y, level, RIVER_MARGIN_PX * pixelSize(level))) {
+    biome = RIVER;
+  }
+  const relief = biome === LAKE || biome === RIVER ? "freshwater" : reliefOf(cell.altitude);
+  return { biome: BIOME_DEFINITIONS[biome].name, relief, landmass };
 }

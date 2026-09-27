@@ -35,6 +35,7 @@ export default {
   "hover.biome": "Biome:",
   "hover.relief": "Relief:",
   "relief.sea": "Sea",
+  "relief.freshwater": "Fresh water",
   "relief.coast": "Coast",
   "relief.lowland": "Lowland",
   "relief.mountain": "Mountain",

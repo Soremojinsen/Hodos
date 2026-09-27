@@ -47,7 +47,7 @@ export const RIVER = BIOME_DEFINITIONS.findIndex((definition) => definition.name
 /**
  * The side of a screen pixel at level z, in world units.
  */
-const pixelSize = (z) => WORLD_SIZE / 2 ** z / TILE_PIXEL_SIZE;
+export const pixelSize = (z) => WORLD_SIZE / 2 ** z / TILE_PIXEL_SIZE;
 
 /**
  * How far a river's end looks for deep water at level z, in world units.
@@ -131,13 +131,36 @@ export function nearestWater(sampler, x, y, z) {
 }
 
 /**
+ * The courses already found, by sampler then "z/k": finding a mouth's deep water can take
+ * thousands of samples, and neighbouring tiles, or a pointer moving over the map, ask for the
+ * same courses again. All of them, at every level, take about 2.5 MB.
+ */
+const courses = new WeakMap();
+
+/**
  * The course of river edge k at level z: its meander, and for an edge that ends in the sea or a
  * lake, when this level does not draw deep water there, a meander on to the nearest that it does.
+ * The array is shared by every caller: do not change it.
  *
  * @param sampler {WorldSampler}
  * @returns {Number[]} x0, y0, x1, y1, …
  */
 export function riverCourse(sampler, k, z) {
+  let known = courses.get(sampler);
+  if (!known) {
+    known = new Map();
+    courses.set(sampler, known);
+  }
+  const key = `${z}/${k}`;
+  let course = known.get(key);
+  if (!course) {
+    course = findCourse(sampler, k, z);
+    known.set(key, course);
+  }
+  return course;
+}
+
+function findCourse(sampler, k, z) {
   const { sites, from, to, mouth } = sampler.rivers;
   const [a, b] = [from[k], to[k]];
   const [ax, ay, bx, by] = [sites[2 * a], sites[2 * a + 1], sites[2 * b], sites[2 * b + 1]];
@@ -152,6 +175,36 @@ export function riverCourse(sampler, k, z) {
   return course;
 }
 /**
+ * The courses of the rivers drawn at level z that may touch an area, largest first, with their
+ * half width in world units.
+ *
+ * @param sampler {WorldSampler}
+ * @returns {Iterable<{course: Number[], half: Number}>} course as in riverCourse
+ */
+export function* riverCourses(sampler, z, [minX, minY, maxX, maxY]) {
+  const rivers = sampler.rivers;
+  if (!rivers) return;
+  const threshold = riverThreshold(z);
+  const { sites, from, to, flow, mouth } = rivers;
+  // Edges come largest flow first
+  for (let k = 0; k < flow.length && flow[k] >= threshold; k++) {
+    const [a, b] = [from[k], to[k]];
+    const [ax, ay, bx, by] = [sites[2 * a], sites[2 * a + 1], sites[2 * b], sites[2 * b + 1]];
+    const half = riverWidth(flow[k], z) / 2;
+    // A course strays at most about 0.36 of its length from its edge (and its reach from b)
+    const pad = Math.hypot(bx - ax, by - ay) / 2 + half + (mouth[k] ? 1.4 * maxReach(z) : 0);
+    if (
+      Math.max(ax, bx) + pad >= minX &&
+      Math.min(ax, bx) - pad <= maxX &&
+      Math.max(ay, by) + pad >= minY &&
+      Math.min(ay, by) - pad <= maxY
+    ) {
+      yield { course: riverCourse(sampler, k, z), half };
+    }
+  }
+}
+
+/**
  * The river triangles of an area at level z, to draw over its cells: a quad per segment and a
  * polygon per point of each course that touch the area, at sea altitude so the Parchemin
  * rendering paints them as water.
@@ -162,11 +215,10 @@ export function riverCourse(sampler, k, z) {
  * @param sampler {WorldSampler}
  * @returns {{positions: Number[], indices: Number[]}} indices from 0
  */
-export function buildRivers(sampler, z, [minX, minY, maxX, maxY]) {
+export function buildRivers(sampler, z, area) {
   const positions = [];
   const indices = [];
-  const rivers = sampler.rivers;
-  if (!rivers) return { positions, indices };
+  const [minX, minY, maxX, maxY] = area;
   const touches = (x0, y0, x1, y1, pad) =>
     Math.max(x0, x1) + pad >= minX &&
     Math.min(x0, x1) - pad <= maxX &&
@@ -177,18 +229,7 @@ export function buildRivers(sampler, z, [minX, minY, maxX, maxY]) {
     return positions.length / 3 - 1;
   };
 
-  const threshold = riverThreshold(z);
-  const { sites, from, to, flow, mouth } = rivers;
-  // Edges come largest flow first
-  for (let k = 0; k < flow.length && flow[k] >= threshold; k++) {
-    const [a, b] = [from[k], to[k]];
-    const [ax, ay, bx, by] = [sites[2 * a], sites[2 * a + 1], sites[2 * b], sites[2 * b + 1]];
-    const half = riverWidth(flow[k], z) / 2;
-    // A course strays at most about 0.36 of its length from its edge (and its reach from b)
-    const pad = Math.hypot(bx - ax, by - ay) / 2 + half + (mouth[k] ? 1.4 * maxReach(z) : 0);
-    if (!touches(ax, ay, bx, by, pad)) continue;
-
-    const course = riverCourse(sampler, k, z);
+  for (const { course, half } of riverCourses(sampler, z, area)) {
     for (let i = 0; i + 3 < course.length; i += 2) {
       const [px, py, qx, qy] = [course[i], course[i + 1], course[i + 2], course[i + 3]];
       const length = Math.hypot(qx - px, qy - py);
@@ -214,4 +255,33 @@ export function buildRivers(sampler, z, [minX, minY, maxX, maxY]) {
     }
   }
   return { positions, indices };
+}
+
+/**
+ * Whether a river drawn at level z passes within margin of (x, y), in world units: the river's
+ * own width, plus margin on each side.
+ *
+ * @param sampler {WorldSampler}
+ */
+export function riverAt(sampler, x, y, z, margin = 0) {
+  for (const { course, half } of riverCourses(sampler, z, [x, y, x, y])) {
+    const reach = half + margin;
+    for (let i = 0; i + 3 < course.length; i += 2) {
+      if (segmentDistance(x, y, course[i], course[i + 1], course[i + 2], course[i + 3]) <= reach) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+// The distance from (x, y) to the segment from p to q
+function segmentDistance(x, y, px, py, qx, qy) {
+  const [dx, dy] = [qx - px, qy - py];
+  const lengthSquared = dx * dx + dy * dy;
+  const t =
+    lengthSquared === 0
+      ? 0
+      : Math.min(Math.max(((x - px) * dx + (y - py) * dy) / lengthSquared, 0), 1);
+  return Math.hypot(x - (px + t * dx), y - (py + t * dy));
 }
