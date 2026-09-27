@@ -42,11 +42,13 @@ export const BEND_WIDTHS = 1;
 export const MEANDER = 0.25;
 
 /**
- * How far, in world units, a river's end looks for the water drawn at a level, whose coasts and
- * lake shores differ a little from those the water flowed to (measured: at most about 160).
+ * How far, in world units, a river's end looks for the deep water drawn at a level, whose coasts
+ * and lake shores differ from those the water flowed to: mostly by less than 200, but the warp
+ * octaves of the deeper levels (see fields.js warp) can move a coast by up to about 420.
  * Shallow levels, whose cells are larger, look at least 3 deep water radii away, see maxReach.
+ * Where no deep water is that near, the river goes on to the nearest water, even a narrow one.
  */
-export const MAX_REACH = 250;
+export const MAX_REACH = 450;
 
 /**
  * How far, in pixels, the water must reach around a river's end: a tile colours each cell (about
@@ -172,19 +174,22 @@ export function deepWater(sampler, x, y, z) {
 }
 
 /**
- * The nearest deep water from (x, y) at level z (see deepWater), looked for in 16 directions,
- * ring by ring (4 pixels, at least 5 world units, apart).
+ * The nearest deep water from (x, y) at level z (see deepWater), or with deep false any water,
+ * looked for in 16 directions, ring by ring (4 pixels, at least 5 world units, apart).
  *
  * @param sampler {WorldSampler}
  * @returns {Number[]|null} [x, y], or null when there is none within maxReach(z)
  */
-export function nearestWater(sampler, x, y, z) {
+export function nearestWater(sampler, x, y, z, { deep = true } = {}) {
+  const isWater = deep
+    ? (px, py) => deepWater(sampler, px, py, z)
+    : (px, py) => !sampler.sampleAt(px, py, z).land;
   const step = Math.max(5, 4 * pixelSize(z));
   for (let radius = step; radius <= maxReach(z); radius += step) {
     for (let k = 0; k < 16; k++) {
       const angle = (k * Math.PI) / 8;
       const [px, py] = [x + radius * Math.cos(angle), y + radius * Math.sin(angle)];
-      if (deepWater(sampler, px, py, z)) return [px, py];
+      if (isWater(px, py)) return [px, py];
     }
   }
   return null;
@@ -199,7 +204,8 @@ const courses = new WeakMap();
 
 /**
  * The course of river edge k at level z: its meander, and for an edge that ends in the sea or a
- * lake, when this level does not draw deep water there, a meander on to the nearest that it does.
+ * lake, when this level does not draw deep water there, a meander on to the nearest that it does
+ * (or, with none within reach, to the nearest water it draws).
  * The array is shared by every caller: do not change it.
  *
  * @param sampler {WorldSampler}
@@ -227,7 +233,9 @@ function findCourse(sampler, k, z) {
   const width = riverWidth(flow[k], z);
   const course = meander(ax, ay, bx, by, `${sampler.seed}:river:${a}:${b}`, z, width);
   if (mouth[k] && !deepWater(sampler, bx, by, z)) {
-    const water = nearestWater(sampler, bx, by, z);
+    const water =
+      nearestWater(sampler, bx, by, z) ??
+      (sampler.sampleAt(bx, by, z).land ? nearestWater(sampler, bx, by, z, { deep: false }) : null);
     if (water) {
       const reach = meander(bx, by, ...water, `${sampler.seed}:mouth:${a}:${b}`, z, width);
       course.push(...reach.slice(2));

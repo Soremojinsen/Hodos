@@ -231,6 +231,28 @@ test("a river that reaches the sea or a lake ends in a cell drawn as water at ea
   }
 });
 
+test("a river that reaches the sea or a lake ends by water at each level, even far from deep water", () => {
+  // Seed 39595 has a mouth whose coast is more than MAX_REACH away at deeper levels
+  for (const seed of ["12345", "39595"]) {
+    const watered = new WorldSampler(withWater(generateWorld(seed)));
+    const { sites, to, flow, mouth } = watered.rivers;
+    for (let z = 0; z <= 7; z++) {
+      const near = 3 * pixelSize(z);
+      const wet = (x, y) => !watered.sampleAt(x, y, z).land;
+      for (let k = 0; k < flow.length && flow[k] >= riverThreshold(z); k++) {
+        if (!mouth[k] || deepWater(watered, sites[2 * to[k]], sites[2 * to[k] + 1], z)) continue;
+        const [ex, ey] = riverCourse(watered, k, z).slice(-2);
+        const byWater =
+          wet(ex, ey) ||
+          Array.from({ length: 16 }, (_, a) => (a * Math.PI) / 8).some((angle) =>
+            wet(ex + near * Math.cos(angle), ey + near * Math.sin(angle)),
+          );
+        expect(byWater, `seed ${seed}, level ${z}, edge ${k}`).toBe(true);
+      }
+    }
+  }
+});
+
 test("a tile draws every point of the rivers that crosses it, so tiles join without seams", () => {
   for (const [z, x, y] of [
     [0, 0, 0],
