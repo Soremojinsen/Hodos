@@ -57,6 +57,17 @@ worldMap.renderer.addContextRestoredListener(() => {
 
 const resize = () => worldMap.resize(window.innerWidth, window.innerHeight);
 window.addEventListener("resize", resize);
+// Moving the window to a screen of another pixel density may not change its size
+const watchPixelRatio = () =>
+  window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`).addEventListener(
+    "change",
+    () => {
+      resize();
+      watchPixelRatio();
+    },
+    { once: true },
+  );
+watchPixelRatio();
 
 setupControls(worldMap);
 setupModals();

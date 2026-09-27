@@ -36,17 +36,24 @@ export class GridOverlay {
   }
 
   /**
-   * Draws the grid for the current camera, at the size of the map canvas.
+   * Draws the grid for the current camera, with as many device pixels as the map canvas.
    */
   draw() {
-    const { width, height } = this.#worldMap.renderer.canvas;
+    const renderer = this.#worldMap.renderer;
+    const { width, height } = renderer.canvas;
     if (this.#canvas.width !== width || this.#canvas.height !== height) {
       // Resizing also clears the canvas
       this.#canvas.width = width;
       this.#canvas.height = height;
+      this.#canvas.style.width = `${renderer.width}px`;
+      this.#canvas.style.height = `${renderer.height}px`;
     } else {
+      this.#context.setTransform(1, 0, 0, 1, 0, 0);
       this.#context.clearRect(0, 0, width, height);
     }
+    // The grid is drawn in CSS pixels, as the camera's view
+    const ratio = renderer.pixelRatio;
+    this.#context.setTransform(ratio, 0, 0, ratio, 0, 0);
     drawGrid(this.#context, this.#worldMap.camera.view, this.#settings);
   }
 }

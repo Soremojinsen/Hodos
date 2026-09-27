@@ -35,6 +35,29 @@ test("moving, resizing and switching mode redraw the map", async ({ page }) => {
   await expect.poll(() => frameCount(page)).toBeGreaterThan(count);
 });
 
+test.describe("on a high-density screen", () => {
+  test.use({ deviceScaleFactor: 2 });
+
+  test("the map and the grid have a device pixel per screen pixel", async ({ page }) => {
+    await openMap(page);
+    const sizes = await page.evaluate(() => {
+      const map = window.hodos;
+      const overlay = document.querySelector(".hodos-overlay");
+      return {
+        canvas: [map.renderer.canvas.width, map.renderer.canvas.height],
+        overlay: [overlay.width, overlay.height],
+        shown: [map.renderer.canvas.clientWidth, overlay.clientWidth],
+        view: [map.camera.view.width, map.camera.view.height],
+      };
+    });
+    expect(sizes.canvas).toEqual([2000, 1400]);
+    expect(sizes.overlay).toEqual([2000, 1400]);
+    expect(sizes.shown).toEqual([1000, 1000]);
+    // The camera's view, used by the pointer, the grid and exports, stays in CSS pixels
+    expect(sizes.view).toEqual([1000, 700]);
+  });
+});
+
 test("exporting the current view at ×1 downloads the drawn map as a PNG", async ({ page }) => {
   await openMap(page);
   await page.click("#screenshot");

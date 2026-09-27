@@ -14,6 +14,12 @@ import debugVertex from "./shaders/world_debug.vert?raw";
 import defaultFragment from "./shaders/world_default.frag?raw";
 import defaultVertex from "./shaders/world_default.vert?raw";
 
+/**
+ * The most device pixels per CSS pixel the map is drawn with: denser screens (3 on many phones)
+ * would shade over twice as many pixels for a difference hardly seen.
+ */
+export const MAX_PIXEL_RATIO = 2;
+
 export class MapRenderer {
   #activeWorldShaderProgram;
   #defaultWorldShaderProgram;
@@ -21,6 +27,10 @@ export class MapRenderer {
   #debugWorldShaderProgram;
   #div;
   #canvas;
+  // CSS pixels, see resize
+  #width;
+  #height;
+  #pixelRatio = 1;
   #debugSpan;
   #gl;
   #camera;
@@ -47,6 +57,8 @@ export class MapRenderer {
     this.#canvas = document.createElement("canvas");
     this.#canvas.classList.add("hodos-canvas");
     div.appendChild(this.#canvas);
+    this.#width = this.#canvas.width;
+    this.#height = this.#canvas.height;
     this.#debugSpan = document.createElement("span");
     this.#debugSpan.classList.add("hodos-debug");
     this.#debugSpan.style.visibility = "hidden";
@@ -79,12 +91,39 @@ export class MapRenderer {
     this.#camera = new Camera(this);
   }
 
+  /**
+   * Sizes the map, in CSS pixels. The canvas has pixelRatio device pixels per CSS pixel, so
+   * the map is sharp on high-density screens; the camera's view stays in CSS pixels.
+   */
   resize(width, height) {
     if (!this.#gl) return;
-    this.#canvas.width = width;
-    this.#canvas.height = height;
+    this.#width = width;
+    this.#height = height;
+    this.#pixelRatio = Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO);
+    this.#canvas.width = Math.round(width * this.#pixelRatio);
+    this.#canvas.height = Math.round(height * this.#pixelRatio);
+    this.#canvas.style.width = `${width}px`;
+    this.#canvas.style.height = `${height}px`;
     this.#gl.viewport(0, 0, this.#canvas.width, this.#canvas.height);
     this.camera.updateGl();
+  }
+
+  /**
+   * The size of the map in CSS pixels, see resize.
+   */
+  get width() {
+    return this.#width;
+  }
+
+  get height() {
+    return this.#height;
+  }
+
+  /**
+   * Device pixels per CSS pixel on the map canvas.
+   */
+  get pixelRatio() {
+    return this.#pixelRatio;
   }
 
   async load() {
@@ -457,11 +496,11 @@ export class Camera {
   }
 
   /**
-   * What the camera shows on the map canvas, see view.js.
+   * What the camera shows on the map, in CSS pixels, see view.js. The view matrix does not
+   * depend on the pixel size, so it also draws the canvas's device pixels.
    */
   get view() {
-    const canvas = this.#renderer.canvas;
-    return cameraView(this, canvas.width, canvas.height);
+    return cameraView(this, this.#renderer.width, this.#renderer.height);
   }
 
   /**
