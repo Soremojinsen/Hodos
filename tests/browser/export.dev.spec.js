@@ -117,7 +117,7 @@ test("an export draws every chunk from its own level's tiles, loaded first", asy
   });
 });
 
-test("a 1024px world export renders identically whole and in 256px chunks landing on tile edges", async ({
+test("a 1024px world export renders the same whole and in 256px chunks landing on tile edges", async ({
   page,
 }) => {
   await openDevMap(page);
@@ -138,11 +138,29 @@ test("a 1024px world export renders identically whole and in 256px chunks landin
     const pixelsOf = (canvas) => canvas.getContext("2d").getImageData(0, 0, 1024, 1024).data;
     const whole = pixelsOf(await renderImage(renderer, view, null));
     const pieces = pixelsOf(await renderImage(chunked, view, null));
+    // The pixels that differ, and those of them next to another that differs. The hill shading
+    // and the marks depend steeply on the world point a pixel shows, which each chunk's own view
+    // matrix interpolates with a slightly different rounding: a few isolated pixels land on the
+    // other side of a rounding step (a channel off by 1), or of a threshold like the shore. A
+    // notch is a run of clear-colour pixels along a tile edge, many and touching each other
+    // (without the padded neighbour tiles, 1794 pixels differ; with them, 2, green off by 1).
+    const differs = (p) => [0, 1, 2, 3].some((c) => whole[4 * p + c] !== pieces[4 * p + c]);
     let different = 0;
-    for (let i = 0; i < whole.length; i++) {
-      if (whole[i] !== pieces[i]) different++;
+    let touching = 0;
+    for (let p = 0; p < 1024 * 1024; p++) {
+      if (!differs(p)) continue;
+      different++;
+      const [x, y] = [p % 1024, Math.floor(p / 1024)];
+      const neighbours = [
+        [x - 1, y],
+        [x + 1, y],
+        [x, y - 1],
+        [x, y + 1],
+      ].filter(([u, v]) => u >= 0 && u < 1024 && v >= 0 && v < 1024);
+      if (neighbours.some(([u, v]) => differs(v * 1024 + u))) touching++;
     }
-    return { different };
+    return { different, touching };
   });
-  expect(result.different).toBe(0);
+  expect(result.different).toBeLessThanOrEqual(8);
+  expect(result.touching).toBe(0);
 });
