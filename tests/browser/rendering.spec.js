@@ -244,8 +244,8 @@ const uniformArea = (sampler, name, seed) => {
 };
 
 /**
- * The share of the pixels of a 64-px view much darker than one of the pixels 4 px around them:
- * small dark marks, not the gradual hill shading.
+ * The share of the pixels of a 64-px view at least 30 % darker than one of the pixels 4 px around
+ * them: small dark marks, not the hill shading's texture, which varies less than that over 4 px.
  */
 const markShare = (page, [x, y], mode) =>
   page.evaluate(
@@ -269,7 +269,7 @@ const markShare = (page, [x, y], mode) =>
       for (let py = 4; py < 60; py++) {
         for (let px = 4; px < 60; px++) {
           const around = Math.max(b(px - 4, py), b(px + 4, py), b(px, py - 4), b(px, py + 4));
-          if (b(px, py) < 0.85 * around) dark++;
+          if (b(px, py) < 0.7 * around) dark++;
           total++;
         }
       }
