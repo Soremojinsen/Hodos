@@ -219,3 +219,73 @@ test("hills are lit from the north-west in the Parchemin and Biomes renderings, 
   // Every plain has the same debug color
   expect(await brightness(page, lit, 4, "debug")).toBe(await brightness(page, shaded, 4, "debug"));
 });
+
+/**
+ * A level-5 point of a biome whose 64-px square around it is all that biome, away from rivers
+ * and at altitudes that the relief noise cannot push into the beach or mountain colours.
+ */
+const uniformArea = (sampler, name, seed) => {
+  const biome = BIOME_DEFINITIONS.findIndex((definition) => definition.name === name);
+  const half = (32 * 10000) / (256 * 2 ** 5);
+  const random = aleaPRNG(seed);
+  for (let n = 0; n < 500_000; n++) {
+    const [x, y] = [half + random() * (10000 - 2 * half), half + random() * (10000 - 2 * half)];
+    let uniform = true;
+    for (const dx of [-half, 0, half]) {
+      for (const dy of [-half, 0, half]) {
+        const sample = sampler.sampleAt(x + dx, y + dy, 5);
+        if (sample.biome !== biome || sample.altitude < 0.25 || sample.altitude > 0.5)
+          uniform = false;
+      }
+    }
+    if (uniform && !riverAt(sampler, x, y, 5, { margin: 2 * half })) return [x, y];
+  }
+  throw new Error(`No uniform ${name} area`);
+};
+
+/**
+ * The share of the pixels of a 64-px view much darker than one of the pixels 4 px around them:
+ * small dark marks, not the gradual hill shading.
+ */
+const markShare = (page, [x, y], mode) =>
+  page.evaluate(
+    async ([x, y, mode]) => {
+      const renderer = window.hodos.renderer;
+      const view = { centerX: x, centerY: y, pixelsPerUnit: (256 * 2 ** 5) / 10000 };
+      Object.assign(view, { width: 64, height: 64 });
+      const release = await renderer.ensureTiles(view, 5);
+      let pixels;
+      try {
+        pixels = renderer.renderToPixels(view, 5, mode);
+      } finally {
+        release();
+      }
+      const b = (px, py) => {
+        const i = 4 * (py * 64 + px);
+        return pixels[i] + pixels[i + 1] + pixels[i + 2];
+      };
+      let dark = 0;
+      let total = 0;
+      for (let py = 4; py < 60; py++) {
+        for (let px = 4; px < 60; px++) {
+          const around = Math.max(b(px - 4, py), b(px + 4, py), b(px, py - 4), b(px, py + 4));
+          if (b(px, py) < 0.85 * around) dark++;
+          total++;
+        }
+      }
+      return dark / total;
+    },
+    [x, y, mode],
+  );
+
+test("forests are drawn with marks, plains are not, and debug mode has none", async ({ page }) => {
+  const sampler = new WorldSampler(withWater(generateWorld("12345")));
+  const forest = uniformArea(sampler, "Forest", "forest");
+  const plain = uniformArea(sampler, "Plain", "plain");
+  await openMap(page);
+  for (const mode of ["default", "biomes"]) {
+    expect(await markShare(page, forest, mode)).toBeGreaterThan(0.05);
+    expect(await markShare(page, plain, mode)).toBeLessThan(0.02);
+  }
+  expect(await markShare(page, forest, "debug")).toBe(0);
+});

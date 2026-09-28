@@ -108,3 +108,78 @@ vec3 hillShade(vec3 color, vec2 slope, vec2 noiseSlope) {
     float lit = dot(normal, LIGHT) / LIGHT.z;
     return color * mix(1.0, clamp(lit, SHADE_MIN, SHADE_MAX), SHADE_STRENGTH);
 }
+
+// Vegetation marks, one per square of a grid mark_cell wide anchored in the world, drawn only
+// where the pixel's own biome has a mark, and only above the beach and below the mountains
+const float MARK_BEACH = 0.1;
+const float MARK_MOUNTAIN = 0.65;
+// Where a mark's shadow falls, in grid squares: to the south-east, away from the light
+const vec2 MARK_SHADOW = vec2(0.06, -0.08);
+
+// A random number in [0, 1) for a grid square ("Hash without Sine", Dave Hoskins, MIT): no
+// sin, whose precision on large arguments varies between GPUs
+float markHash(vec2 p) {
+    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+// How much of a pixel a shape covers, from its signed distance (negative inside) and the
+// pixel's size, both in grid squares
+float cover(float distance, float pixel) {
+    return clamp(0.5 - distance / pixel, 0.0, 1.0);
+}
+
+// Roughly the signed distance to a small conifer: a triangle pointing north
+float conifer(vec2 q) {
+    float halfWidth = 0.16 * (0.26 - q.y) / 0.48;
+    return max(max(abs(q.x) - halfWidth, -0.22 - q.y), q.y - 0.26);
+}
+
+// Roughly the signed distance to a tuft of three reeds leaning apart, the middle one tallest
+float reeds(vec2 q) {
+    float distance = 1.0;
+    for (int i = -1; i <= 1; i++) {
+        float k = float(i);
+        float x = q.x - 0.09 * k - 0.25 * k * (q.y + 0.12);
+        float top = 0.14 - 0.05 * abs(k);
+        distance = min(distance, max(abs(x) - 0.04, max(-0.12 - q.y, q.y - top)));
+    }
+    return distance;
+}
+
+// A color with the mark of its biome drawn over it, at a world point and altitude
+vec3 drawMarks(vec3 color, float id, vec2 point, float altitude) {
+    float kind = floor(biomeTexel(id, 2.0).r * 255.0 + 0.5);
+    if (kind < 0.5 || altitude < MARK_BEACH || altitude >= MARK_MOUNTAIN) return color;
+    vec2 square = floor(point / mark_cell);
+    float pixel = pixel_world / mark_cell;
+    // The mark's centre stays 0.3 from the square's sides, so no mark crosses into the next
+    vec2 q = point / mark_cell - square - (0.3 + 0.4 * vec2(markHash(square), markHash(square + 17.0)));
+    float keep = markHash(square + 41.0);
+    float mark = 0.0;
+    float shadow = 0.0;
+    float dark = 0.55;
+    if (kind < 1.5) {
+        // Broadleaf: round crowns, a few squares left bare
+        if (keep > 0.85) return color;
+        mark = cover(length(q) - 0.2, pixel);
+        shadow = cover(length(q - MARK_SHADOW) - 0.22, pixel);
+    } else if (kind < 2.5) {
+        // Jungle: larger, darker crowns in every square
+        mark = cover(length(q) - 0.26, pixel);
+        shadow = cover(length(q - MARK_SHADOW) - 0.28, pixel);
+        dark = 0.42;
+    } else if (kind < 3.5) {
+        mark = cover(conifer(q), pixel);
+        shadow = cover(conifer(q - MARK_SHADOW), pixel);
+        dark = 0.5;
+    } else {
+        // Reeds, sparse
+        if (keep > 0.6) return color;
+        mark = cover(reeds(q), pixel);
+        dark = 0.6;
+    }
+    color = mix(color, color * 0.75, shadow * (1.0 - mark));
+    return mix(color, color * dark, mark);
+}

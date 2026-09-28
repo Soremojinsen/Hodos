@@ -27,6 +27,7 @@ void main(void) {
     // Water, lakes and rivers stay flat
     if (water < 0.5) {
         color.rgb = hillShade(color.rgb, land_slope, land * relief.xy);
+        color.rgb = drawMarks(color.rgb, b_id, position.xy, altitude);
     }
     gl_FragColor = color;
 }
