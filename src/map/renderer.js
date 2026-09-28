@@ -1,5 +1,5 @@
 import { MAX_ZOOM } from "../constants.js";
-import { BIOME_DEFINITIONS } from "../generation/biomes.js";
+import { BIOME_DEFINITIONS, markKind } from "../generation/biomes.js";
 import { t } from "../i18n/i18n.js";
 import { flipRows } from "./pixels.js";
 import { BiomesWorldShaderProgram, DebugWorldShaderProgram, WorldShaderProgram } from "./shader.js";
@@ -13,6 +13,7 @@ import debugFragment from "./shaders/world_debug.frag?raw";
 import debugVertex from "./shaders/world_debug.vert?raw";
 import defaultFragment from "./shaders/world_default.frag?raw";
 import defaultVertex from "./shaders/world_default.vert?raw";
+import reliefSource from "./shaders/relief.glsl?raw";
 
 /**
  * The most device pixels per CSS pixel the map is drawn with: denser screens (3 on many phones)
@@ -370,13 +371,13 @@ export class MapRenderer {
       this.#gl,
       "world_default",
       defaultVertex,
-      defaultFragment,
+      reliefSource + defaultFragment,
     );
     this.#biomeWorldShaderProgram = new BiomesWorldShaderProgram(
       this.#gl,
       "world_biomes",
       biomesVertex,
-      biomesFragment,
+      reliefSource + biomesFragment,
     );
     this.#debugWorldShaderProgram = new DebugWorldShaderProgram(
       this.#gl,
@@ -392,13 +393,15 @@ export class MapRenderer {
   }
 
   #loadBiomeColors() {
-    // Low then high color of each biome, by id (the index in BIOME_DEFINITIONS)
-    const colors = new Uint8Array(6 * BIOME_DEFINITIONS.length);
-    BIOME_DEFINITIONS.forEach(({ low, high }, id) => {
+    // Low color, high color and mark kind of each biome, by id (the index in BIOME_DEFINITIONS),
+    // see shaders/relief.glsl biomeTexel
+    const colors = new Uint8Array(9 * BIOME_DEFINITIONS.length);
+    BIOME_DEFINITIONS.forEach(({ low, high, mark }, id) => {
       colors.set(
         [...low, ...high].map((component) => component * 0xff),
-        6 * id,
+        9 * id,
       );
+      colors[9 * id + 6] = markKind(mark);
     });
     this.#maxBiomeId = BIOME_DEFINITIONS.length - 1;
     const gl = this.#gl;
