@@ -12,6 +12,11 @@ precision mediump float;
 uniform sampler2D biomes;
 uniform float max_id;
 
+// In world units: the side of a mark's grid square at the level of the tile drawn, and a pixel
+// of the view, see shader.js setLevel and setView
+uniform float mark_cell;
+uniform float pixel_world;
+
 // Texel k of a biome: 0 its low color, 1 its high color, 2 its mark kind (in red, kind / 255)
 vec4 biomeTexel(float id, float k) {
     return texture2D(biomes, vec2((3.0 * id + k + 0.5) / (3.0 * max_id + 3.0), 0.5));

@@ -71,6 +71,7 @@ export class Tile extends Mesh {
       positions: upload(gl.ARRAY_BUFFER, data.positions),
       debugColors: upload(gl.ARRAY_BUFFER, data.debugColors),
       biomeIds: upload(gl.ARRAY_BUFFER, data.biomeIds),
+      slopes: upload(gl.ARRAY_BUFFER, data.slopes),
       indices: upload(gl.ELEMENT_ARRAY_BUFFER, data.indices),
       riverPositions: upload(gl.ARRAY_BUFFER, data.riverPositions),
       riverShapes: upload(gl.ARRAY_BUFFER, data.riverShapes),
@@ -91,9 +92,11 @@ export class Tile extends Mesh {
     }
     const gl = shaderProgram.gl;
     const buffers = this.#buffers;
+    shaderProgram.setLevel(this.#z);
     shaderProgram.bindSurfaceVertexPositionBuffer(buffers.positions);
     shaderProgram.bindDebugSurfaceColorsBuffer(buffers.debugColors);
     shaderProgram.bindBiomeIdBuffer(buffers.biomeIds);
+    shaderProgram.bindSlopeBuffer(buffers.slopes);
     shaderProgram.bindRiverShapeBuffer(null);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.indices);
     gl.drawElements(gl.TRIANGLES, this.#indexCount, gl.UNSIGNED_SHORT, 0);
@@ -101,6 +104,7 @@ export class Tile extends Mesh {
     if (shaderProgram instanceof DebugWorldShaderProgram || this.#riverIndexCount === 0) return;
     shaderProgram.bindSurfaceVertexPositionBuffer(buffers.riverPositions);
     shaderProgram.setBiomeId(RIVER);
+    shaderProgram.bindSlopeBuffer(null);
     shaderProgram.bindRiverShapeBuffer(buffers.riverShapes);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.riverIndices);
     gl.drawElements(gl.TRIANGLES, this.#riverIndexCount, gl.UNSIGNED_SHORT, 0);

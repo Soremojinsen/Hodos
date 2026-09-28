@@ -2,7 +2,7 @@ import { MAX_ZOOM } from "../constants.js";
 import { BIOME_DEFINITIONS, markKind } from "../generation/biomes.js";
 import { t } from "../i18n/i18n.js";
 import { flipRows } from "./pixels.js";
-import { BiomesWorldShaderProgram, DebugWorldShaderProgram, WorldShaderProgram } from "./shader.js";
+import { DebugWorldShaderProgram, WorldShaderProgram } from "./shader.js";
 import { Tile } from "./mesh.js";
 import { levelForView, levelForZoom, paddedView, tileKey, tilesInView } from "./tile-grid.js";
 import { TileManager } from "./tiles.js";
@@ -373,7 +373,7 @@ export class MapRenderer {
       defaultVertex,
       reliefSource + defaultFragment,
     );
-    this.#biomeWorldShaderProgram = new BiomesWorldShaderProgram(
+    this.#biomeWorldShaderProgram = new WorldShaderProgram(
       this.#gl,
       "world_biomes",
       biomesVertex,

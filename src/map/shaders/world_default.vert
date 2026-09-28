@@ -6,6 +6,10 @@ attribute vec3 coordinates;
 // the river's width, and the log2 of its flow. (0, 0, 0) for the cells.
 attribute vec3 river_shape;
 
+attribute float biome_id;
+// The slope of the land at the vertex, see generation/tiles.js buildTile; (0, 0) for rivers
+attribute vec2 slope;
+
 uniform mat4 view;
 // See generation/rivers.js riverWidthUniform: for rivers drawn as lines, log2 of the flow drawn
 // 1 px wide at this zoom, the smallest and largest widths in pixels, and the world units per
@@ -14,8 +18,12 @@ uniform vec4 river_width;
 uniform vec2 river_real;
 
 varying vec4 position;
+varying float b_id;
+varying vec2 land_slope;
 
 void main(void) {
+    b_id = biome_id;
+    land_slope = slope;
     float line = clamp(
         river_width.y + river_shape.z - river_width.x, river_width.y, river_width.z);
     float real = river_real.x * exp2(0.5 * river_shape.z);

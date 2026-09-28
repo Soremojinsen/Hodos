@@ -1,4 +1,4 @@
-import { riverWidthUniform } from "../generation/rivers.js";
+import { pixelSize, riverWidthUniform } from "../generation/rivers.js";
 import { viewMatrix } from "./view.js";
 
 /**
@@ -129,18 +129,30 @@ export class ShaderProgram {
 }
 
 /**
+ * The spacing of the vegetation marks on screen, in pixels at the level of the tile drawn: they
+ * are anchored in the world, so they stay put when panning and scale with the map within a level.
+ */
+export const MARK_SPACING_PX = 9;
+
+/**
  * The world shader program is in charge of rendering the actual map.
+ * Programs that lack an attribute or a uniform ignore what is bound to it.
  */
 export class WorldShaderProgram extends ShaderProgram {
   #glCoordsAttrib;
-  // -1 in the programs that do not draw rivers
+  // -1 in the programs that do not use them
   #glRiverShapeAttrib;
+  #glBiomeIdAttrib;
+  #glSlopeAttrib;
 
   use() {
     super.use();
-    this.#glCoordsAttrib = this.gl.getAttribLocation(this.glProgram, "coordinates");
-    this.gl.enableVertexAttribArray(this.#glCoordsAttrib);
-    this.#glRiverShapeAttrib = this.gl.getAttribLocation(this.glProgram, "river_shape");
+    const gl = this.gl;
+    this.#glCoordsAttrib = gl.getAttribLocation(this.glProgram, "coordinates");
+    gl.enableVertexAttribArray(this.#glCoordsAttrib);
+    this.#glRiverShapeAttrib = gl.getAttribLocation(this.glProgram, "river_shape");
+    this.#glBiomeIdAttrib = gl.getAttribLocation(this.glProgram, "biome_id");
+    this.#glSlopeAttrib = gl.getAttribLocation(this.glProgram, "slope");
   }
 
   bindSurfaceVertexPositionBuffer(buffer) {
@@ -148,32 +160,45 @@ export class WorldShaderProgram extends ShaderProgram {
     this.gl.vertexAttribPointer(this.#glCoordsAttrib, 3, this.gl.FLOAT, false, 0, 0);
   }
 
+  // An attribute read from a buffer, or with the same value for every vertex when buffer is null
+  #bindAttribute(attrib, size, buffer, value) {
+    if (attrib < 0) return;
+    const gl = this.gl;
+    if (buffer) {
+      gl.enableVertexAttribArray(attrib);
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      gl.vertexAttribPointer(attrib, size, gl.FLOAT, false, 0, 0);
+    } else {
+      gl.disableVertexAttribArray(attrib);
+      gl.vertexAttrib3f(attrib, ...value);
+    }
+  }
+
   /**
    * The river shapes of the vertices drawn next (see generation/rivers.js buildRivers), or
    * null for vertices that stay where they are, like the cells'.
    */
   bindRiverShapeBuffer(buffer) {
-    const attrib = this.#glRiverShapeAttrib;
-    if (attrib < 0) return;
-    if (buffer) {
-      this.gl.enableVertexAttribArray(attrib);
-      this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
-      this.gl.vertexAttribPointer(attrib, 3, this.gl.FLOAT, false, 0, 0);
-    } else {
-      this.gl.disableVertexAttribArray(attrib);
-      this.gl.vertexAttrib3f(attrib, 0, 0, 0);
-    }
+    this.#bindAttribute(this.#glRiverShapeAttrib, 3, buffer, [0, 0, 0]);
   }
 
-  bindBiomeIdBuffer() {
-    // This is a no-op here, but is used in case of the BiomesWorldShaderProgram
+  bindBiomeIdBuffer(buffer) {
+    this.#bindAttribute(this.#glBiomeIdAttrib, 1, buffer, [0, 0, 0]);
   }
 
   /**
    * One biome for every vertex drawn next, in place of a biome id buffer.
    */
-  setBiomeId() {
-    // This is a no-op here, but is used in case of the BiomesWorldShaderProgram
+  setBiomeId(id) {
+    this.#bindAttribute(this.#glBiomeIdAttrib, 1, null, [id, 0, 0]);
+  }
+
+  /**
+   * The land slopes of the vertices drawn next (see generation/tiles.js buildTile), or null for
+   * flat ground, like the rivers'.
+   */
+  bindSlopeBuffer(buffer) {
+    this.#bindAttribute(this.#glSlopeAttrib, 2, buffer, [0, 0, 0]);
   }
 
   bindDebugSurfaceColorsBuffer() {
@@ -181,12 +206,16 @@ export class WorldShaderProgram extends ShaderProgram {
   }
 
   stopUsing() {
-    this.gl.disableVertexAttribArray(this.#glCoordsAttrib);
-    if (this.#glRiverShapeAttrib >= 0) this.gl.disableVertexAttribArray(this.#glRiverShapeAttrib);
+    const gl = this.gl;
+    gl.disableVertexAttribArray(this.#glCoordsAttrib);
+    for (const attrib of [this.#glRiverShapeAttrib, this.#glBiomeIdAttrib, this.#glSlopeAttrib]) {
+      if (attrib >= 0) gl.disableVertexAttribArray(attrib);
+    }
   }
 
   /**
-   * Draws the view next, see view.js: its matrix, and the river widths at its zoom.
+   * Draws the view next, see view.js: its matrix, the river widths at its zoom, and its pixel
+   * size for the vegetation marks.
    */
   setView(view) {
     const gl = this.gl;
@@ -194,16 +223,32 @@ export class WorldShaderProgram extends ShaderProgram {
     const { line, real } = riverWidthUniform(view);
     gl.uniform4fv(gl.getUniformLocation(this.glProgram, "river_width"), line);
     gl.uniform2fv(gl.getUniformLocation(this.glProgram, "river_real"), real);
+    gl.uniform1f(gl.getUniformLocation(this.glProgram, "pixel_world"), 1 / view.pixelsPerUnit);
   }
 
   /**
-   * Sets the biome color sampling texture.
+   * Draws a tile of level z next: its vegetation marks are MARK_SPACING_PX apart at that level.
+   */
+  setLevel(z) {
+    const gl = this.gl;
+    gl.uniform1f(
+      gl.getUniformLocation(this.glProgram, "mark_cell"),
+      MARK_SPACING_PX * pixelSize(z),
+    );
+  }
+
+  /**
+   * Sets the biome texture: low color, high color and mark kind of each biome.
    *
    * @param biomeTexture  the gl texture handle
    * @param maxId         the maximum id stored in the texture
    */
-  setBiomesColors() {
-    // This is a no-op here, but is used in case of the BiomesWorldShaderProgram
+  setBiomesColors(biomeTexture, maxId) {
+    const gl = this.gl;
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, biomeTexture);
+    gl.uniform1i(gl.getUniformLocation(this.glProgram, "biomes"), 0);
+    gl.uniform1f(gl.getUniformLocation(this.glProgram, "max_id"), maxId);
   }
 }
 
@@ -224,47 +269,5 @@ export class DebugWorldShaderProgram extends WorldShaderProgram {
   stopUsing() {
     super.stopUsing();
     this.gl.disableVertexAttribArray(this.#glColorsAttrib);
-  }
-}
-
-export class BiomesWorldShaderProgram extends WorldShaderProgram {
-  #glBiomeIdAttrib;
-
-  use() {
-    super.use();
-    this.#glBiomeIdAttrib = this.gl.getAttribLocation(this.glProgram, "biome_id");
-    this.gl.enableVertexAttribArray(this.#glBiomeIdAttrib);
-  }
-
-  bindBiomeIdBuffer(buffer) {
-    this.gl.enableVertexAttribArray(this.#glBiomeIdAttrib);
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
-    this.gl.vertexAttribPointer(this.#glBiomeIdAttrib, 1, this.gl.FLOAT, false, 0, 0);
-  }
-
-  setBiomeId(id) {
-    this.gl.disableVertexAttribArray(this.#glBiomeIdAttrib);
-    this.gl.vertexAttrib1f(this.#glBiomeIdAttrib, id);
-  }
-
-  /**
-   * Sets the biome color sampling texture.
-   *
-   * @param biomeTexture  the gl texture handle
-   * @param maxId         the maximum id stored in the texture
-   */
-  setBiomesColors(biomeTexture, maxId) {
-    let textureUnit = 0; // from 0 to 15 is ok
-    let pointer = this.gl.getUniformLocation(this.glProgram, "biomes");
-    this.gl.activeTexture(this.gl.TEXTURE0);
-    this.gl.bindTexture(this.gl.TEXTURE_2D, biomeTexture);
-    this.gl.uniform1i(pointer, textureUnit);
-    pointer = this.gl.getUniformLocation(this.glProgram, "max_id");
-    this.gl.uniform1f(pointer, maxId);
-  }
-
-  stopUsing() {
-    super.stopUsing();
-    this.gl.disableVertexAttribArray(this.#glBiomeIdAttrib);
   }
 }
