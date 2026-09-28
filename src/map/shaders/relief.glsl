@@ -117,7 +117,7 @@ const float MARK_MOUNTAIN = 0.65;
 const vec2 MARK_SHADOW = vec2(0.06, -0.08);
 // Half a pixel, in grid squares, at the most a mark's antialiasing reaches: a level is drawn
 // from half a zoom level out, where a grid square is MARK_SPACING_PX / sqrt(2) pixels wide:
-// sqrt(2) / 12 / 2 < 0.06
+// sqrt(2) / 12 / 2 < 0.06. MARK_SPACING_PX is defined in shader.js; update this if it changes.
 const float MARK_EDGE = 0.06;
 
 // A random number in [0, 1) for a grid square ("Hash without Sine", Dave Hoskins, MIT): no
@@ -158,8 +158,8 @@ vec3 drawMarks(vec3 color, float id, vec2 point, float altitude) {
     if (kind < 0.5 || altitude < MARK_BEACH || altitude >= MARK_MOUNTAIN) return color;
     vec2 square = floor(point / mark_cell);
     float pixel = pixel_world / mark_cell;
-    // How far each mark and its shadow reach from its centre, in grid squares, in any direction
-    float reach = kind < 1.5 ? 0.28 : (kind < 2.5 ? 0.31 : (kind < 3.5 ? 0.3 : 0.19));
+    // How far each mark and its shadow reach from its centre, in grid squares, on each axis
+    float reach = kind < 1.5 ? 0.28 : (kind < 2.5 ? 0.31 : (kind < 3.5 ? 0.3 : 0.2));
     // The mark's centre stays that far, and MARK_EDGE more, from the square's sides, so no mark
     // or shadow crosses into the next square, which does not draw it
     float margin = reach + MARK_EDGE;
