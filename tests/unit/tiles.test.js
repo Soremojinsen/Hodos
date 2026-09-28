@@ -118,6 +118,29 @@ test("vertices carry the sampled altitude, sea level at sea, and each cell one b
   }
 });
 
+test("each cell vertex carries the slope of the land under it, flat at sea", () => {
+  const z = 3;
+  const tile = buildTile(sampler, z, 2, 4);
+  const vertexCount = tile.biomeIds.length;
+  expect(tile.slopes).toHaveLength(2 * vertexCount);
+  let sea = 0;
+  for (let v = 0; v < vertexCount; v++) {
+    const [x, y, altitude] = tile.positions.subarray(3 * v, 3 * v + 3);
+    const [dx, dy] = tile.slopes.subarray(2 * v, 2 * v + 2);
+    if (altitude < 0) {
+      sea++;
+      expect([dx, dy]).toEqual([0, 0]);
+    } else {
+      // Positions are float32: the slope at the rounded position differs by far less than this
+      const [ex, ey] = sampler.slopeAt(x, y, z);
+      expect(dx).toBeCloseTo(ex, 6);
+      expect(dy).toBeCloseTo(ey, 6);
+    }
+  }
+  expect(sea).toBeGreaterThan(0);
+  expect(sea).toBeLessThan(vertexCount);
+});
+
 test("siteAt finds the drawn cell, even next to its border", () => {
   for (const [z, x, y] of [
     [0, 0, 0],
@@ -179,6 +202,7 @@ test("tile 2/1/1 of seed 12345 stays the same", () => {
     positions: fnv(tile.positions),
     biomeIds: fnv(tile.biomeIds),
     debugColors: fnv(tile.debugColors),
+    slopes: fnv(tile.slopes),
     indices: fnv(tile.indices),
   }).toMatchSnapshot();
 });
@@ -241,7 +265,7 @@ const watered = new WorldSampler(withWater(generateWorld(SEED)));
 test("rivers are a mesh of their own, at sea level, over the same cells", () => {
   const tile = buildTile(watered, 3, 2, 3);
   const land = buildTile(sampler, 3, 2, 3);
-  for (const key of ["positions", "biomeIds", "debugColors", "indices"]) {
+  for (const key of ["positions", "biomeIds", "debugColors", "indices", "slopes"]) {
     expect(tile[key]).toEqual(land[key]);
   }
   expect(land.riverIndices).toHaveLength(0);
@@ -273,6 +297,7 @@ test("tile 2/1/1 of seed 12345 with water stays the same", () => {
     triangles: tile.indices.length / 3,
     riverTriangles: tile.riverIndices.length / 3,
     positions: fnv(tile.positions),
+    slopes: fnv(tile.slopes),
     biomeIds: fnv(tile.biomeIds),
     indices: fnv(tile.indices),
     riverPositions: fnv(tile.riverPositions),

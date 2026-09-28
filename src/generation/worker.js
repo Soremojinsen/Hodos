@@ -23,6 +23,7 @@ self.onmessage = ({ data }) => {
         tile.positions.buffer,
         tile.biomeIds.buffer,
         tile.debugColors.buffer,
+        tile.slopes.buffer,
         tile.indices.buffer,
         tile.riverPositions.buffer,
         tile.riverShapes.buffer,

@@ -108,13 +108,15 @@ export function tileCells(seed, z, x, y) {
 /**
  * Everything the GPU needs to draw a tile, as typed arrays a worker can transfer.
  * Each cell is a fan of triangles around its site. The cell's biome is its site's; altitudes
- * are sampled at each vertex, so a land cell with a corner at sea slopes down to the coast.
+ * and slopes are sampled at each vertex, so a land cell with a corner at sea slopes down to the
+ * coast, and the shaders light it smoothly. Slopes are flat at sea.
  * The rivers are a mesh of their own, drawn over the cells, see rivers.js buildRivers.
  *
  * @param sampler {WorldSampler}
  * @returns {{z, x, y, positions: Float32Array, biomeIds: Float32Array,
- *            debugColors: Float32Array, indices: Uint16Array, riverPositions: Float32Array,
- *            riverShapes: Float32Array, riverIndices: Uint16Array}}
+ *            debugColors: Float32Array, slopes: Float32Array, indices: Uint16Array,
+ *            riverPositions: Float32Array, riverShapes: Float32Array, riverIndices: Uint16Array}}
+ *          slopes: dx, dy per vertex, see WorldSampler.slopeAt
  */
 export function buildTile(sampler, z, x, y) {
   const cells = tileCells(sampler.seed, z, x, y);
@@ -135,37 +137,46 @@ export function buildTile(sampler, z, x, y) {
   const positions = new Float32Array(3 * vertexCount);
   const biomeIds = new Float32Array(vertexCount);
   const debugColors = new Float32Array(3 * vertexCount);
+  const slopes = new Float32Array(2 * vertexCount);
   const indices = new Uint16Array(indexCount);
   let vertex = 0;
   let index = 0;
+  // Land is at least 0 high; the sea, lakes and their shores' corners are at SEA_ALTITUDE
+  const slopeAt = (px, py, altitude) => (altitude < 0 ? [0, 0] : sampler.slopeAt(px, py, z));
   // Cells share their corners: sample each corner once
-  const cornerAltitudes = new Map();
-  const cornerAltitude = (px, py) => {
+  const corners = new Map();
+  const corner = (px, py) => {
     const key = `${px},${py}`;
-    let altitude = cornerAltitudes.get(key);
-    if (altitude === undefined) {
-      altitude = sampler.sampleAt(px, py, z).altitude;
-      cornerAltitudes.set(key, altitude);
+    let found = corners.get(key);
+    if (found === undefined) {
+      const altitude = sampler.sampleAt(px, py, z).altitude;
+      found = { altitude, slope: slopeAt(px, py, altitude) };
+      corners.set(key, found);
     }
-    return altitude;
+    return found;
   };
   for (const cell of cells) {
     const sample = sampler.sampleAt(cell.site[0], cell.site[1], z);
     const debugColor = BIOME_DEFINITIONS[sample.biome].debug;
-    const addVertex = (px, py, altitude) => {
+    const addVertex = (px, py, altitude, slope) => {
       positions.set([px, py, altitude], 3 * vertex);
       biomeIds[vertex] = sample.biome;
       debugColors.set(debugColor, 3 * vertex);
+      slopes.set(slope, 2 * vertex);
       vertex++;
     };
     const center = vertex;
-    addVertex(cell.site[0], cell.site[1], sample.altitude);
-    for (const [px, py] of cell.ring) addVertex(px, py, cornerAltitude(px, py));
-    const corners = cell.ring.length;
-    for (let j = 0; j < corners; j++) {
+    const [sx, sy] = cell.site;
+    addVertex(sx, sy, sample.altitude, slopeAt(sx, sy, sample.altitude));
+    for (const [px, py] of cell.ring) {
+      const { altitude, slope } = corner(px, py);
+      addVertex(px, py, altitude, slope);
+    }
+    const count = cell.ring.length;
+    for (let j = 0; j < count; j++) {
       indices[index++] = center;
       indices[index++] = center + 1 + j;
-      indices[index++] = center + 1 + ((j + 1) % corners);
+      indices[index++] = center + 1 + ((j + 1) % count);
     }
   }
   return {
@@ -175,6 +186,7 @@ export function buildTile(sampler, z, x, y) {
     positions,
     biomeIds,
     debugColors,
+    slopes,
     indices,
     riverPositions: new Float32Array(rivers.positions),
     riverShapes: new Float32Array(rivers.shapes),

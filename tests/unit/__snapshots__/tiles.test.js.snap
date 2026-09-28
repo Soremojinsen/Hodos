@@ -6,6 +6,7 @@ exports[`tile 2/1/1 of seed 12345 stays the same 1`] = `
   "debugColors": 519870909,
   "indices": 3061001994,
   "positions": 1058526066,
+  "slopes": 3504375680,
   "triangles": 6145,
   "vertices": 7169,
 }
@@ -20,6 +21,7 @@ exports[`tile 2/1/1 of seed 12345 with water stays the same 1`] = `
   "riverPositions": 715071565,
   "riverShapes": 3291662291,
   "riverTriangles": 1392,
+  "slopes": 3504375680,
   "triangles": 6145,
   "vertices": 7169,
 }
