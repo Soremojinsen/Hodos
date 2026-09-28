@@ -213,19 +213,25 @@ test("tiles outside the world mirror the points of the tile across the world's e
 test("the cells of a level cover the world exactly: straight edges, no notches", () => {
   for (const z of [0, 1, 2]) {
     let area = 0;
+    // The extreme corners, checked once per level: an expect per corner is half a million calls
+    let [minX, minY, maxX, maxY] = [Infinity, Infinity, -Infinity, -Infinity];
     for (let x = 0; x < 2 ** z; x++) {
       for (let y = 0; y < 2 ** z; y++) {
         for (const cell of tileCells(SEED, z, x, y)) {
           for (const [px, py] of cell.ring) {
-            expect(px).toBeGreaterThanOrEqual(-1e-6);
-            expect(px).toBeLessThanOrEqual(WORLD_SIZE + 1e-6);
-            expect(py).toBeGreaterThanOrEqual(-1e-6);
-            expect(py).toBeLessThanOrEqual(WORLD_SIZE + 1e-6);
+            minX = Math.min(minX, px);
+            minY = Math.min(minY, py);
+            maxX = Math.max(maxX, px);
+            maxY = Math.max(maxY, py);
           }
           area += Math.abs(polygonArea(cell.ring));
         }
       }
     }
+    expect(minX).toBeGreaterThanOrEqual(-1e-6);
+    expect(minY).toBeGreaterThanOrEqual(-1e-6);
+    expect(maxX).toBeLessThanOrEqual(WORLD_SIZE + 1e-6);
+    expect(maxY).toBeLessThanOrEqual(WORLD_SIZE + 1e-6);
     expect(area / WORLD_SIZE ** 2).toBeCloseTo(1, 9);
   }
 });
