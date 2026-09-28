@@ -98,8 +98,8 @@ vec3 elevationNoise(vec2 point) {
 const vec3 LIGHT = vec3(-0.5391638, 0.5391638, 0.6469966); // normalize(-1, 1, 1.2)
 const float RELIEF = 250.0;
 const float NOISE_SLOPE = 1.0 / 3.0;
-const float SHADE_MIN = 0.45;
-const float SHADE_MAX = 1.4;
+const float SHADE_MIN = 0.55;
+const float SHADE_MAX = 1.3;
 const float SHADE_STRENGTH = 0.55;
 
 // A land color lit from the north-west: flat ground keeps its color
@@ -115,6 +115,10 @@ const float MARK_BEACH = 0.1;
 const float MARK_MOUNTAIN = 0.65;
 // Where a mark's shadow falls, in grid squares: to the south-east, away from the light
 const vec2 MARK_SHADOW = vec2(0.06, -0.08);
+// Half a pixel, in grid squares, at the most a mark's antialiasing reaches: a level is drawn
+// from half a zoom level out, where a grid square is MARK_SPACING_PX / sqrt(2) pixels wide:
+// sqrt(2) / 12 / 2 < 0.06
+const float MARK_EDGE = 0.06;
 
 // A random number in [0, 1) for a grid square ("Hash without Sine", Dave Hoskins, MIT): no
 // sin, whose precision on large arguments varies between GPUs
@@ -126,8 +130,8 @@ float markHash(vec2 p) {
 
 // How much of a pixel a shape covers, from its signed distance (negative inside) and the
 // pixel's size, both in grid squares
-float cover(float distance, float pixel) {
-    return clamp(0.5 - distance / pixel, 0.0, 1.0);
+float cover(float d, float pixel) {
+    return clamp(0.5 - d / pixel, 0.0, 1.0);
 }
 
 // Roughly the signed distance to a small conifer: a triangle pointing north
@@ -138,14 +142,14 @@ float conifer(vec2 q) {
 
 // Roughly the signed distance to a tuft of three reeds leaning apart, the middle one tallest
 float reeds(vec2 q) {
-    float distance = 1.0;
+    float d = 1.0;
     for (int i = -1; i <= 1; i++) {
         float k = float(i);
         float x = q.x - 0.09 * k - 0.25 * k * (q.y + 0.12);
         float top = 0.14 - 0.05 * abs(k);
-        distance = min(distance, max(abs(x) - 0.04, max(-0.12 - q.y, q.y - top)));
+        d = min(d, max(abs(x) - 0.04, max(-0.12 - q.y, q.y - top)));
     }
-    return distance;
+    return d;
 }
 
 // A color with the mark of its biome drawn over it, at a world point and altitude
@@ -154,8 +158,13 @@ vec3 drawMarks(vec3 color, float id, vec2 point, float altitude) {
     if (kind < 0.5 || altitude < MARK_BEACH || altitude >= MARK_MOUNTAIN) return color;
     vec2 square = floor(point / mark_cell);
     float pixel = pixel_world / mark_cell;
-    // The mark's centre stays 0.3 from the square's sides, so no mark crosses into the next
-    vec2 q = point / mark_cell - square - (0.3 + 0.4 * vec2(markHash(square), markHash(square + 17.0)));
+    // How far each mark and its shadow reach from its centre, in grid squares, in any direction
+    float reach = kind < 1.5 ? 0.28 : (kind < 2.5 ? 0.31 : (kind < 3.5 ? 0.3 : 0.19));
+    // The mark's centre stays that far, and MARK_EDGE more, from the square's sides, so no mark
+    // or shadow crosses into the next square, which does not draw it
+    float margin = reach + MARK_EDGE;
+    vec2 jitter = vec2(markHash(square), markHash(square + 17.0));
+    vec2 q = point / mark_cell - square - (margin + (1.0 - 2.0 * margin) * jitter);
     float keep = markHash(square + 41.0);
     float mark = 0.0;
     float shadow = 0.0;
@@ -163,12 +172,12 @@ vec3 drawMarks(vec3 color, float id, vec2 point, float altitude) {
     if (kind < 1.5) {
         // Broadleaf: round crowns, a few squares left bare
         if (keep > 0.85) return color;
-        mark = cover(length(q) - 0.2, pixel);
-        shadow = cover(length(q - MARK_SHADOW) - 0.22, pixel);
+        mark = cover(length(q) - 0.18, pixel);
+        shadow = cover(length(q - MARK_SHADOW) - 0.2, pixel);
     } else if (kind < 2.5) {
         // Jungle: larger, darker crowns in every square
-        mark = cover(length(q) - 0.26, pixel);
-        shadow = cover(length(q - MARK_SHADOW) - 0.28, pixel);
+        mark = cover(length(q) - 0.21, pixel);
+        shadow = cover(length(q - MARK_SHADOW) - 0.23, pixel);
         dark = 0.42;
     } else if (kind < 3.5) {
         mark = cover(conifer(q), pixel);

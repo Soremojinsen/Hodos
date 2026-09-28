@@ -132,7 +132,7 @@ export class ShaderProgram {
  * The spacing of the vegetation marks on screen, in pixels at the level of the tile drawn: they
  * are anchored in the world, so they stay put when panning and scale with the map within a level.
  */
-export const MARK_SPACING_PX = 9;
+export const MARK_SPACING_PX = 12;
 
 /**
  * The world shader program is in charge of rendering the actual map.
