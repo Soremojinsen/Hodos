@@ -9,6 +9,7 @@ import { Counter, randomElement } from "./util.js";
  * - debug: color in debug rendering mode
  * - latitude: where the pool is likely, as a normal distribution over 0 (south) to 100 (north)
  * - stay: when spreading within its pool, the chance to keep this biome, and the alternative
+ * - mark: the vegetation drawn over the biome, one of MARKS, or none
  */
 export const BIOME_DEFINITIONS = [
   {
@@ -42,6 +43,7 @@ export const BIOME_DEFINITIONS = [
     low: [0.83, 0.93, 0.98],
     high: [0.49, 0.73, 0.75],
     debug: [1, 1, 1],
+    mark: "conifer",
     latitude: { average: 80, sigma: 4 },
     stay: { chance: 0.3, then: "Tundra", otherwise: "Taiga" },
   },
@@ -51,6 +53,7 @@ export const BIOME_DEFINITIONS = [
     low: [0.21, 0.65, 0.35],
     high: [0.15, 0.47, 0.25],
     debug: [0, 1, 0],
+    mark: "broadleaf",
     latitude: { average: 55, sigma: 12 },
     stay: { chance: 0.7, then: "Forest", otherwise: "Plain" },
   },
@@ -69,6 +72,7 @@ export const BIOME_DEFINITIONS = [
     low: [0.45, 0.5, 0.3],
     high: [0.33, 0.35, 0.25],
     debug: [0, 1, 1],
+    mark: "reeds",
     latitude: { average: 31, sigma: 4.5 },
     stay: { chance: 0.6, then: "Swamp", otherwise: "Jungle" },
   },
@@ -78,6 +82,7 @@ export const BIOME_DEFINITIONS = [
     low: [0.22, 0.37, 0.07],
     high: [0.16, 0.27, 0.05],
     debug: [0, 0.8, 0.8],
+    mark: "jungle",
     latitude: { average: 31, sigma: 4.5 },
     stay: { chance: 0.2, then: "Swamp", otherwise: "Jungle" },
   },
@@ -137,6 +142,17 @@ export const BIOME_DEFINITIONS = [
     debug: [0, 0.6, 1],
   },
 ];
+
+/**
+ * The vegetation marks the world shaders draw, see shaders/relief.glsl drawMarks. Their order
+ * gives each its kind there: its index + 1.
+ */
+export const MARKS = ["broadleaf", "jungle", "conifer", "reeds"];
+
+/**
+ * The kind of a mark in the shaders: 0 for none, else its index in MARKS + 1.
+ */
+export const markKind = (mark) => (mark ? MARKS.indexOf(mark) + 1 : 0);
 
 /**
  * A biome, built from one of BIOME_DEFINITIONS.

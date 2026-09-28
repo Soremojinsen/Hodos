@@ -3,8 +3,10 @@ import {
   BIOMES,
   BIOMESPOOL,
   BIOME_DEFINITIONS,
+  MARKS,
   Biome,
   createBiomes,
+  markKind,
   randomBiomeFromPool,
 } from "../../src/generation/biomes.js";
 import { MapGenerator } from "../../src/generation/world.js";
@@ -83,4 +85,21 @@ test("stay() draws one random number for pool biomes and none for others", () =>
   expect(biomes.Mountain.stay()).toBe("Mountain");
   expect(biomes.Fairy.stay()).toBe("Fairy");
   expect(draws).toBe(2);
+});
+
+test("vegetation marks are known, and only forests, jungles, taiga and swamps have one", () => {
+  for (const definition of BIOME_DEFINITIONS) {
+    if (definition.mark === undefined) continue;
+    expect(MARKS).toContain(definition.mark);
+    expect(definition.maritime).not.toBe(true);
+  }
+  const marked = BIOME_DEFINITIONS.filter((definition) => definition.mark);
+  expect(marked.map((definition) => definition.name)).toEqual([
+    "Taiga",
+    "Forest",
+    "Swamp",
+    "Jungle",
+  ]);
+  expect(markKind(undefined)).toBe(0);
+  expect(MARKS.map(markKind)).toEqual([1, 2, 3, 4]);
 });
