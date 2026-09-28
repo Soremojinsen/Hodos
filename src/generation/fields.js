@@ -29,6 +29,12 @@ export const ALTITUDE_DETAIL = 0.1;
 export const SEA_ALTITUDE = -0.1;
 
 /**
+ * How far apart, in world units, slopeAt samples the altitude: well under the wavelength of the
+ * finest altitude octave (about 5 units at level 7).
+ */
+export const SLOPE_STEP = 0.1;
+
+/**
  * How far, in world units, the largest octave of the lake warp moves a point: about the water
  * mesh spacing, so lake shores wave without leaving the basin the rivers flow into.
  */
@@ -135,6 +141,20 @@ export class WorldSampler {
         this.#noise.simplex2(x * frequency + 31.7 * k, y * frequency);
     }
     return Math.min(Math.max(altitude, 0), 1);
+  }
+
+  /**
+   * The slope of the land altitude at a point (see altitudeAt): its change per world unit
+   * eastwards and northwards. Like altitudeAt, it does not look at land or water.
+   *
+   * @returns {Number[]} [dx, dy]
+   */
+  slopeAt(x, y, level) {
+    const h = SLOPE_STEP;
+    return [
+      (this.altitudeAt(x + h, y, level) - this.altitudeAt(x - h, y, level)) / (2 * h),
+      (this.altitudeAt(x, y + h, level) - this.altitudeAt(x, y - h, level)) / (2 * h),
+    ];
   }
 
   /**

@@ -116,3 +116,27 @@ test("the lake warp moves a point by at most twice its amplitude on each axis", 
     expect(Math.abs(wy - y)).toBeLessThanOrEqual(2 * LAKE_WARP_AMPLITUDE);
   }
 });
+
+test("slopeAt is the altitude's change per world unit, the same for every sampler", () => {
+  const sampler = new WorldSampler(base);
+  const other = new WorldSampler(base);
+  let steep = 0;
+  for (const [x, y] of randomPoints(300)) {
+    for (const level of [0, 4, 7]) {
+      const altitude = sampler.altitudeAt(x, y, level);
+      // The altitude is clamped to [0, 1]: its slope has a kink there
+      if (altitude < 0.01 || altitude > 0.99) continue;
+      const [dx, dy] = sampler.slopeAt(x, y, level);
+      const h = 0.5;
+      const coarseX =
+        (sampler.altitudeAt(x + h, y, level) - sampler.altitudeAt(x - h, y, level)) / (2 * h);
+      const coarseY =
+        (sampler.altitudeAt(x, y + h, level) - sampler.altitudeAt(x, y - h, level)) / (2 * h);
+      expect(dx).toBeCloseTo(coarseX, 3);
+      expect(dy).toBeCloseTo(coarseY, 3);
+      expect(other.slopeAt(x, y, level)).toEqual([dx, dy]);
+      if (Math.hypot(dx, dy) > 1e-3) steep++;
+    }
+  }
+  expect(steep).toBeGreaterThan(100);
+});
