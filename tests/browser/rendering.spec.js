@@ -1,8 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
+import { BIOME_DEFINITIONS } from "../../src/generation/biomes.js";
 import { WorldSampler } from "../../src/generation/fields.js";
 import { withWater } from "../../src/generation/hydrology.js";
+import { riverAt } from "../../src/generation/rivers.js";
 import { generateWorld } from "../../src/generation/world.js";
+import { aleaPRNG } from "../../src/vendor/alea-prng.js";
 import { countColors, openMap, waitForTiles } from "./helpers.js";
 
 const frameCount = (page) => page.evaluate(() => window.hodos.renderer.frameCount);
@@ -154,4 +157,65 @@ test("rivers are drawn as water in the Parchemin rendering, not in debug mode", 
   const near = (color) => color.every((c, i) => Math.abs(c - water[i]) <= 2);
   expect(near(await centre("default"))).toBe(true);
   expect(near(await centre("debug"))).toBe(false);
+});
+
+/**
+ * The mean brightness (r + g + b) of the pixel at each world point, drawn at a level in a mode.
+ */
+const brightness = (page, points, level, mode) =>
+  page.evaluate(
+    async ([points, level, mode]) => {
+      const renderer = window.hodos.renderer;
+      let sum = 0;
+      for (const [x, y] of points) {
+        const view = { centerX: x, centerY: y, pixelsPerUnit: (256 * 2 ** level) / 10000 };
+        Object.assign(view, { width: 16, height: 16 });
+        const release = await renderer.ensureTiles(view, level);
+        try {
+          const pixels = renderer.renderToPixels(view, level, mode);
+          const i = 4 * (8 * 16 + 8);
+          sum += pixels[i] + pixels[i + 1] + pixels[i + 2];
+        } finally {
+          release();
+        }
+      }
+      return sum / points.length;
+    },
+    [points, level, mode],
+  );
+
+test("hills are lit from the north-west in the Parchemin and Biomes renderings, not in debug mode", async ({
+  page,
+}) => {
+  // Steep plain points at level 4 (plains have no marks), away from rivers, whose ground falls
+  // towards the light (it faces it) or away from it
+  const sampler = new WorldSampler(withWater(generateWorld("12345")));
+  const plain = BIOME_DEFINITIONS.findIndex((definition) => definition.name === "Plain");
+  const light = [-Math.SQRT1_2, Math.SQRT1_2];
+  const random = aleaPRNG("hills");
+  const [lit, shaded] = [[], []];
+  for (let n = 0; n < 200_000 && (lit.length < 20 || shaded.length < 20); n++) {
+    const [x, y] = [random() * 10000, random() * 10000];
+    const sample = sampler.sampleAt(x, y, 4);
+    if (sample.biome !== plain || sample.altitude < 0.2 || sample.altitude > 0.5) continue;
+    const [dx, dy] = sampler.slopeAt(x, y, 4);
+    const steepness = Math.hypot(dx, dy);
+    if (steepness < 2e-3 || riverAt(sampler, x, y, 4, { margin: 30 })) continue;
+    const facing = -(dx * light[0] + dy * light[1]) / steepness;
+    if (facing > 0.8 && lit.length < 20) lit.push([x, y]);
+    if (facing < -0.8 && shaded.length < 20) shaded.push([x, y]);
+  }
+  expect(lit).toHaveLength(20);
+  expect(shaded).toHaveLength(20);
+
+  await openMap(page);
+  for (const mode of ["default", "biomes"]) {
+    const [bright, dark] = [
+      await brightness(page, lit, 4, mode),
+      await brightness(page, shaded, 4, mode),
+    ];
+    expect(bright).toBeGreaterThan(dark + 30);
+  }
+  // Every plain has the same debug color
+  expect(await brightness(page, lit, 4, "debug")).toBe(await brightness(page, shaded, 4, "debug"));
 });

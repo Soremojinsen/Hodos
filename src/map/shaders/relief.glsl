@@ -91,3 +91,20 @@ vec3 elevationNoise(vec2 point) {
     vec3 octave3 = snoiseGrad(point / 50.0) * vec3(1.0 / 50.0, 1.0 / 50.0, 1.0) / 40.0;
     return octave1 + octave2 + octave3;
 }
+
+// Hill shading: a light from the north-west (world y grows northwards), about 40° above the
+// horizon; the land's slopes are exaggerated RELIEF times, and the relief noise's count for
+// NOISE_SLOPE of theirs, so the ground has texture without looking gravelly
+const vec3 LIGHT = vec3(-0.5391638, 0.5391638, 0.6469966); // normalize(-1, 1, 1.2)
+const float RELIEF = 250.0;
+const float NOISE_SLOPE = 1.0 / 3.0;
+const float SHADE_MIN = 0.45;
+const float SHADE_MAX = 1.4;
+const float SHADE_STRENGTH = 0.55;
+
+// A land color lit from the north-west: flat ground keeps its color
+vec3 hillShade(vec3 color, vec2 slope, vec2 noiseSlope) {
+    vec3 normal = normalize(vec3(-(slope + NOISE_SLOPE * noiseSlope) * RELIEF, 1.0));
+    float lit = dot(normal, LIGHT) / LIGHT.z;
+    return color * mix(1.0, clamp(lit, SHADE_MIN, SHADE_MAX), SHADE_STRENGTH);
+}

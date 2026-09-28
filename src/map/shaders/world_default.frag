@@ -1,9 +1,13 @@
 varying vec4 position;
+varying float b_id;
+varying vec2 land_slope;
 
 // Hodos rendering routine
 void main(void) {
     float altitude = position.z;
-    altitude += step(-0.05, altitude) * elevationNoise(position.xy).z;
+    vec3 relief = elevationNoise(position.xy);
+    float land = step(-0.05, altitude);
+    altitude += land * relief.z;
     float water = 1.0 - step(0.0, altitude);
     float beach = (1.0 - step(0.1, altitude)) * (1.0 - water);
     float plains = (1.0 - step(0.65, altitude)) * (1.0 - water) * (1.0 - beach);
@@ -14,10 +18,15 @@ void main(void) {
     vec4 beachColor = vec4(0.760, 0.709, 0.501, 1.0);
     vec4 mountainsColor = vec4(0.556, 0.498, 0.364, 1.0);
     vec4 snowColor = vec4(0.705, 0.682, 0.635, 1.0);
-    gl_FragColor =
+    vec4 color =
     water * waterColor +
     beach * beachColor +
     plains * plainsColor +
     mountains * mountainsColor +
     snow * snowColor;
+    // Water, lakes and rivers stay flat
+    if (water < 0.5) {
+        color.rgb = hillShade(color.rgb, land_slope, land * relief.xy);
+    }
+    gl_FragColor = color;
 }
