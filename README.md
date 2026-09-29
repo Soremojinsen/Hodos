@@ -44,6 +44,10 @@ The same seed always produces the same map (since the version that brought zoom 
 | `gs`      | grid cell size in world units (100 to 1000)                     | 250       |
 | `go`      | grid opacity in percent (10 to 100)                             | 40        |
 
+## History
+
+Hodos began in 2022 as a school project by Smyler, Astate, Artamis and Soremo. The original repository is [SmylerMC/Hodos](https://github.com/SmylerMC/Hodos).
+
 ## Development
 
 Requires Node.js 22.12 or later.
@@ -54,7 +58,7 @@ Requires Node.js 22.12 or later.
     npm run test:browser   # browser tests (Playwright, first run: npx playwright install chromium)
     npm run lint           # ESLint
     npm run format         # Prettier
-    npm run format:check  # Prettier check, as in CI
+    npm run format:check   # Prettier check, as in CI
     npm run build          # production build in dist/
 
 The source is in `src/`: `generation/` builds the map data, `map/` renders it with WebGL, `overlay/` draws the grid, `export/` makes images and prints, `state/` reads and writes links and preferences, `i18n/` holds the French and English texts, and `ui/` wires the page controls.
