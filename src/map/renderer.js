@@ -512,7 +512,7 @@ export class Camera {
   updateGl() {
     let program = this.#renderer.worldShaderProgram;
     if (!program) return; // Not loaded (yet)
-    program.setView(this.view);
+    program.setView(this.view, this.#renderer.pixelRatio);
     this.#renderer.viewChanged();
   }
 }

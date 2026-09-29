@@ -12,8 +12,8 @@ precision mediump float;
 uniform sampler2D biomes;
 uniform float max_id;
 
-// In world units: the side of a mark's grid square at the level of the tile drawn, and a pixel
-// of the view, see shader.js setLevel and setView
+// In world units: the side of a mark's grid square at the level of the tile drawn, and a device
+// pixel of the view, see shader.js setLevel and setView
 uniform float mark_cell;
 uniform float pixel_world;
 

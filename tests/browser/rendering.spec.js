@@ -59,6 +59,30 @@ test.describe("on a high-density screen", () => {
     // The camera's view, used by the pointer, the grid and exports, stays in CSS pixels
     expect(sizes.view).toEqual([1000, 700]);
   });
+
+  test("the vegetation marks blend their edges over a device pixel, even after an export", async ({
+    page,
+  }) => {
+    await openMap(page);
+    const pixels = await page.evaluate(async () => {
+      const renderer = window.hodos.renderer;
+      const gl = renderer.canvas.getContext("webgl2") || renderer.canvas.getContext("webgl");
+      const program = renderer.worldShaderProgram.glProgram;
+      const pixel = () => gl.getUniform(program, gl.getUniformLocation(program, "pixel_world"));
+      const cssPixel = 1 / window.hodos.camera.view.pixelsPerUnit;
+      const onScreen = pixel() / cssPixel;
+      // An export draws a view of its own pixels, then gives the screen its view back
+      const view = { ...window.hodos.camera.view, width: 64, height: 64 };
+      const release = await renderer.ensureTiles(view, 0);
+      try {
+        renderer.renderToPixels(view, 0);
+      } finally {
+        release();
+      }
+      return { onScreen, afterExport: pixel() / cssPixel };
+    });
+    expect(pixels).toEqual({ onScreen: 0.5, afterExport: 0.5 });
+  });
 });
 
 test("exporting the current view at ×1 downloads the drawn map as a PNG", async ({ page }) => {

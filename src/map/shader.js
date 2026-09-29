@@ -217,15 +217,20 @@ export class WorldShaderProgram extends ShaderProgram {
 
   /**
    * Draws the view next, see view.js: its matrix, the river widths at its zoom, and its pixel
-   * size for the vegetation marks.
+   * size for the vegetation marks, which blend their edges over one device pixel.
+   *
+   * @param pixelRatio device pixels per pixel of the view: the screen's on a high-density screen
    */
-  setView(view) {
+  setView(view, pixelRatio = 1) {
     const gl = this.gl;
     gl.uniformMatrix4fv(gl.getUniformLocation(this.glProgram, "view"), false, viewMatrix(view));
     const { line, real } = riverWidthUniform(view);
     gl.uniform4fv(gl.getUniformLocation(this.glProgram, "river_width"), line);
     gl.uniform2fv(gl.getUniformLocation(this.glProgram, "river_real"), real);
-    gl.uniform1f(gl.getUniformLocation(this.glProgram, "pixel_world"), 1 / view.pixelsPerUnit);
+    gl.uniform1f(
+      gl.getUniformLocation(this.glProgram, "pixel_world"),
+      1 / (view.pixelsPerUnit * pixelRatio),
+    );
   }
 
   /**
