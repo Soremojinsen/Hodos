@@ -377,6 +377,12 @@ html[data-translating] :is([data-i18n], [data-i18n-html]) {
           p {
             margin: 0;
             text-align: justify;
+
+            &.signature {
+              text-align: right;
+              font-style: italic;
+              margin-bottom: 0.75rem;
+            }
           }
 
           label {

@@ -81,13 +81,15 @@ export default {
   "dialog.back": "Retour",
   "project.title": "Projet",
   "project.p1":
-    "L'application web <i>Hodos</i> a été développée dans le cadre du projet de développement informatique (PRO3600) de l'école d'ingénieurs Télécom SudParis. Pendant cinq mois, notre groupe de quatre étudiants en première année a travaillé pour créer le site que vous consultez actuellement.",
+    "L'application web <i>Hodos</i> est née en 2022 dans le cadre du projet de développement informatique (PRO3600) de l'école d'ingénieurs Télécom SudParis. Pendant cinq mois, un groupe de quatre étudiants en première année a posé les bases du site que vous consultez.",
   "project.p2":
     "L'idée originale était de créer un générateur procédural de carte du monde, utilisable notamment par quiconque aurait besoin de créer un monde à partir de zéro : auteurs, rôlistes, etc.",
   "project.p3":
-    "Dans l'état actuel du projet, vous avez la possibilité de générer une carte unique, avec plusieurs continents, des îles, un relief et des biomes différents. Le système de débogage mis à disposition vous permet d'avoir un aperçu de la façon dont la carte est générée et vous permet également d'utiliser un système de seed pour retrouver une carte que vous avez générée et qui vous a plu.",
+    "L'histoire aurait pu s'arrêter là. Mais quatre ans plus tard, en 2026, j'ai eu envie de poursuivre ce qui avait été commencé, donc j'ai continué à faire grandir la carte : des rivières y coulent désormais jusqu'à la mer, on y aperçoit des collines ombrées et des forêts, et chaque zoom dévoile de nouveaux détails. Le reste, je vous laisse le découvrir.",
   "project.p4":
-    "Pour plus d'informations sur la façon dont l'application fonctionne, vous pouvez consulter notre dépôt GitHub.",
+    "Chaque carte est générée à partir d'une seed : la même seed redonne toujours la même carte, et le lien de partage permet de la retrouver ou de la faire découvrir.",
+  "project.p5":
+    "Pour plus d'informations sur la façon dont l'application fonctionne, vous pouvez consulter le dépôt GitHub.",
   "error.webgl":
     "Hodos a besoin de WebGL pour dessiner la carte, mais votre navigateur ne le supporte pas ou l'a désactivé.",
   "error.render":
