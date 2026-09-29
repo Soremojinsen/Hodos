@@ -515,6 +515,52 @@ html[data-translating] :is([data-i18n], [data-i18n-html]) {
         p {
           hyphens: auto;
         }
+
+        // A row too wide wraps between its controls, never inside a label
+        form {
+          flex-wrap: wrap;
+          gap: 0.5rem 1rem;
+        }
+
+        // Parchemin, Biomes and Debug on one line, as long as the screen allows
+        #mode-form {
+          column-gap: 0.25rem;
+        }
+
+        label,
+        legend {
+          white-space: nowrap;
+        }
+
+        // The sliders one under the other, lined up and as wide as the dialog
+        div:has(> input[type="range"]) {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          width: 100%;
+
+          label {
+            min-width: 5em;
+          }
+
+          input {
+            flex: 1;
+            min-width: 0;
+          }
+        }
+
+        // The seed field takes what its label and button leave
+        #seed-form > div {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          width: 100%;
+
+          input {
+            flex: 1;
+            min-width: 0;
+          }
+        }
       }
     }
   }

@@ -98,3 +98,22 @@ test("on a phone, the project text scrolls to the GitHub link", async ({ page })
   await expect(link).toBeInViewport();
   await expect(page.locator("#project-title")).toBeInViewport();
 });
+
+test("on a phone, the settings rows keep their controls side by side", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 640 });
+  await openMap(page);
+  await page.getByRole("button", { name: "Paramètres" }).click();
+  const middle = async (locator) => {
+    const box = await locator.boundingBox();
+    return box.y + box.height / 2;
+  };
+  // On one row: less than half a line apart
+  const sameRow = async (a, b) =>
+    expect(Math.abs((await middle(a)) - (await middle(b)))).toBeLessThan(15);
+  await sameRow(page.locator("#seed"), page.getByRole("button", { name: "Changer" }));
+  await sameRow(page.locator("#default-toggle"), page.locator("#debug-toggle"));
+  // The labels do not wrap: one line high
+  for (const label of await page.locator("#mode-form label").all()) {
+    expect((await label.boundingBox()).height).toBeLessThan(40);
+  }
+});
