@@ -5,6 +5,14 @@
 export function setupModals() {
   const dialogs = [...document.querySelectorAll("dialog.modal-box")];
 
+  // The dialogs stand above the footer, whose height depends on the screen (its labels wrap on
+  // a phone): the stylesheet reads it from --footer-height
+  const footer = document.querySelector(".map-settings");
+  new ResizeObserver(() => {
+    const height = footer.getBoundingClientRect().height;
+    document.documentElement.style.setProperty("--footer-height", `${height}px`);
+  }).observe(footer);
+
   for (const opener of document.querySelectorAll("[data-dialog]")) {
     opener.addEventListener("click", () => {
       toggleDialog(document.getElementById(opener.dataset.dialog), dialogs);

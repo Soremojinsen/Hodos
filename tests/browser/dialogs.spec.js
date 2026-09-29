@@ -58,3 +58,43 @@ test("a drag from inside a dialog that ends outside leaves it open", async ({ pa
   await page.mouse.up();
   expect(await isOpen(page, "settings-dialog")).toBe(true);
 });
+
+for (const [name, viewport] of [
+  ["upright", { width: 360, height: 640 }],
+  ["sideways", { width: 844, height: 390 }],
+]) {
+  test(`on a phone held ${name}, the dialogs fit between the screen's top and the footer`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await openMap(page);
+    const footerTop = (await page.locator(".map-settings").boundingBox()).y;
+    for (const [button, id] of [
+      ["Projet", "project-dialog"],
+      ["Paramètres", "settings-dialog"],
+      ["Exporter la carte", "export-dialog"],
+    ]) {
+      await page.getByRole("button", { name: button }).click();
+      const dialog = page.locator(`#${id}`);
+      // Once its opening transition is over
+      await expect(async () => {
+        const box = await dialog.locator(".inner").boundingBox();
+        expect(box.y).toBeGreaterThanOrEqual(0);
+        expect(box.y + box.height).toBeLessThanOrEqual(footerTop);
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+      }).toPass();
+      await dialog.getByRole("button", { name: "Retour" }).click();
+    }
+  });
+}
+
+test("on a phone, the project text scrolls to the GitHub link", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 640 });
+  await openMap(page);
+  await page.getByRole("button", { name: "Projet" }).click();
+  const link = page.locator("#project-dialog .github-link");
+  await link.scrollIntoViewIfNeeded();
+  await expect(link).toBeInViewport();
+  await expect(page.locator("#project-title")).toBeInViewport();
+});

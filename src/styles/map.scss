@@ -266,7 +266,9 @@ html[data-translating] :is([data-i18n], [data-i18n-html]) {
   max-width: none;
   max-height: none;
   overflow: visible;
-  inset: auto 2vw 13.6vh auto;
+  // Above the footer, which is taller than 13.6vh on a phone held sideways (see modals.js)
+  --dialog-bottom: max(13.6vh, var(--footer-height, 0px) + 1rem);
+  inset: auto 2vw var(--dialog-bottom) auto;
   opacity: 0;
   transform: translateY(80px);
   transition:
@@ -322,6 +324,11 @@ html[data-translating] :is([data-i18n], [data-i18n-html]) {
       width: 620px;
       max-width: 90vw;
       padding: 2rem 3rem 2.5rem;
+      // No taller than the room above the footer, leaving the title's overhang: what does not
+      // fit scrolls, between the title and the Retour button
+      max-height: calc(100dvh - var(--dialog-bottom) - 1.5rem);
+      display: flex;
+      flex-direction: column;
 
       &::before {
         border: 1px solid #040403;
@@ -364,7 +371,10 @@ html[data-translating] :is([data-i18n], [data-i18n-html]) {
       }
 
       .main-modal-content {
-        margin: 1rem 0;
+        // No bottom margin: in a flex column it would add to the Retour button's, not collapse
+        margin-top: 1rem;
+        overflow-y: auto;
+        overscroll-behavior: contain;
         display: flex;
         flex-direction: column;
         justify-content: flex-start;
@@ -489,6 +499,41 @@ html[data-translating] :is([data-i18n], [data-i18n-html]) {
       }
     }
   }
+
+  // A phone held upright: centered, with the text across the whole dialog
+  @media (max-width: 700px) {
+    left: 0;
+    right: 0;
+    margin-inline: auto;
+
+    .inner .content {
+      padding: 2rem 1.5rem 1.5rem;
+
+      .main-modal-content .modal-section {
+        width: 100%;
+
+        p {
+          hyphens: auto;
+        }
+      }
+    }
+  }
+
+  // A phone held sideways: less room around the text
+  @media (max-height: 500px) {
+    .inner .content {
+      padding-top: 1.5rem;
+      padding-bottom: 1.5rem;
+
+      .main-modal-content {
+        margin-top: 0.5rem;
+      }
+
+      .back-desktop {
+        margin-top: 0.5rem;
+      }
+    }
+  }
 }
 
 .github-link {
@@ -536,7 +581,7 @@ html[data-translating] :is([data-i18n], [data-i18n-html]) {
   }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 700px), (max-height: 500px) {
   .map-settings {
     font-size: 1rem;
 
