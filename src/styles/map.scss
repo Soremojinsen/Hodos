@@ -34,6 +34,12 @@ html[data-translating] :is([data-i18n], [data-i18n-html]) {
 .hodos-map {
   /* Gestures are handled by Hodos, not by the browser */
   touch-action: none;
+  /* The canvases are clipped to the screen: turning a phone leaves them the old screen's size
+     until the resize, and a page wider than the screen makes phone browsers zoom out to show
+     it all, which then keeps the map that wide */
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
 }
 
 .hodos-canvas,

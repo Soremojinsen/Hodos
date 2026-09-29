@@ -85,6 +85,29 @@ test.describe("on a high-density screen", () => {
   });
 });
 
+test.describe("on a phone", () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+
+  test("turning the phone sideways and back leaves the map and its frame the size of the screen", async ({
+    page,
+  }) => {
+    await openMap(page);
+    await page.setViewportSize({ width: 844, height: 390 });
+    await expect.poll(() => page.evaluate(() => window.hodos.renderer.width)).toBe(844);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect.poll(() => page.evaluate(() => window.hodos.renderer.width)).toBe(390);
+    const sizes = await page.evaluate(() => {
+      const size = (selector) => {
+        const box = document.querySelector(selector).getBoundingClientRect();
+        return [box.width, box.height];
+      };
+      return { zoom: visualViewport.scale, map: size(".hodos-canvas"), frame: size(".border-top") };
+    });
+    // A map wider than the screen for a moment made the browser zoom the page out to show it
+    expect(sizes).toEqual({ zoom: 1, map: [390, 844], frame: [390, 6] });
+  });
+});
+
 test("exporting the current view at ×1 downloads the drawn map as a PNG", async ({ page }) => {
   await openMap(page);
   await page.click("#screenshot");
