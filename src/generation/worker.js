@@ -28,6 +28,7 @@ self.onmessage = ({ data }) => {
         tile.riverPositions.buffer,
         tile.riverShapes.buffer,
         tile.riverIndices.buffer,
+        tile.markBlocked.buffer,
       ]);
     }
   } catch (error) {

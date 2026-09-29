@@ -1,8 +1,8 @@
 import { Delaunay } from "d3-delaunay";
-import { WORLD_SIZE } from "../constants.js";
+import { MARK_SPACING_PX, WORLD_SIZE } from "../constants.js";
 import { aleaPRNG } from "../vendor/alea-prng.js";
 import { BIOME_DEFINITIONS } from "./biomes.js";
-import { buildRivers } from "./rivers.js";
+import { buildRivers, pixelSize, riverSquares } from "./rivers.js";
 
 /**
  * Every tile has TILE_CELLS_SIDE² cells, whatever its level: about 8 px wide on screen.
@@ -110,25 +110,29 @@ export function tileCells(seed, z, x, y) {
  * Each cell is a fan of triangles around its site. The cell's biome is its site's; altitudes
  * and slopes are sampled at each vertex, so a land cell with a corner at sea slopes down to the
  * coast, and the shaders light it smoothly. Slopes are flat at sea.
- * The rivers are a mesh of their own, drawn over the cells, see rivers.js buildRivers.
+ * The rivers are a mesh of their own, drawn over the cells, see rivers.js buildRivers; the
+ * vegetation marks leave bare the squares of their grid that the rivers cover, see riverSquares.
  *
  * @param sampler {WorldSampler}
  * @returns {{z, x, y, positions: Float32Array, biomeIds: Float32Array,
  *            debugColors: Float32Array, slopes: Float32Array, indices: Uint16Array,
- *            riverPositions: Float32Array, riverShapes: Float32Array, riverIndices: Uint16Array}}
- *          slopes: dx, dy per vertex, see WorldSampler.slopeAt
+ *            riverPositions: Float32Array, riverShapes: Float32Array, riverIndices: Uint16Array,
+ *            markOrigin: Number[], markSize: Number[], markBlocked: Uint8Array}}
+ *          slopes: dx, dy per vertex, see WorldSampler.slopeAt; mark*: see riverSquares
  */
 export function buildTile(sampler, z, x, y) {
   const cells = tileCells(sampler.seed, z, x, y);
   const size = tileSize(z);
   // Cells may reach a little more than a cell past the tile's edge, see tileCells
   const margin = (2 * size) / TILE_CELLS_SIDE;
-  const rivers = buildRivers(sampler, z, [
+  const area = [
     x * size - margin,
     y * size - margin,
     (x + 1) * size + margin,
     (y + 1) * size + margin,
-  ]);
+  ];
+  const rivers = buildRivers(sampler, z, area);
+  const marks = riverSquares(sampler, z, MARK_SPACING_PX * pixelSize(z), area);
   const vertexCount = cells.reduce((n, cell) => n + 1 + cell.ring.length, 0);
   const indexCount = cells.reduce((n, cell) => n + 3 * cell.ring.length, 0);
   if (Math.max(vertexCount, rivers.positions.length / 3) > 0x10000) {
@@ -191,6 +195,9 @@ export function buildTile(sampler, z, x, y) {
     riverPositions: new Float32Array(rivers.positions),
     riverShapes: new Float32Array(rivers.shapes),
     riverIndices: new Uint16Array(rivers.indices),
+    markOrigin: marks.origin,
+    markSize: marks.size,
+    markBlocked: marks.blocked,
   };
 }
 

@@ -112,6 +112,22 @@ export const riverWidth = (flow, zoom) => riverPixels(flow, zoom) * pixelSize(zo
 export const maxHalfWidth = (flow, z) => (riverPixels(flow, z + 0.5) * pixelSize(z - 0.5)) / 2;
 
 /**
+ * Half the widest a river is drawn at level z, from zoom z - 0.5 to z + 0.5, in world units:
+ * tighter than maxHalfWidth. Its width in the world only grows while its line is under
+ * 1 / ln 2 pixels and its threshold still halves at each zoom (see riverPixels), so it is widest
+ * at an end of the range or where either stops.
+ */
+export function drawnHalfWidth(flow, z) {
+  const [low, high] = [z - 0.5, z + 0.5];
+  const lineAtLn2 = 1 / Math.LN2 - MIN_WIDTH_PX - Math.log2(flow / RIVER_BASE_FLOW);
+  const thresholdStops = Math.log2(RIVER_BASE_FLOW / MIN_RIVER_FLOW);
+  const zooms = [low, high, lineAtLn2, thresholdStops].map((zoom) =>
+    Math.min(Math.max(zoom, low), high),
+  );
+  return Math.max(...zooms.map((zoom) => riverWidth(flow, zoom))) / 2;
+}
+
+/**
  * What the world shaders need to widen the rivers for a view, see view.js: its line widths,
  * [log2 of riverThreshold at its zoom, MIN_WIDTH_PX, MAX_WIDTH_PX, world units per pixel], and
  * its real widths, [the pixels of a river of flow 1, BLEND].
@@ -353,6 +369,73 @@ export function riverAt(sampler, x, y, z, { zoom = z, margin = 0 } = {}) {
     }
   }
   return false;
+}
+
+/**
+ * The squares of a grid anchored in the world, `cell` wide, that a river of level z covers in
+ * part at any zoom the level is drawn at (see drawnHalfWidth): the vegetation marks leave them
+ * bare, as a river drawn over a mark would cut it (see MARK_SPACING_PX).
+ *
+ * @param sampler {WorldSampler}
+ * @param area the squares that reach into it are returned, [minX, minY, maxX, maxY]
+ * @returns {{origin: Number[], size: Number[], blocked: Uint8Array}} the first square's column
+ *          and row, the number of columns and rows, and 255 per covered square (0 otherwise),
+ *          row by row from origin
+ */
+export function riverSquares(sampler, z, cell, [minX, minY, maxX, maxY]) {
+  const [i0, j0] = [Math.floor(minX / cell), Math.floor(minY / cell)];
+  const [columns, rows] = [Math.floor(maxX / cell) - i0 + 1, Math.floor(maxY / cell) - j0 + 1];
+  const blocked = new Uint8Array(columns * rows);
+  const squares = [i0 * cell, j0 * cell, (i0 + columns) * cell, (j0 + rows) * cell];
+  const column = (x) => Math.min(Math.max(Math.floor(x / cell) - i0, 0), columns - 1);
+  const row = (y) => Math.min(Math.max(Math.floor(y / cell) - j0, 0), rows - 1);
+  for (const { course, flow } of riverCourses(sampler, z, squares)) {
+    const half = drawnHalfWidth(flow, z);
+    for (let k = 0; k + 3 < course.length; k += 2) {
+      const [px, py, qx, qy] = [course[k], course[k + 1], course[k + 2], course[k + 3]];
+      if (Math.max(px, qx) + half < squares[0] || Math.min(px, qx) - half > squares[2]) continue;
+      if (Math.max(py, qy) + half < squares[1] || Math.min(py, qy) - half > squares[3]) continue;
+      for (let j = row(Math.min(py, qy) - half); j <= row(Math.max(py, qy) + half); j++) {
+        for (let i = column(Math.min(px, qx) - half); i <= column(Math.max(px, qx) + half); i++) {
+          if (blocked[j * columns + i]) continue;
+          const [x0, y0] = [(i0 + i) * cell, (j0 + j) * cell];
+          if (segmentBoxDistance(px, py, qx, qy, [x0, y0, x0 + cell, y0 + cell]) <= half) {
+            blocked[j * columns + i] = 255;
+          }
+        }
+      }
+    }
+  }
+  return { origin: [i0, j0], size: [columns, rows], blocked };
+}
+
+// The distance from the segment from p to q to a box [minX, minY, maxX, maxY]: 0 if they meet,
+// else from one's corner to the other, the nearest points of two convex shapes apart
+function segmentBoxDistance(px, py, qx, qy, box) {
+  const [minX, minY, maxX, maxY] = box;
+  // Clips the segment to the box (Liang–Barsky): some of it is left if they meet
+  const [dx, dy] = [qx - px, qy - py];
+  let [t0, t1] = [0, 1];
+  const clip = (p, q) => {
+    if (p === 0) return q >= 0;
+    const r = q / p;
+    if (p < 0) t0 = Math.max(t0, r);
+    else t1 = Math.min(t1, r);
+    return t0 <= t1;
+  };
+  if (clip(-dx, px - minX) && clip(dx, maxX - px) && clip(-dy, py - minY) && clip(dy, maxY - py)) {
+    return 0;
+  }
+  const outside = (x, y) =>
+    Math.hypot(Math.max(minX - x, 0, x - maxX), Math.max(minY - y, 0, y - maxY));
+  return Math.min(
+    outside(px, py),
+    outside(qx, qy),
+    segmentDistance(minX, minY, px, py, qx, qy),
+    segmentDistance(maxX, minY, px, py, qx, qy),
+    segmentDistance(minX, maxY, px, py, qx, qy),
+    segmentDistance(maxX, maxY, px, py, qx, qy),
+  );
 }
 
 // The distance from (x, y) to the segment from p to q

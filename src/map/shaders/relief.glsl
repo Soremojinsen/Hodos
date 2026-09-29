@@ -16,6 +16,12 @@ uniform float max_id;
 // pixel of the view, see shader.js setLevel and setView
 uniform float mark_cell;
 uniform float pixel_world;
+// The squares of the tile drawn that its rivers cover, a texel per square (1 if covered), from
+// the square at column and row mark_origin, mark_size of them, see generation/rivers.js
+// riverSquares: a river drawn over a mark would cut it, so the mark is left out
+uniform sampler2D mark_blocked;
+uniform vec2 mark_origin;
+uniform vec2 mark_size;
 
 // Texel k of a biome: 0 its low color, 1 its high color, 2 its mark kind (in red, kind / 255)
 vec4 biomeTexel(float id, float k) {
@@ -117,7 +123,7 @@ const float MARK_MOUNTAIN = 0.65;
 const vec2 MARK_SHADOW = vec2(0.06, -0.08);
 // Half a pixel, in grid squares, at the most a mark's antialiasing reaches: a level is drawn
 // from half a zoom level out, where a grid square is MARK_SPACING_PX / sqrt(2) pixels wide:
-// sqrt(2) / 12 / 2 < 0.06. MARK_SPACING_PX is defined in shader.js; update this if it changes.
+// sqrt(2) / 12 / 2 < 0.06. MARK_SPACING_PX is defined in constants.js; update this if it changes.
 const float MARK_EDGE = 0.06;
 
 // A random number in [0, 1) for a grid square ("Hash without Sine", Dave Hoskins, MIT): no
@@ -157,6 +163,11 @@ vec3 drawMarks(vec3 color, float id, vec2 point, float altitude) {
     float kind = floor(biomeTexel(id, 2.0).r * 255.0 + 0.5);
     if (kind < 0.5 || altitude < MARK_BEACH || altitude >= MARK_MOUNTAIN) return color;
     vec2 square = floor(point / mark_cell);
+    vec2 texel = square - mark_origin;
+    if (all(greaterThanEqual(texel, vec2(0.0))) && all(lessThan(texel, mark_size)) &&
+        texture2D(mark_blocked, (texel + 0.5) / mark_size).r > 0.5) {
+        return color;
+    }
     float pixel = pixel_world / mark_cell;
     // How far each mark and its shadow reach from its centre, in grid squares, on each axis
     float reach = kind < 1.5 ? 0.28 : (kind < 2.5 ? 0.31 : (kind < 3.5 ? 0.3 : 0.2));

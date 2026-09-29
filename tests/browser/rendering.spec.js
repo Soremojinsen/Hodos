@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { BIOME_DEFINITIONS } from "../../src/generation/biomes.js";
 import { WorldSampler } from "../../src/generation/fields.js";
 import { withWater } from "../../src/generation/hydrology.js";
-import { riverAt } from "../../src/generation/rivers.js";
+import { riverAt, riverCourse, riverThreshold } from "../../src/generation/rivers.js";
 import { generateWorld } from "../../src/generation/world.js";
 import { aleaPRNG } from "../../src/vendor/alea-prng.js";
 import { countColors, openMap, waitForTiles } from "./helpers.js";
@@ -335,4 +335,73 @@ test("forests are drawn with marks, plains are not, and debug mode has none", as
     expect(await markShare(page, plain, mode)).toBeLessThan(0.02);
   }
   expect(await markShare(page, forest, "debug")).toBe(0);
+});
+
+test("a river never cuts a forest mark: marks near it are drawn whole or not at all", async ({
+  page,
+}) => {
+  // Points of level-5 rivers through forest, well inside the land
+  const sampler = new WorldSampler(withWater(generateWorld("12345")));
+  const forest = BIOME_DEFINITIONS.findIndex((definition) => definition.name === "Forest");
+  const crossings = [];
+  const { flow } = sampler.rivers;
+  for (let k = 0; k < flow.length && flow[k] >= riverThreshold(5) && crossings.length < 12; k++) {
+    const course = riverCourse(sampler, k, 5);
+    for (let i = 0; i < course.length && crossings.length < 12; i += 16) {
+      const [x, y] = [course[i], course[i + 1]];
+      const inForest = [-40, 0, 40].every((dx) =>
+        [-40, 0, 40].every((dy) => {
+          const sample = sampler.sampleAt(x + dx, y + dy, 5);
+          return sample.biome === forest && sample.altitude > 0.2 && sample.altitude < 0.5;
+        }),
+      );
+      if (inForest) crossings.push([x, y]);
+    }
+  }
+  expect(crossings.length).toBe(12);
+
+  await openMap(page);
+  // Mark pixels (much darker than a land pixel 4 px away, see markShare) beside a water pixel
+  const cut = await page.evaluate(async (crossings) => {
+    const renderer = window.hodos.renderer;
+    let count = 0;
+    for (const [x, y] of crossings) {
+      // Far into level 5, where the marks are largest
+      const view = { centerX: x, centerY: y, pixelsPerUnit: (256 * 2 ** 5.45) / 10000 };
+      Object.assign(view, { width: 64, height: 64 });
+      const release = await renderer.ensureTiles(view, 5);
+      let pixels;
+      try {
+        pixels = renderer.renderToPixels(view, 5, "default");
+      } finally {
+        release();
+      }
+      const at = (px, py) => pixels.subarray(4 * (py * 64 + px), 4 * (py * 64 + px) + 3);
+      // Water is bluer than green, land greener than blue, whatever the shading
+      const water = (px, py) => at(px, py)[2] > at(px, py)[1];
+      const b = (px, py) => at(px, py)[0] + at(px, py)[1] + at(px, py)[2];
+      for (let py = 5; py < 59; py++) {
+        for (let px = 5; px < 59; px++) {
+          if (water(px, py)) continue;
+          const around = [
+            [px - 4, py],
+            [px + 4, py],
+            [px, py - 4],
+            [px, py + 4],
+          ].filter(([qx, qy]) => !water(qx, qy));
+          const brightest = Math.max(...around.map(([qx, qy]) => b(qx, qy)));
+          const mark = b(px, py) < 0.7 * brightest;
+          const byWater = [
+            [px - 1, py],
+            [px + 1, py],
+            [px, py - 1],
+            [px, py + 1],
+          ].some(([qx, qy]) => water(qx, qy));
+          if (mark && byWater) count++;
+        }
+      }
+    }
+    return count;
+  }, crossings);
+  expect(cut).toBe(0);
 });

@@ -1,3 +1,4 @@
+import { MARK_SPACING_PX } from "../constants.js";
 import { pixelSize, riverWidthUniform } from "../generation/rivers.js";
 import { viewMatrix } from "./view.js";
 
@@ -129,14 +130,6 @@ export class ShaderProgram {
 }
 
 /**
- * The spacing of the vegetation marks on screen, in pixels at the level of the tile drawn: they
- * are anchored in the world, so they stay put when panning and scale with the map within a level.
- * MARK_EDGE in shaders/relief.glsl is derived from it (sqrt(2) / MARK_SPACING_PX / 2) and must be
- * updated with it.
- */
-export const MARK_SPACING_PX = 12;
-
-/**
  * The world shader program is in charge of rendering the actual map.
  * Programs that lack an attribute or a uniform ignore what is bound to it.
  */
@@ -242,6 +235,24 @@ export class WorldShaderProgram extends ShaderProgram {
       gl.getUniformLocation(this.glProgram, "mark_cell"),
       MARK_SPACING_PX * pixelSize(z),
     );
+  }
+
+  /**
+   * Draws a tile's squares next, see mesh.js uploadMarkSquares: its vegetation marks leave bare
+   * the squares its rivers cover.
+   *
+   * @param texture the tile's texture of covered squares
+   * @param origin  the column and row of its first square
+   * @param size    its number of columns and rows
+   */
+  setMarkSquares(texture, origin, size) {
+    const gl = this.gl;
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.uniform1i(gl.getUniformLocation(this.glProgram, "mark_blocked"), 1);
+    gl.uniform2fv(gl.getUniformLocation(this.glProgram, "mark_origin"), origin);
+    gl.uniform2fv(gl.getUniformLocation(this.glProgram, "mark_size"), size);
   }
 
   /**

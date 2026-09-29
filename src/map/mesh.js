@@ -35,6 +35,9 @@ export class Tile extends Mesh {
   #buffers;
   #indexCount;
   #riverIndexCount;
+  #markTexture;
+  #markOrigin;
+  #markSize;
 
   /**
    * @param data see generation/tiles.js buildTile: z, x, y and the typed arrays to draw
@@ -77,6 +80,9 @@ export class Tile extends Mesh {
       riverShapes: upload(gl.ARRAY_BUFFER, data.riverShapes),
       riverIndices: upload(gl.ELEMENT_ARRAY_BUFFER, data.riverIndices),
     };
+    this.#markTexture = uploadMarkSquares(gl, data.markBlocked, data.markSize);
+    this.#markOrigin = data.markOrigin;
+    this.#markSize = data.markSize;
     this.#indexCount = data.indices.length;
     this.#riverIndexCount = data.riverIndices.length;
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
@@ -93,6 +99,7 @@ export class Tile extends Mesh {
     const gl = shaderProgram.gl;
     const buffers = this.#buffers;
     shaderProgram.setLevel(this.#z);
+    shaderProgram.setMarkSquares(this.#markTexture, this.#markOrigin, this.#markSize);
     shaderProgram.bindSurfaceVertexPositionBuffer(buffers.positions);
     shaderProgram.bindDebugSurfaceColorsBuffer(buffers.debugColors);
     shaderProgram.bindBiomeIdBuffer(buffers.biomeIds);
@@ -112,5 +119,37 @@ export class Tile extends Mesh {
 
   destroy(gl) {
     for (const buffer of Object.values(this.#buffers)) gl.deleteBuffer(buffer);
+    gl.deleteTexture(this.#markTexture);
   }
+}
+
+/**
+ * A texture of a tile's mark squares that rivers cover, a texel per square, see
+ * generation/rivers.js riverSquares. It is bound to texture unit 1 when drawing, see
+ * WorldShaderProgram.setMarkSquares; unit 0 stays active.
+ */
+function uploadMarkSquares(gl, blocked, [columns, rows]) {
+  const texture = gl.createTexture();
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  // Rows of single bytes, not padded to 4
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.LUMINANCE,
+    columns,
+    rows,
+    0,
+    gl.LUMINANCE,
+    gl.UNSIGNED_BYTE,
+    blocked,
+  );
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.activeTexture(gl.TEXTURE0);
+  return texture;
 }

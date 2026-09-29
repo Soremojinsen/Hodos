@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { TILE_PIXEL_SIZE, WORLD_SIZE } from "../../src/constants.js";
+import { MARK_SPACING_PX, TILE_PIXEL_SIZE, WORLD_SIZE } from "../../src/constants.js";
 import { WorldSampler } from "../../src/generation/fields.js";
 import { withWater } from "../../src/generation/hydrology.js";
 import {
@@ -12,6 +12,7 @@ import {
   MIN_WIDTH_PX,
   buildRivers,
   deepWater,
+  drawnHalfWidth,
   maxHalfWidth,
   meander,
   pixelSize,
@@ -20,12 +21,14 @@ import {
   riverCourse,
   riverThreshold,
   riverPixels,
+  riverSquares,
   riverWidth,
   riverWidthUniform,
   trueWidth,
 } from "../../src/generation/rivers.js";
 import { siteAt } from "../../src/generation/tiles.js";
 import { generateWorld } from "../../src/generation/world.js";
+import { aleaPRNG } from "../../src/vendor/alea-prng.js";
 
 const sampler = new WorldSampler(withWater(generateWorld("12345")));
 const rivers = sampler.rivers;
@@ -101,6 +104,66 @@ test("a level's rivers are never wider than tiles expect, at any zoom it is draw
         expect(riverWidth(f, zoom) / 2).toBeLessThanOrEqual(maxHalfWidth(f, z) + 1e-9);
       }
     }
+  }
+});
+
+test("a level's rivers are drawn at most drawnHalfWidth wide, and reach it", () => {
+  for (const f of [4, 5, 6, 7, 30, 256, 1000, 50_000]) {
+    for (let z = 0; z <= 7; z++) {
+      let widest = 0;
+      for (let zoom = z - 0.5; zoom <= z + 0.5 + 1e-9; zoom += 0.001) {
+        widest = Math.max(widest, riverWidth(f, zoom) / 2);
+      }
+      expect(drawnHalfWidth(f, z)).toBeGreaterThanOrEqual(widest - 1e-9);
+      expect(drawnHalfWidth(f, z)).toBeLessThanOrEqual(widest * 1.0001);
+      expect(drawnHalfWidth(f, z)).toBeLessThanOrEqual(maxHalfWidth(f, z) + 1e-9);
+    }
+  }
+});
+
+test("the marks leave bare every square a river is drawn over, and only squares near one", () => {
+  const random = aleaPRNG("river squares");
+  for (const [z, x, y] of [
+    [2, 1, 1],
+    [5, 9, 19],
+    [7, 30, 75],
+  ]) {
+    const size = WORLD_SIZE / 2 ** z;
+    const area = [x * size, y * size, (x + 1) * size, (y + 1) * size];
+    const cell = MARK_SPACING_PX * pixelSize(z);
+    const { origin, size: squares, blocked } = riverSquares(sampler, z, cell, area);
+    const isBlocked = (px, py) => {
+      const [i, j] = [Math.floor(px / cell) - origin[0], Math.floor(py / cell) - origin[1]];
+      return blocked[j * squares[0] + i] === 255;
+    };
+    const triangles = buildRivers(sampler, z, area);
+    expect(triangles.indices.length).toBeGreaterThan(0);
+    // Points around the rivers' vertices, inside the area
+    let checked = 0;
+    for (let n = 0; n < 400; n++) {
+      const v = Math.floor(random() * (triangles.positions.length / 3));
+      const [vx, vy] = [triangles.positions[3 * v], triangles.positions[3 * v + 1]];
+      const [px, py] = [vx + (random() - 0.5) * 2 * cell, vy + (random() - 0.5) * 2 * cell];
+      if (px < area[0] || px >= area[2] || py < area[1] || py >= area[3]) continue;
+      for (const zoom of [z - 0.49, z, z + 0.49]) {
+        if (!covered(triangles, px, py, zoom)) continue;
+        checked++;
+        expect(isBlocked(px, py)).toBe(true);
+      }
+    }
+    expect(checked).toBeGreaterThan(50);
+    // A bare square is within its diagonal of a river as drawn from the level's farthest zoom
+    let bare = 0;
+    for (let j = 0; j < squares[1]; j++) {
+      for (let i = 0; i < squares[0]; i++) {
+        if (!blocked[j * squares[0] + i]) continue;
+        bare++;
+        const [cx, cy] = [(origin[0] + i + 0.5) * cell, (origin[1] + j + 0.5) * cell];
+        expect(riverAt(sampler, cx, cy, z, { zoom: z - 0.5, margin: cell })).toBe(true);
+      }
+    }
+    expect(bare).toBeGreaterThan(0);
+    expect(bare).toBeLessThan(0.2 * blocked.length);
   }
 });
 
