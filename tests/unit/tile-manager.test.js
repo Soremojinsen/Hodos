@@ -200,3 +200,18 @@ test("the view is settled without its prefetched tiles, which are kept like want
   arrive("3/0/0");
   expect(log.destroyed).toEqual(["4/0/0"]);
 });
+
+test("idle once no tile is being built, prefetched and no longer wanted ones included", () => {
+  const { manager, arrive } = setup();
+  expect(manager.idle).toBe(true);
+  manager.want(tiles("3/0/0"), tiles("4/0/0"));
+  expect(manager.idle).toBe(false);
+  arrive("3/0/0");
+  expect(manager.settled).toBe(true);
+  expect(manager.idle).toBe(false);
+  // Still being built, and still drawn when it arrives
+  manager.want([]);
+  expect(manager.idle).toBe(false);
+  arrive("4/0/0");
+  expect(manager.idle).toBe(true);
+});

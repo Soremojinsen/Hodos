@@ -340,9 +340,11 @@ export class MapRenderer {
     this.#tiles.want(tilesInView(view, level, 1), next);
   }
 
-  // For tests and styles: data-tiles is "settled" when no wanted tile is still loading
+  // For tests and styles: data-tiles is "settled" when no wanted tile is still loading, and
+  // "idle" once no tile at all is, not even those of the next level (whose arrival draws a frame)
   #showTilesState() {
-    this.#div.dataset.tiles = this.#tiles.settled ? "settled" : "loading";
+    const tiles = this.#tiles;
+    this.#div.dataset.tiles = tiles.idle ? "idle" : tiles.settled ? "settled" : "loading";
   }
 
   /**

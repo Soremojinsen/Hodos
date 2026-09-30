@@ -36,7 +36,19 @@ export async function openMap(page, url = SEED_URL) {
  * Waits until every tile the camera wants is drawn.
  */
 export const waitForTiles = (page) =>
-  expect(page.locator("#map")).toHaveAttribute("data-tiles", "settled", { timeout: 30_000 });
+  expect(page.locator("#map")).toHaveAttribute("data-tiles", /^(settled|idle)$/, {
+    timeout: 30_000,
+  });
+
+/**
+ * Waits until no tile is being built at all, not even those of the next level, and the frame
+ * the last one asked for is drawn: from then on, nothing draws a frame by itself.
+ */
+export async function waitForIdle(page) {
+  await expect(page.locator("#map")).toHaveAttribute("data-tiles", "idle", { timeout: 30_000 });
+  // Called after the renderer's own frame callback, in the same frame
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+}
 
 export const camera = (page) =>
   page.evaluate(() => {

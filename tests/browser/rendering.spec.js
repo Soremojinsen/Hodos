@@ -6,13 +6,13 @@ import { withWater } from "../../src/generation/hydrology.js";
 import { riverAt, riverCourse, riverThreshold } from "../../src/generation/rivers.js";
 import { generateWorld } from "../../src/generation/world.js";
 import { aleaPRNG } from "../../src/vendor/alea-prng.js";
-import { countColors, openMap, waitForTiles } from "./helpers.js";
+import { countColors, openMap, waitForIdle, waitForTiles } from "./helpers.js";
 
 const frameCount = (page) => page.evaluate(() => window.hodos.renderer.frameCount);
 
 test("the map is not redrawn while idle", async ({ page }) => {
   await openMap(page);
-  await page.waitForTimeout(300);
+  await waitForIdle(page);
   const before = await frameCount(page);
   expect(before).toBeGreaterThan(0);
   await page.waitForTimeout(1000);

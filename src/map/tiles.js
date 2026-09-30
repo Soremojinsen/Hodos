@@ -179,6 +179,15 @@ export class TileManager {
     );
   }
 
+  /**
+   * Whether settled and no tile at all, prefetched or no longer wanted, is still being built:
+   * no arriving tile will draw a frame. Requests are sent as soon as there is room, so once
+   * none is in flight, every tile left is ready or failed.
+   */
+  get idle() {
+    return this.settled && this.#inFlight.size === 0;
+  }
+
   // Marks a tile as just used, for the least-recently-used order
   #use(key) {
     const baked = this.#ready.get(key);
