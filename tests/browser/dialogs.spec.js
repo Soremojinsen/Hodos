@@ -103,6 +103,10 @@ test("on a phone, the settings rows keep their controls side by side", async ({ 
   await page.setViewportSize({ width: 360, height: 640 });
   await openMap(page);
   await page.getByRole("button", { name: "Paramètres" }).click();
+  // The dialog slides up as it opens: two boxes read while it moves are not from the same frame
+  await page
+    .locator("#settings-dialog")
+    .evaluate((dialog) => Promise.all(dialog.getAnimations().map((a) => a.finished)));
   const middle = async (locator) => {
     const box = await locator.boundingBox();
     return box.y + box.height / 2;
