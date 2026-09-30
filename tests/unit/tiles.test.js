@@ -2,7 +2,7 @@ import { Delaunay } from "d3-delaunay";
 import { polygonArea } from "d3-polygon";
 import { expect, test } from "vitest";
 import { WORLD_SIZE } from "../../src/constants.js";
-import { WorldSampler } from "../../src/generation/fields.js";
+import { DELTA_POINT, WorldSampler } from "../../src/generation/fields.js";
 import { withWater } from "../../src/generation/hydrology.js";
 import {
   TILE_CELLS_SIDE,
@@ -265,7 +265,7 @@ const watered = new WorldSampler(withWater(generateWorld(SEED)));
 test("rivers are a mesh of their own, at sea level, over the same cells", () => {
   const tile = buildTile(watered, 3, 2, 3);
   const land = buildTile(sampler, 3, 2, 3);
-  for (const key of ["positions", "biomeIds", "debugColors", "indices", "slopes"]) {
+  for (const key of ["positions", "indices"]) {
     expect(tile[key]).toEqual(land[key]);
   }
   expect(land.riverIndices).toHaveLength(0);
@@ -304,4 +304,23 @@ test("tile 2/1/1 of seed 12345 with water stays the same", () => {
     riverShapes: fnv(tile.riverShapes),
     riverIndices: fnv(tile.riverIndices),
   }).toMatchSnapshot();
+});
+
+test("delta land is flat: its vertices have no slope", () => {
+  const water = withWater(generateWorld(SEED));
+  const i = water.wetlands.indexOf(DELTA_POINT);
+  expect(i).toBeGreaterThanOrEqual(0);
+  const z = 5;
+  const size = tileSize(z);
+  const [x, y] = [water.waterSites[2 * i], water.waterSites[2 * i + 1]];
+  const tile = buildTile(watered, z, Math.floor(x / size), Math.floor(y / size));
+  let flat = 0;
+  for (let v = 0; v < tile.biomeIds.length; v++) {
+    const [px, py] = tile.positions.subarray(3 * v, 3 * v + 2);
+    const sample = watered.sampleAt(px, py, z);
+    if (!sample.flat) continue;
+    flat++;
+    expect([...tile.slopes.subarray(2 * v, 2 * v + 2)]).toEqual([0, 0]);
+  }
+  expect(flat).toBeGreaterThan(0);
 });

@@ -109,7 +109,7 @@ export function tileCells(seed, z, x, y) {
  * Everything the GPU needs to draw a tile, as typed arrays a worker can transfer.
  * Each cell is a fan of triangles around its site. The cell's biome is its site's; altitudes
  * and slopes are sampled at each vertex, so a land cell with a corner at sea slopes down to the
- * coast, and the shaders light it smoothly. Slopes are flat at sea.
+ * coast, and the shaders light it smoothly. Slopes are flat at sea and on deltas.
  * The rivers are a mesh of their own, drawn over the cells, see rivers.js buildRivers; the
  * vegetation marks leave bare the squares of their grid that the rivers cover, see riverSquares.
  *
@@ -145,16 +145,18 @@ export function buildTile(sampler, z, x, y) {
   const indices = new Uint16Array(indexCount);
   let vertex = 0;
   let index = 0;
-  // Land is at least 0 high; the sea, lakes and their shores' corners are at SEA_ALTITUDE
-  const slopeAt = (px, py, altitude) => (altitude < 0 ? [0, 0] : sampler.slopeAt(px, py, z));
+  // Land is at least 0 high; the sea, lakes and their shores' corners are at SEA_ALTITUDE. Both
+  // the sea and delta land are flat
+  const slopeOf = (px, py, sample) =>
+    sample.altitude < 0 || sample.flat ? [0, 0] : sampler.slopeAt(px, py, z);
   // Cells share their corners: sample each corner once
   const corners = new Map();
   const corner = (px, py) => {
     const key = `${px},${py}`;
     let found = corners.get(key);
     if (found === undefined) {
-      const altitude = sampler.sampleAt(px, py, z).altitude;
-      found = { altitude, slope: slopeAt(px, py, altitude) };
+      const sample = sampler.sampleAt(px, py, z);
+      found = { altitude: sample.altitude, slope: slopeOf(px, py, sample) };
       corners.set(key, found);
     }
     return found;
@@ -171,7 +173,7 @@ export function buildTile(sampler, z, x, y) {
     };
     const center = vertex;
     const [sx, sy] = cell.site;
-    addVertex(sx, sy, sample.altitude, slopeAt(sx, sy, sample.altitude));
+    addVertex(sx, sy, sample.altitude, slopeOf(sx, sy, sample));
     for (const [px, py] of cell.ring) {
       const { altitude, slope } = corner(px, py);
       addVertex(px, py, altitude, slope);

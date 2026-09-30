@@ -1,10 +1,13 @@
 import { Delaunay } from "d3-delaunay";
-import { expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import { WORLD_SIZE } from "../../src/constants.js";
-import { BIOME_DEFINITIONS } from "../../src/generation/biomes.js";
+import { BIOME_DEFINITIONS, SWAMP_BIOMES } from "../../src/generation/biomes.js";
 import {
+  DELTA_ALTITUDE,
+  DELTA_POINT,
   LAKE_WARP_AMPLITUDE,
   SEA_ALTITUDE,
+  SWAMP_POINT,
   WARP_AMPLITUDE,
   WorldSampler,
 } from "../../src/generation/fields.js";
@@ -100,8 +103,14 @@ test("with water, lakes are drawn where the lake warp lands on a lake point", ()
       dry.sampleAt(x, y, 3).land && watered.lakes[lakes.find(...sampler.lakeWarp(x, y, 3))];
     if (inLake) {
       lakeCount++;
-      expect(sample).toEqual({ biome: LAKE, continent: 0, land: false, altitude: SEA_ALTITUDE });
-    } else {
+      expect(sample).toEqual({
+        biome: LAKE,
+        continent: 0,
+        land: false,
+        altitude: SEA_ALTITUDE,
+        flat: false,
+      });
+    } else if (!watered.wetlands[lakes.find(...sampler.lakeWarp(x, y, 3))]) {
       expect(sample).toEqual(dry.sampleAt(x, y, 3));
     }
   }
@@ -139,4 +148,75 @@ test("slopeAt is the altitude's change per world unit, the same for every sample
     }
   }
   expect(steep).toBeGreaterThan(100);
+});
+
+describe("wetlands", () => {
+  const watered = withWater(base);
+  const sampler = new WorldSampler(watered);
+  const dry = new WorldSampler(base);
+  const mesh = new Delaunay(watered.waterSites);
+  const SWAMP = BIOME_DEFINITIONS.findIndex((d) => d.name === "Swamp");
+  const swampy = new Set(
+    SWAMP_BIOMES.map((name) => BIOME_DEFINITIONS.findIndex((d) => d.name === name)),
+  );
+  const wetlandAt = (x, y, z) => watered.wetlands[mesh.find(...sampler.lakeWarp(x, y, z))];
+
+  test("swamps are drawn where the lake warp lands on a swamp point, over swamp biomes only", () => {
+    let swamps = 0;
+    for (const [x, y] of randomPoints(20000)) {
+      const before = dry.sampleAt(x, y, 3);
+      const sample = sampler.sampleAt(x, y, 3);
+      if (!before.land || sample.biome === LAKE) continue;
+      if (wetlandAt(x, y, 3) === SWAMP_POINT && swampy.has(before.biome)) {
+        swamps++;
+        expect(sample).toEqual({ ...before, biome: SWAMP });
+      } else {
+        expect(sample).toEqual(before);
+      }
+    }
+    expect(swamps).toBeGreaterThan(0);
+  });
+
+  test("delta land is flat land where the sea was, with its delta's biome and continent", () => {
+    // Points of the delta fans themselves, and around them
+    let deltas = 0;
+    for (let i = 0; i < watered.wetlands.length; i++) {
+      if (watered.wetlands[i] !== DELTA_POINT) continue;
+      for (const [dx, dy] of [
+        [0, 0],
+        [15, 0],
+        [0, -15],
+      ]) {
+        const [x, y] = [watered.waterSites[2 * i] + dx, watered.waterSites[2 * i + 1] + dy];
+        const before = dry.sampleAt(x, y, 4);
+        const sample = sampler.sampleAt(x, y, 4);
+        const w = mesh.find(...sampler.lakeWarp(x, y, 4));
+        if (!before.land && watered.wetlands[w] === DELTA_POINT) {
+          deltas++;
+          expect(sample).toEqual({
+            biome: watered.deltaBiome[w],
+            continent: watered.deltaContinent[w],
+            land: true,
+            altitude: DELTA_ALTITUDE,
+            flat: true,
+          });
+        } else if (!before.land) {
+          expect(sample).toEqual(before);
+        }
+      }
+    }
+    expect(deltas).toBeGreaterThan(0);
+  });
+
+  test("the sea far from any delta is the sea it was", () => {
+    let sea = 0;
+    for (const [x, y] of randomPoints(5000)) {
+      const before = dry.sampleAt(x, y, 5);
+      if (before.land) continue;
+      if (wetlandAt(x, y, 5) === DELTA_POINT) continue;
+      sea++;
+      expect(sampler.sampleAt(x, y, 5)).toEqual(before);
+    }
+    expect(sea).toBeGreaterThan(1000);
+  });
 });

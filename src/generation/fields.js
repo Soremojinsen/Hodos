@@ -1,7 +1,7 @@
 import { Delaunay } from "d3-delaunay";
 import { WORLD_SIZE } from "../constants.js";
 import { createNoise } from "../vendor/perlin.js";
-import { BIOME_DEFINITIONS } from "./biomes.js";
+import { BIOME_DEFINITIONS, SWAMP_BIOMES } from "./biomes.js";
 import { hashSeed } from "./util.js";
 
 /**
@@ -61,6 +61,18 @@ const MARITIME = BIOME_DEFINITIONS.map((definition) => definition.maritime === t
 
 const LAKE = BIOME_DEFINITIONS.findIndex((definition) => definition.name === "lake");
 
+const SWAMP = BIOME_DEFINITIONS.findIndex((definition) => definition.name === "Swamp");
+
+const SWAMPY = BIOME_DEFINITIONS.map((definition) => SWAMP_BIOMES.includes(definition.name));
+
+/**
+ * How many water grid squares around a delta point a sea sample looks for it: the lake warp
+ * moves a point by at most 2 × LAKE_WARP_AMPLITUDE (about 2 squares), and the nearest water
+ * point is at most 2 squares further (see #nearestWaterPoint). The rest of the sea skips the
+ * lookup, which the rivers' search for deep water would otherwise pay thousands of times a tile.
+ */
+const DELTA_NEAR = 5;
+
 /**
  * What the map is at any point and level of detail, read from the coarse world.
  * Pure: the same arguments always give the same answer, whatever was sampled before.
@@ -72,6 +84,7 @@ export class WorldSampler {
   #hint = 0;
   // The side of the water mesh's grid, 0 without water
   #waterSide = 0;
+  #nearDelta = null;
 
   /**
    * @param base see world.js MapGenerator#toBaseWorld, with or without its water (see
@@ -83,6 +96,27 @@ export class WorldSampler {
     this.#noise = createNoise();
     this.#noise.seed(hashSeed(base.seed));
     if (base.waterSites) this.#waterSide = Math.round(Math.sqrt(base.waterSites.length / 2));
+    if (base.wetlands) {
+      const side = this.#waterSide;
+      this.#nearDelta = new Uint8Array(side * side);
+      for (let i = 0; i < base.wetlands.length; i++) {
+        if (base.wetlands[i] !== DELTA_POINT) continue;
+        const [col, row] = [i % side, Math.floor(i / side)];
+        for (
+          let r = Math.max(row - DELTA_NEAR, 0);
+          r <= Math.min(row + DELTA_NEAR, side - 1);
+          r++
+        ) {
+          for (
+            let c = Math.max(col - DELTA_NEAR, 0);
+            c <= Math.min(col + DELTA_NEAR, side - 1);
+            c++
+          ) {
+            this.#nearDelta[r * side + c] = 1;
+          }
+        }
+      }
+    }
   }
 
   get seed() {
@@ -169,6 +203,14 @@ export class WorldSampler {
     ];
   }
 
+  // The column and row of the water grid square of (x, y), clamped to the grid
+  #square(x, y) {
+    const side = this.#waterSide;
+    const step = WORLD_SIZE / side;
+    const clamp = (i) => Math.min(Math.max(i, 0), side - 1);
+    return [clamp(Math.floor(x / step)), clamp(Math.floor(y / step))];
+  }
+
   /**
    * The water mesh point nearest to (x, y). The mesh is a grid with a point in each square
    * (hydrology.js computeDrainage), and the point of (x, y)'s own square is less than √2 squares
@@ -177,9 +219,7 @@ export class WorldSampler {
   #nearestWaterPoint(x, y) {
     const sites = this.#base.waterSites;
     const side = this.#waterSide;
-    const step = WORLD_SIZE / side;
-    const clamp = (i) => Math.min(Math.max(i, 0), side - 1);
-    const [col, row] = [clamp(Math.floor(x / step)), clamp(Math.floor(y / step))];
+    const [col, row] = this.#square(x, y);
     let nearest = -1;
     let nearestDistance = Infinity;
     for (let r = Math.max(row - 2, 0); r <= Math.min(row + 2, side - 1); r++) {
@@ -193,8 +233,9 @@ export class WorldSampler {
   }
 
   /**
-   * @returns {{biome: Number, continent: Number, land: boolean, altitude: Number}}
-   *          biome is an index in BIOME_DEFINITIONS; continent is 0 at sea and on islands
+   * @returns {{biome: Number, continent: Number, land: boolean, altitude: Number, flat: boolean}}
+   *          biome is an index in BIOME_DEFINITIONS; continent is 0 at sea and on islands;
+   *          flat: delta land, level whatever the altitude noise (the tiles give it no slope)
    */
   sampleAt(x, y, level) {
     const [wx, wy] = this.warp(x, y, level);
@@ -203,17 +244,41 @@ export class WorldSampler {
     this.#hint = cell;
     const biome = this.#base.biomes[cell];
     const land = !MARITIME[biome];
-    if (land && this.#waterSide) {
-      const [lx, ly] = this.lakeWarp(x, y, level);
-      if (this.#base.lakes[this.#nearestWaterPoint(lx, ly)]) {
-        return { biome: LAKE, continent: 0, land: false, altitude: SEA_ALTITUDE };
+    const base = this.#base;
+    if (this.#waterSide) {
+      const [col, row] = this.#square(x, y);
+      if (land || this.#nearDelta?.[row * this.#waterSide + col]) {
+        const water = this.#nearestWaterPoint(...this.lakeWarp(x, y, level));
+        if (land && base.lakes[water]) {
+          return { biome: LAKE, continent: 0, land: false, altitude: SEA_ALTITUDE, flat: false };
+        }
+        const wetland = base.wetlands?.[water];
+        if (land && wetland === SWAMP_POINT && SWAMPY[biome]) {
+          return {
+            biome: SWAMP,
+            continent: base.continents[cell],
+            land,
+            altitude: this.altitudeAt(x, y, level),
+            flat: false,
+          };
+        }
+        if (!land && wetland === DELTA_POINT) {
+          return {
+            biome: base.deltaBiome[water],
+            continent: base.deltaContinent[water],
+            land: true,
+            altitude: DELTA_ALTITUDE,
+            flat: true,
+          };
+        }
       }
     }
     return {
       biome,
-      continent: land ? this.#base.continents[cell] : 0,
+      continent: land ? base.continents[cell] : 0,
       land,
       altitude: land ? this.altitudeAt(x, y, level) : SEA_ALTITUDE,
+      flat: false,
     };
   }
 }
