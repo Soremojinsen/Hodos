@@ -4,6 +4,7 @@ import { WORLD_SIZE } from "../../src/constants.js";
 import { BIOME_DEFINITIONS, SWAMP_BIOMES } from "../../src/generation/biomes.js";
 import {
   DELTA_ALTITUDE,
+  DELTA_MIN_LEVEL,
   DELTA_POINT,
   LAKE_WARP_AMPLITUDE,
   SEA_ALTITUDE,
@@ -218,5 +219,17 @@ describe("wetlands", () => {
       expect(sampler.sampleAt(x, y, 5)).toEqual(before);
     }
     expect(sea).toBeGreaterThan(1000);
+  });
+
+  test("at level 0 the sea stays sea, even where a delta is", () => {
+    let checked = 0;
+    for (let i = 0; i < watered.wetlands.length; i++) {
+      if (watered.wetlands[i] !== DELTA_POINT) continue;
+      const [x, y] = [watered.waterSites[2 * i], watered.waterSites[2 * i + 1]];
+      expect(DELTA_MIN_LEVEL).toBeGreaterThan(0);
+      expect(sampler.sampleAt(x, y, 0)).toEqual(dry.sampleAt(x, y, 0));
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(0);
   });
 });

@@ -41,6 +41,15 @@ export const DELTA_POINT = 2;
 export const DELTA_ALTITUDE = 0.15;
 
 /**
+ * The first level at which deltas are drawn as land. At level 0 a cell is about as large as a
+ * whole delta fan, so a channel's end cell can have its site on delta land, and (river threshold
+ * 256) a delta's trunk channels can be drawn while its outlets, with a smaller share of the flow,
+ * are not. From level 1 (threshold 128) every channel is drawn: with 2 channels each has a share
+ * of at least 128, with 3 or more the flow is at least about 724 so each has at least 241.
+ */
+export const DELTA_MIN_LEVEL = 1;
+
+/**
  * How far apart, in world units, slopeAt samples the altitude: well under the wavelength of the
  * finest altitude octave (about 5 units at level 7).
  */
@@ -247,7 +256,7 @@ export class WorldSampler {
     const base = this.#base;
     if (this.#waterSide) {
       const [col, row] = this.#square(x, y);
-      if (land || this.#nearDelta?.[row * this.#waterSide + col]) {
+      if (land || (level >= DELTA_MIN_LEVEL && this.#nearDelta?.[row * this.#waterSide + col])) {
         const water = this.#nearestWaterPoint(...this.lakeWarp(x, y, level));
         if (land && base.lakes[water]) {
           return { biome: LAKE, continent: 0, land: false, altitude: SEA_ALTITUDE, flat: false };
