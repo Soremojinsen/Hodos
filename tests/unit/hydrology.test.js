@@ -1,7 +1,10 @@
 import { expect, test } from "vitest";
 import { BIOME_DEFINITIONS, SWAMP_BIOMES } from "../../src/generation/biomes.js";
-import { SWAMP_POINT, WorldSampler } from "../../src/generation/fields.js";
+import { DELTA_POINT, SWAMP_POINT, WorldSampler } from "../../src/generation/fields.js";
 import {
+  DELTA_FLOW,
+  DELTA_LOBES,
+  DELTA_RADIUS,
   LAKE_DEPTH,
   MIN_RIVER_FLOW,
   MIN_SWAMP_POINTS,
@@ -92,13 +95,16 @@ test("lakes lie in basins the fill raised, on land", () => {
 test("rivers are the edges with enough flow, largest first, marked where they reach water", () => {
   const { riverFrom, riverTo, riverFlow, riverMouth, lakes } = water;
   expect(riverFrom.length).toBeGreaterThan(100);
+  const delta = (i) => water.wetlands[i] === DELTA_POINT;
   for (let k = 0; k < riverFrom.length; k++) {
     const [a, b] = [riverFrom[k], riverTo[k]];
+    if (k > 0) expect(riverFlow[k]).toBeLessThanOrEqual(riverFlow[k - 1]);
+    expect(riverFlow[k]).toBeGreaterThanOrEqual(MIN_RIVER_FLOW);
+    expect(lakes[a] && lakes[b]).toBeFalsy();
+    // Delta channels are checked on their own, below
+    if (delta(a) || delta(b)) continue;
     expect(riverTo[k]).toBe(drainage.downstream[a]);
     expect(riverFlow[k]).toBe(drainage.flow[a]);
-    expect(riverFlow[k]).toBeGreaterThanOrEqual(MIN_RIVER_FLOW);
-    if (k > 0) expect(riverFlow[k]).toBeLessThanOrEqual(riverFlow[k - 1]);
-    expect(lakes[a] && lakes[b]).toBeFalsy();
     expect(riverMouth[k]).toBe(!drainage.land[b] || lakes[b] ? 1 : 0);
   }
 });
@@ -203,4 +209,116 @@ test("a lone slow point by a river makes no swamp", () => {
       }
     }
   }
+});
+
+/**
+ * The deltas of the water: for each mouth whose edge was removed, its fan and its channels.
+ */
+const deltasOf = (water, drainage) => {
+  const { riverFrom, riverTo, riverFlow, riverMouth, wetlands } = water;
+  const isDelta = (i) => wetlands[i] === DELTA_POINT;
+  const channels = [];
+  for (let k = 0; k < riverFrom.length; k++) {
+    if (isDelta(riverFrom[k]) || isDelta(riverTo[k])) {
+      channels.push({
+        from: riverFrom[k],
+        to: riverTo[k],
+        flow: riverFlow[k],
+        mouth: riverMouth[k],
+      });
+    }
+  }
+  const mouths = new Set(channels.filter((c) => !isDelta(c.from)).map((c) => c.from));
+  return [...mouths].map((m) => {
+    const tree = [];
+    const queue = [m];
+    for (let q = 0; q < queue.length; q++) {
+      for (const c of channels.filter((c) => c.from === queue[q])) {
+        tree.push(c);
+        if (!c.mouth) queue.push(c.to);
+      }
+    }
+    return { mouth: m, flow: drainage.flow[m], channels: tree };
+  });
+};
+
+test("great rivers into the sea end in deltas that fork into channels to the sea", () => {
+  const deltas = deltasOf(water, drainage);
+  expect(deltas.length).toBeGreaterThan(0);
+  expect(deltas.some((d) => d.channels.filter((c) => c.mouth).length >= 2)).toBe(true);
+  for (const { mouth, flow, channels } of deltas) {
+    expect(flow).toBeGreaterThanOrEqual(DELTA_FLOW);
+    // The mouth no longer drains straight to the sea: its only edges are channels into its fan
+    water.riverFrom.forEach((a, k) => {
+      if (a === mouth) expect(water.wetlands[water.riverTo[k]]).toBe(DELTA_POINT);
+    });
+    const outlets = channels.filter((c) => c.mouth);
+    expect(outlets.length).toBeGreaterThanOrEqual(1);
+    expect(outlets.length).toBeLessThanOrEqual(5);
+    for (const c of outlets) {
+      expect(drainage.land[c.to]).toBe(0);
+      expect(water.wetlands[c.to]).not.toBe(DELTA_POINT);
+    }
+    // At every point, the flow in is the flow out: the channels share the river's water
+    const into = new Map([[mouth, flow]]);
+    for (const c of channels) if (!c.mouth) into.set(c.to, (into.get(c.to) ?? 0) + c.flow);
+    for (const [point, inflow] of into) {
+      const out = channels.filter((c) => c.from === point).reduce((sum, c) => sum + c.flow, 0);
+      expect(out).toBeCloseTo(inflow, 1);
+    }
+  }
+});
+
+test("delta land was sea, near its mouth, with the mouth's continent and a delta biome", () => {
+  const { sites, land, continent, biome } = drainage;
+  const deltas = deltasOf(water, drainage);
+  const names = BIOME_DEFINITIONS.map((d) => d.name);
+  for (let i = 0; i < land.length; i++) {
+    if (water.wetlands[i] !== DELTA_POINT) continue;
+    expect(land[i]).toBe(0);
+    // The nearest delta mouth is within its largest rim radius
+    const near = deltas.some(
+      ({ mouth, flow }) =>
+        Math.hypot(sites[2 * i] - sites[2 * mouth], sites[2 * i + 1] - sites[2 * mouth + 1]) <=
+          DELTA_RADIUS * Math.sqrt(flow / DELTA_FLOW) * (1 + DELTA_LOBES / 2) + 1e-9 &&
+        water.deltaContinent[i] === continent[mouth],
+    );
+    expect(near).toBe(true);
+    // Swamp or floodplain, or else the mouth's own biome
+    const allowed = new Set([names.indexOf("Swamp"), names.indexOf("floodplain")]);
+    for (const d of deltas) allowed.add(biome[d.mouth]);
+    expect(allowed.has(water.deltaBiome[i])).toBe(true);
+  }
+});
+
+test("rivers into lakes, or too small, get no delta", () => {
+  for (const { mouth, flow } of deltasOf(water, drainage)) {
+    expect(drainage.lakes[drainage.downstream[mouth]]).toBe(0);
+    expect(flow).toBeGreaterThanOrEqual(DELTA_FLOW);
+  }
+  // A world whose rivers are all below DELTA_FLOW has no delta
+  const small = computeWetlands("12345", {
+    ...drainage,
+    flow: drainage.flow.map((f) => Math.min(f, DELTA_FLOW - 1)),
+  });
+  expect(small.channels).toHaveLength(0);
+  expect(small.wetlands.includes(DELTA_POINT)).toBe(false);
+});
+
+test("a mouth with no sea around it to grow into keeps its edge and makes no delta", () => {
+  // Only the sea points the great rivers drain to stay sea, each walled in by land: a fan can
+  // hold that one point, but it has no rim, so no delta grows
+  const { land, downstream, flow } = drainage;
+  const kept = new Set();
+  for (let i = 0; i < land.length; i++) {
+    if (land[i] && downstream[i] >= 0 && !land[downstream[i]] && flow[i] >= DELTA_FLOW) {
+      kept.add(downstream[i]);
+    }
+  }
+  expect(kept.size).toBeGreaterThan(0);
+  const walled = { ...drainage, land: land.map((l, i) => (l || !kept.has(i) ? 1 : 0)) };
+  const wet = computeWetlands("12345", walled);
+  expect(wet.channels).toHaveLength(0);
+  expect(wet.removed.includes(1)).toBe(false);
+  expect(wet.wetlands.includes(DELTA_POINT)).toBe(false);
 });
