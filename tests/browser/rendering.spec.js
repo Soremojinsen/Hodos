@@ -3,7 +3,15 @@ import { expect, test } from "@playwright/test";
 import { BIOME_DEFINITIONS } from "../../src/generation/biomes.js";
 import { WorldSampler } from "../../src/generation/fields.js";
 import { withWater } from "../../src/generation/hydrology.js";
-import { riverAt, riverCourse, riverThreshold } from "../../src/generation/rivers.js";
+import {
+  bankAt,
+  bankHalfWidth,
+  pixelSize,
+  riverAt,
+  riverCourse,
+  riverThreshold,
+} from "../../src/generation/rivers.js";
+import { siteAt } from "../../src/generation/tiles.js";
 import { generateWorld } from "../../src/generation/world.js";
 import { aleaPRNG } from "../../src/vendor/alea-prng.js";
 import { countColors, openMap, waitForIdle, waitForTiles } from "./helpers.js";
@@ -256,15 +264,29 @@ test("hills are lit from the north-west in the Parchemin and Biomes renderings, 
   expect(shaded).toHaveLength(20);
 
   await openMap(page);
+  // Keep the points drawn as plain: floodplains, swamps and deltas are drawn from the water mesh,
+  // which the sampler does not see. A plain's debug brightness is 0.8 * 255 of green.
+  const drawnPlain = async (points) => {
+    const kept = [];
+    for (const point of points) {
+      if ((await brightness(page, [point], 4, "debug")) === 204) kept.push(point);
+    }
+    return kept;
+  };
+  const [litPlain, shadedPlain] = [await drawnPlain(lit), await drawnPlain(shaded)];
+  expect(litPlain.length).toBeGreaterThanOrEqual(10);
+  expect(shadedPlain.length).toBeGreaterThanOrEqual(10);
   for (const mode of ["default", "biomes"]) {
     const [bright, dark] = [
-      await brightness(page, lit, 4, mode),
-      await brightness(page, shaded, 4, mode),
+      await brightness(page, litPlain, 4, mode),
+      await brightness(page, shadedPlain, 4, mode),
     ];
     expect(bright).toBeGreaterThan(dark + 30);
   }
   // Every plain has the same debug color
-  expect(await brightness(page, lit, 4, "debug")).toBe(await brightness(page, shaded, 4, "debug"));
+  expect(await brightness(page, litPlain, 4, "debug")).toBe(
+    await brightness(page, shadedPlain, 4, "debug"),
+  );
 });
 
 /**
@@ -404,4 +426,96 @@ test("a river never cuts a forest mark: marks near it are drawn whole or not at 
     return count;
   }, crossings);
   expect(cut).toBe(0);
+});
+
+/**
+ * The colour of the pixel at a world point, drawn at a level in a mode.
+ */
+const pixelAt = (page, [x, y], level, mode) =>
+  page.evaluate(
+    async ([x, y, level, mode]) => {
+      const renderer = window.hodos.renderer;
+      const view = { centerX: x, centerY: y, pixelsPerUnit: (256 * 2 ** level) / 10000 };
+      Object.assign(view, { width: 16, height: 16 });
+      const release = await renderer.ensureTiles(view, level);
+      try {
+        const pixels = renderer.renderToPixels(view, level, mode);
+        const i = 4 * (8 * 16 + 8);
+        return [pixels[i], pixels[i + 1], pixels[i + 2]];
+      } finally {
+        release();
+      }
+    },
+    [x, y, level, mode],
+  );
+
+const greenness = ([r, g, b]) => g - (r + b) / 2;
+
+test("floodplains are greener than the dry land beside them, in the Parchemin and Biomes renderings", async ({
+  page,
+}) => {
+  // Pairs of cell sites at level 5 along desert or savanna rivers: one floodplain, one dry
+  const sampler = new WorldSampler(withWater(generateWorld("12345")));
+  const dry = ["Desert", "Savana"].map((name) =>
+    BIOME_DEFINITIONS.findIndex((d) => d.name === name),
+  );
+  const { sites, from, to, flow } = sampler.rivers;
+  const z = 5;
+  const pairs = [];
+  for (let k = 0; k < from.length && pairs.length < 6; k++) {
+    if (flow[k] < riverThreshold(z)) break;
+    const [ax, ay, bx, by] = [
+      sites[2 * from[k]],
+      sites[2 * from[k] + 1],
+      sites[2 * to[k]],
+      sites[2 * to[k] + 1],
+    ];
+    const length = Math.hypot(bx - ax, by - ay);
+    const [nx, ny] = [(ay - by) / length, (bx - ax) / length];
+    const half = bankHalfWidth(flow[k], z);
+    const near = siteAt(
+      "12345",
+      (ax + bx) / 2 + 0.6 * half * nx,
+      (ay + by) / 2 + 0.6 * half * ny,
+      z,
+    );
+    const far = siteAt("12345", (ax + bx) / 2 + 3 * half * nx, (ay + by) / 2 + 3 * half * ny, z);
+    const [n, f] = [sampler.sampleAt(...near, z), sampler.sampleAt(...far, z)];
+    if (!dry.includes(n.biome) || !dry.includes(f.biome)) continue;
+    if (!bankAt(sampler, ...near, z, n.biome) || bankAt(sampler, ...far, z, f.biome)) continue;
+    // Away from any river drawn, whose water would be sampled instead
+    const margin = 3 * pixelSize(z);
+    if (riverAt(sampler, ...near, z, { margin }) || riverAt(sampler, ...far, z, { margin }))
+      continue;
+    pairs.push([near, far]);
+  }
+  expect(pairs.length).toBeGreaterThan(0);
+
+  await openMap(page);
+  for (const mode of ["default", "biomes"]) {
+    let [green, plain] = [0, 0];
+    for (const [near, far] of pairs) {
+      green += greenness(await pixelAt(page, near, z, mode));
+      plain += greenness(await pixelAt(page, far, z, mode));
+    }
+    expect(green / pairs.length, mode).toBeGreaterThan(plain / pairs.length + 10);
+  }
+});
+
+test("a delta is drawn as land where the sea was", async ({ page }) => {
+  const water = withWater(generateWorld("12345"));
+  const sampler = new WorldSampler(water);
+  const drySampler = new WorldSampler(generateWorld("12345"));
+  const z = 5;
+  let point = null;
+  for (let i = 0; i < water.wetlands.length && !point; i++) {
+    if (water.wetlands[i] !== 2) continue;
+    const site = siteAt("12345", water.waterSites[2 * i], water.waterSites[2 * i + 1], z);
+    if (sampler.sampleAt(...site, z).land && !drySampler.sampleAt(...site, z).land) point = site;
+  }
+  expect(point).not.toBeNull();
+  await openMap(page);
+  const waterColor = [0.278, 0.47, 0.525].map((c) => Math.round(c * 255));
+  const color = await pixelAt(page, point, z, "default");
+  expect(color.some((c, i) => Math.abs(c - waterColor[i]) > 8)).toBe(true);
 });

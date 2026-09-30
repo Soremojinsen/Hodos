@@ -21,7 +21,9 @@ test("rivers are as wide as riverPixels says, and keep their width when the leve
     // (0.529, 0.556, 0.364) - a / 5, which the hill shading and the vegetation marks multiply by
     // some s. So its green minus red and blue minus red, (0.027, -0.165) * s, point the same way
     // whatever a and s, while water's, from its exact colour (0.278, 0.470, 0.525), point
-    // elsewhere. Splitting a pixel's (g - r, b - r) into f times water's plus some multiple of
+    // elsewhere. Floodplains blend that towards the parchment green (0.4, 0.55, 0.28), whose
+    // direction (0.15, -0.12) lies between the plains' and away from water's: measured against it,
+    // any mix of the two comes out 0 or negative. Splitting a pixel's (g - r, b - r) into f times water's plus some multiple of
     // the plains' gives f, 0 on any plains pixel however lit or marked. Beach, mountain and snow
     // colours come out negative, so 0 too.
     const widthAt = async (x, y, zoom) => {
@@ -39,7 +41,8 @@ test("rivers are as wide as riverPixels says, and keep their width when the leve
         const i = 4 * (py * side + px);
         const [dx, dy] = [pixels[i + 1] - pixels[i], pixels[i + 2] - pixels[i]];
         const [wx, wy] = [(0.47 - 0.278) * 255, (0.525 - 0.278) * 255];
-        const [lx, ly] = [0.556 - 0.529, 0.364 - 0.529];
+        // The floodplains' ground direction, the plains tinted towards the parchment green
+        const [lx, ly] = [0.55 - 0.4, 0.28 - 0.4];
         return Math.min(Math.max((dx * ly - dy * lx) / (wx * ly - wy * lx), 0), 1);
       };
       let shortest = Infinity;
