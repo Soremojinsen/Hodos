@@ -299,9 +299,21 @@ export function computeWetlands(seed, drainage) {
     if (land[i] && !lakes[i] && to >= 0 && !land[to] && flow[i] >= DELTA_FLOW) mouths.push(i);
   }
   mouths.sort((a, b) => flow[b] - flow[a] || a - b);
+  // The sea points rivers end in must stay sea, so these rivers still reach the water
+  const drained = new Map();
+  for (let i = 0; i < count; i++) {
+    const to = downstream[i];
+    if (land[i] && to >= 0 && !land[to] && flow[i] >= MIN_RIVER_FLOW) {
+      drained.set(to, (drained.get(to) ?? 0) + 1);
+    }
+  }
+  const outlets = new Set();
   for (const m of mouths) {
-    const delta = growDelta(seed, drainage, m, wetlands);
+    const reserved = (j) =>
+      outlets.has(j) || (drained.get(j) ?? 0) - (j === downstream[m] ? 1 : 0) > 0;
+    const delta = growDelta(seed, drainage, m, wetlands, reserved);
     if (!delta) continue;
+    for (const c of delta.channels) if (c.mouth) outlets.add(c.to);
     removed[m] = 1;
     const kind = SWAMPY.has(biome[m]) ? SWAMP : DRY.has(biome[m]) ? FLOODPLAIN : biome[m];
     for (const j of delta.fan) {
@@ -320,9 +332,11 @@ export function computeWetlands(seed, drainage) {
  * has no rim point (no sea beside it outside this and earlier deltas).
  *
  * @param wetlands the points already taken by earlier deltas are DELTA_POINT
+ * @param reserved {function(Number): Boolean} sea points the fan must not take: those other rivers
+ *        or earlier deltas' channels end in
  * @returns {{fan: Number[], channels: {from, to, flow, mouth}[]}|null}
  */
-function growDelta(seed, drainage, m, wetlands) {
+function growDelta(seed, drainage, m, wetlands, reserved) {
   const { sites, land, downstream, flow, delaunay } = drainage;
   const random = aleaPRNG(`${seed}:delta:${m}`);
   const distance = (i, j) =>
@@ -363,7 +377,7 @@ function growDelta(seed, drainage, m, wetlands) {
   };
   const free = (j) => !land[j] && wetlands[j] !== DELTA_POINT;
   const inFan = (j) => {
-    if (!free(j)) return false;
+    if (!free(j) || reserved(j)) return false;
     const angle = angleOf(j);
     return Math.abs(angle) <= DELTA_SPREAD && distance(m, j) <= rim(angle);
   };

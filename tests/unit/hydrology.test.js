@@ -322,3 +322,17 @@ test("a mouth with no sea around it to grow into keeps its edge and makes no del
   expect(wet.removed.includes(1)).toBe(false);
   expect(wet.wetlands.includes(DELTA_POINT)).toBe(false);
 });
+
+test("every river edge that ends in water ends in sea or a lake, never on delta land", () => {
+  for (const seed of ["12345", "1", "42", "abc"]) {
+    const world = generateWorld(seed);
+    const { land, lakes } = computeDrainage(new WorldSampler(world));
+    const { wetlands, riverTo, riverMouth } = generateWater(new WorldSampler(world));
+    riverMouth.forEach((mouth, k) => {
+      if (!mouth) return;
+      const to = riverTo[k];
+      expect(wetlands[to], `seed ${seed}`).not.toBe(DELTA_POINT);
+      expect(!land[to] || lakes[to], `seed ${seed}`).toBeTruthy();
+    });
+  }
+});
