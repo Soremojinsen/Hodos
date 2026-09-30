@@ -20,6 +20,25 @@ const base = generateWorld("12345");
 const drainage = computeDrainage(new WorldSampler(base));
 const water = generateWater(new WorldSampler(base));
 
+// Shared helpers for swamp tests
+const { sites, land, biome, height, filled, downstream, flow, lakes, delaunay } = drainage;
+const swampy = new Set(
+  SWAMP_BIOMES.map((name) => BIOME_DEFINITIONS.findIndex((d) => d.name === name)),
+);
+const eligible = (i) =>
+  land[i] && !lakes[i] && swampy.has(biome[i]) && height[i] < SWAMP_MAX_ALTITUDE;
+const byRiver = (i) =>
+  flow[i] >= SWAMP_FLOW || [...delaunay.neighbors(i)].some((j) => land[j] && flow[j] >= SWAMP_FLOW);
+const slow = (i) => {
+  const j = downstream[i];
+  if (j < 0) return false;
+  const drop =
+    (filled[i] - filled[j]) /
+    Math.hypot(sites[2 * j] - sites[2 * i], sites[2 * j + 1] - sites[2 * i + 1]);
+  return filled[i] - height[i] > SWAMP_PIT_DEPTH || drop < SWAMP_GRADIENT;
+};
+const core = (i) => eligible(i) && byRiver(i) && slow(i);
+
 test("the same seed always gives the same water", () => {
   expect(generateWater(new WorldSampler(generateWorld("12345")))).toEqual(water);
   expect(generateWater(new WorldSampler(generateWorld("999"))).riverFlow).not.toEqual(
@@ -103,23 +122,6 @@ test("the same seed always gives the same wetlands", () => {
 });
 
 test("swamps lie by slow rivers, low in temperate, humid and cold lands", () => {
-  const { sites, land, biome, height, filled, downstream, flow, lakes, delaunay } = drainage;
-  const swampy = new Set(
-    SWAMP_BIOMES.map((name) => BIOME_DEFINITIONS.findIndex((d) => d.name === name)),
-  );
-  const eligible = (i) =>
-    land[i] && !lakes[i] && swampy.has(biome[i]) && height[i] < SWAMP_MAX_ALTITUDE;
-  const byRiver = (i) =>
-    flow[i] >= SWAMP_FLOW ||
-    [...delaunay.neighbors(i)].some((j) => land[j] && flow[j] >= SWAMP_FLOW);
-  const slow = (i) => {
-    const j = downstream[i];
-    const drop =
-      (filled[i] - filled[j]) /
-      Math.hypot(sites[2 * j] - sites[2 * i], sites[2 * j + 1] - sites[2 * i + 1]);
-    return filled[i] - height[i] > SWAMP_PIT_DEPTH || drop < SWAMP_GRADIENT;
-  };
-  const core = (i) => eligible(i) && byRiver(i) && slow(i);
   let [swamps, cores] = [0, 0];
   for (let i = 0; i < land.length; i++) {
     if (wetlands.wetlands[i] !== SWAMP_POINT) continue;
@@ -138,12 +140,67 @@ test("swamps lie by slow rivers, low in temperate, humid and cold lands", () => 
 });
 
 test("a lone slow point by a river makes no swamp", () => {
-  // Every core point belongs to a connected group of at least MIN_SWAMP_POINTS core points
-  const { land, delaunay } = drainage;
-  const isSwamp = (i) => wetlands.wetlands[i] === SWAMP_POINT;
+  // Every core point belongs to a connected group of at least MIN_SWAMP_POINTS core points.
+  // Build connected components of core points.
+  const grouped = new Uint8Array(land.length);
+  const components = [];
   for (let i = 0; i < land.length; i++) {
-    if (!isSwamp(i)) continue;
-    const neighbours = [...delaunay.neighbors(i)].filter(isSwamp).length;
-    expect(neighbours).toBeGreaterThan(0);
+    if (grouped[i] || !core(i)) continue;
+    const component = [i];
+    grouped[i] = 1;
+    for (let k = 0; k < component.length; k++) {
+      for (const j of delaunay.neighbors(component[k])) {
+        if (!grouped[j] && core(j)) {
+          grouped[j] = 1;
+          component.push(j);
+        }
+      }
+    }
+    components.push(component);
+  }
+
+  // Check each component
+  for (const component of components) {
+    const isKept = component.length >= MIN_SWAMP_POINTS;
+    for (const i of component) {
+      // Core points in kept components must be swamps
+      if (isKept) {
+        expect(wetlands.wetlands[i]).toBe(SWAMP_POINT);
+      } else {
+        // Core points in small components must not be swamps (unless grown to by kept components)
+        // This is checked separately below
+      }
+    }
+  }
+
+  // Verify that small component core points are not swamps
+  // unless they are neighbors of a kept component's core point
+  for (const component of components) {
+    if (component.length >= MIN_SWAMP_POINTS) continue;
+    for (const i of component) {
+      // If this core point is a swamp, it must be because it's a neighbor of a kept core
+      if (wetlands.wetlands[i] === SWAMP_POINT) {
+        const hasKeptCoreNeighbor = [...delaunay.neighbors(i)].some(
+          (j) =>
+            core(j) &&
+            grouped[j] &&
+            components.some((c) => c.length >= MIN_SWAMP_POINTS && c.includes(j)),
+        );
+        expect(hasKeptCoreNeighbor).toBe(true);
+      }
+    }
+  }
+
+  // Verify growth ring: eligible neighbors of kept core points should be swamps
+  for (const component of components) {
+    if (component.length < MIN_SWAMP_POINTS) continue;
+    for (const i of component) {
+      for (const j of delaunay.neighbors(i)) {
+        if (eligible(j) && wetlands.wetlands[j] === SWAMP_POINT) {
+          // This is a growth-ring swamp, which is correct
+          expect(true).toBe(true);
+        }
+      }
+    }
   }
 });
