@@ -10,6 +10,8 @@ import { Counter, randomElement } from "./util.js";
  * - latitude: where the pool is likely, as a normal distribution over 0 (south) to 100 (north)
  * - stay: when spreading within its pool, the chance to keep this biome, and the alternative
  * - mark: the vegetation drawn over the biome, one of MARKS, or none
+ * - parchment: how much the Parchemin rendering tints the biome's lowland green, from 0 (none,
+ *   when absent) to 1, see shaders/world_default.frag
  */
 export const BIOME_DEFINITIONS = [
   {
@@ -141,6 +143,14 @@ export const BIOME_DEFINITIONS = [
     high: [0.28, 0.47, 0.53],
     debug: [0, 0.6, 1],
   },
+  {
+    name: "floodplain",
+    pool: "River",
+    low: [0.45, 0.72, 0.3],
+    high: [0.3, 0.52, 0.22],
+    debug: [0.6, 0.8, 0.2],
+    parchment: 1,
+  },
 ];
 
 /**
@@ -153,6 +163,12 @@ export const MARKS = ["broadleaf", "jungle", "conifer", "reeds"];
  * The kind of a mark in the shaders: 0 for none, else its index in MARKS + 1.
  */
 export const markKind = (mark) => (mark ? MARKS.indexOf(mark) + 1 : 0);
+
+/**
+ * The biomes a slow river can turn into a swamp, see hydrology.js computeWetlands: temperate,
+ * humid and cold lands. Dry lands get floodplains instead (rivers.js BANK_BIOMES).
+ */
+export const SWAMP_BIOMES = ["Plain", "Forest", "Swamp", "Jungle", "Taiga", "Tundra"];
 
 /**
  * A biome, built from one of BIOME_DEFINITIONS.

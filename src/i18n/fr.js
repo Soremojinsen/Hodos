@@ -59,6 +59,7 @@ export default {
   "biome.Fairy": "Île féerique",
   "biome.lake": "Lac",
   "biome.river": "Rivière",
+  "biome.floodplain": "Plaine alluviale",
   "export.title": "Exporter",
   "export.area": "Zone :",
   "export.world": "Monde entier",

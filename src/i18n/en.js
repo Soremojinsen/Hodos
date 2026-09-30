@@ -58,6 +58,7 @@ export default {
   "biome.Fairy": "Fairy island",
   "biome.lake": "Lake",
   "biome.river": "River",
+  "biome.floodplain": "Floodplain",
   "export.title": "Export",
   "export.area": "Area:",
   "export.world": "Whole world",

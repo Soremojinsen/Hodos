@@ -4,6 +4,7 @@ import {
   BIOMESPOOL,
   BIOME_DEFINITIONS,
   MARKS,
+  SWAMP_BIOMES,
   Biome,
   createBiomes,
   markKind,
@@ -102,4 +103,28 @@ test("vegetation marks are known, and only forests, jungles, taiga and swamps ha
   ]);
   expect(markKind(undefined)).toBe(0);
   expect(MARKS.map(markKind)).toEqual([1, 2, 3, 4]);
+});
+
+test("floodplains are land drawn by rivers, never picked for the coarse world", () => {
+  const index = BIOME_DEFINITIONS.findIndex((definition) => definition.name === "floodplain");
+  // Appended last: the ids of the other biomes do not move
+  expect(index).toBe(BIOME_DEFINITIONS.length - 1);
+  expect(BIOME_DEFINITIONS[index - 1].name).toBe("river");
+  const floodplain = BIOME_DEFINITIONS[index];
+  expect(floodplain.maritime).not.toBe(true);
+  expect(Object.keys(BIOMESPOOL)).not.toContain(floodplain.pool);
+  expect(floodplain.mark).toBeUndefined();
+});
+
+test("only floodplains are tinted in the Parchemin rendering", () => {
+  const tinted = BIOME_DEFINITIONS.filter((definition) => definition.parchment);
+  expect(tinted.map((definition) => definition.name)).toEqual(["floodplain"]);
+  expect(tinted[0].parchment).toBeGreaterThan(0);
+  expect(tinted[0].parchment).toBeLessThanOrEqual(1);
+});
+
+test("swamps can spread over the temperate, humid and cold biomes", () => {
+  expect(SWAMP_BIOMES).toEqual(["Plain", "Forest", "Swamp", "Jungle", "Taiga", "Tundra"]);
+  const names = BIOME_DEFINITIONS.map((definition) => definition.name);
+  for (const name of SWAMP_BIOMES) expect(names).toContain(name);
 });
