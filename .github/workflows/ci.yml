@@ -35,4 +35,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: playwright-report
-          path: playwright-report
+          # The github reporter writes no report: each failed test's page snapshot is in test-results
+          path: |
+            playwright-report
+            test-results
