@@ -14,13 +14,13 @@ exports[`tile 2/1/1 of seed 12345 stays the same 1`] = `
 
 exports[`tile 2/1/1 of seed 12345 with water stays the same 1`] = `
 {
-  "biomeIds": 1789090434,
+  "biomeIds": 3466885186,
   "indices": 3061001994,
-  "positions": 1058526066,
-  "riverIndices": 3247039129,
-  "riverPositions": 715071565,
-  "riverShapes": 3291662291,
-  "riverTriangles": 1392,
+  "positions": 649129022,
+  "riverIndices": 2078817536,
+  "riverPositions": 312890516,
+  "riverShapes": 4092497651,
+  "riverTriangles": 1634,
   "slopes": 3504375680,
   "triangles": 6145,
   "vertices": 7169,

@@ -1,6 +1,6 @@
 import { WORLD_SIZE } from "../constants.js";
 import { BIOME_DEFINITIONS } from "../generation/biomes.js";
-import { RIVER, pixelSize, riverAt } from "../generation/rivers.js";
+import { FLOODPLAIN, RIVER, bankAt, pixelSize, riverAt } from "../generation/rivers.js";
 import { siteAt } from "../generation/tiles.js";
 import { levelForZoom } from "./tile-grid.js";
 
@@ -29,7 +29,7 @@ export const RIVER_MARGIN_PX = 1;
  * What the map shows at a world point at a zoom: the biome name, the relief band and the land
  * mass of the cell drawn there, or the river drawn over it. Lakes and rivers are fresh water,
  * not sea; a river keeps the land mass it flows through. It only reads the sampler, so the map
- * stays the same.
+ * stays the same. Dry land beside a river is floodplain, as the tiles draw it.
  *
  * @param sampler {WorldSampler}
  * @param options.rivers {boolean} whether rivers are drawn: the debug mode shows the raw cells
@@ -46,6 +46,8 @@ export function inspectAt(sampler, x, y, zoom, { rivers = true } = {}) {
       cell.continent > 0 ? { type: "continent", number: cell.continent } : { type: "island" };
   }
   let biome = cell.biome;
+  // Tiles colour a cell floodplain by its site, in every mode, see generation/tiles.js buildTile
+  if (cell.land && bankAt(sampler, siteX, siteY, level, biome)) biome = FLOODPLAIN;
   if (
     rivers &&
     cell.land &&

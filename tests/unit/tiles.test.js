@@ -2,8 +2,10 @@ import { Delaunay } from "d3-delaunay";
 import { polygonArea } from "d3-polygon";
 import { expect, test } from "vitest";
 import { WORLD_SIZE } from "../../src/constants.js";
+import { BIOME_DEFINITIONS } from "../../src/generation/biomes.js";
 import { DELTA_POINT, WorldSampler } from "../../src/generation/fields.js";
 import { withWater } from "../../src/generation/hydrology.js";
+import { bankAt, riverThreshold } from "../../src/generation/rivers.js";
 import {
   TILE_CELLS_SIDE,
   buildTile,
@@ -323,4 +325,51 @@ test("delta land is flat: its vertices have no slope", () => {
     expect([...tile.slopes.subarray(2 * v, 2 * v + 2)]).toEqual([0, 0]);
   }
   expect(flat).toBeGreaterThan(0);
+});
+
+/**
+ * Tiles at levels 3 to 5 holding a point of a river drawn there that flows through a desert or
+ * a savanna, where floodplains are.
+ */
+const dryRiverTiles = (sampler) => {
+  const dry = ["Desert", "Savana"].map((n) => BIOME_DEFINITIONS.findIndex((d) => d.name === n));
+  const { sites, from, flow } = sampler.rivers;
+  const tiles = [];
+  for (const z of [3, 4, 5]) {
+    const k = from.findIndex(
+      (a, e) =>
+        flow[e] >= riverThreshold(z) &&
+        dry.includes(sampler.sampleAt(sites[2 * a], sites[2 * a + 1], z).biome),
+    );
+    if (k < 0) continue;
+    const size = tileSize(z);
+    tiles.push([
+      z,
+      Math.floor(sites[2 * from[k]] / size),
+      Math.floor(sites[2 * from[k] + 1] / size),
+    ]);
+  }
+  return tiles;
+};
+
+test("cells of dry land beside a river are floodplain", () => {
+  const FLOODPLAIN = BIOME_DEFINITIONS.findIndex((d) => d.name === "floodplain");
+  let floodplains = 0;
+  const tiles = dryRiverTiles(watered);
+  expect(tiles.length).toBeGreaterThan(0);
+  for (const [z, x, y] of tiles) {
+    const tile = buildTile(watered, z, x, y);
+    const cells = tileCells(SEED, z, x, y);
+    let v = 0;
+    for (const cell of cells) {
+      const biome = tile.biomeIds[v];
+      const sample = watered.sampleAt(cell.site[0], cell.site[1], z);
+      const expected =
+        sample.land && bankAt(watered, ...cell.site, z, sample.biome) ? FLOODPLAIN : sample.biome;
+      expect(biome).toBe(expected);
+      if (biome === FLOODPLAIN) floodplains++;
+      v += 1 + cell.ring.length;
+    }
+  }
+  expect(floodplains).toBeGreaterThan(0);
 });

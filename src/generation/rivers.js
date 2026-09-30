@@ -64,6 +64,21 @@ export const DEEP_WATER_PX = 12;
 export const JOIN_SIDES = 16;
 
 export const RIVER = BIOME_DEFINITIONS.findIndex((definition) => definition.name === "river");
+export const FLOODPLAIN = BIOME_DEFINITIONS.findIndex(
+  (definition) => definition.name === "floodplain",
+);
+
+/**
+ * Rivers line the dry lands with floodplains: a band BANK_MIN_PX wide on screen at least, and
+ * BANK_WIDTHS times the river's real width up close, either side of its course, in the share of
+ * that width each biome gets. Forests are already green or drawn with marks, and cold lands and
+ * mountains stay as they are.
+ */
+export const BANK_BIOMES = { Desert: 1, Savana: 1, Plain: 0.5 };
+export const BANK_MIN_PX = 6;
+export const BANK_WIDTHS = 6;
+
+const BANK_SHARES = BIOME_DEFINITIONS.map((definition) => BANK_BIOMES[definition.name] ?? 0);
 
 /**
  * The side of a screen pixel at zoom z, in world units.
@@ -126,6 +141,59 @@ export function drawnHalfWidth(flow, z) {
   );
   return Math.max(...zooms.map((zoom) => riverWidth(flow, zoom))) / 2;
 }
+
+/**
+ * Half the width of a river's floodplain at level z, in world units, before its biome's share.
+ */
+export const bankHalfWidth = (flow, z) =>
+  Math.max(BANK_MIN_PX * pixelSize(z), BANK_WIDTHS * trueWidth(flow));
+
+/**
+ * Whether points of an area are floodplain at level z: land of a biome in BANK_BIOMES within
+ * its share of bankHalfWidth of a river course drawn at that level. Floodplains are not in
+ * WorldSampler.sampleAt, which the courses themselves read (see findCourse): tiles and the
+ * pointer apply them over the sampled biome, each at a cell's site.
+ *
+ * @param sampler {WorldSampler}
+ * @param area the points to test are in it, [minX, minY, maxX, maxY]
+ * @returns {function(Number, Number, Number): boolean} (x, y, biome) => floodplain
+ */
+export function banks(sampler, z, [minX, minY, maxX, maxY]) {
+  const rivers = sampler.rivers;
+  if (!rivers || rivers.flow.length === 0) return () => false;
+  // Edges come largest flow first: no band is wider than the first one's
+  const reach = bankHalfWidth(rivers.flow[0], z);
+  const padded = [minX - reach, minY - reach, maxX + reach, maxY + reach];
+  // x0, y0, x1, y1, half width of each segment that may reach the area
+  const segments = [];
+  for (const { course, flow } of riverCourses(sampler, z, padded)) {
+    const half = bankHalfWidth(flow, z);
+    for (let i = 0; i + 3 < course.length; i += 2) {
+      const [px, py, qx, qy] = [course[i], course[i + 1], course[i + 2], course[i + 3]];
+      if (Math.max(px, qx) + half < minX || Math.min(px, qx) - half > maxX) continue;
+      if (Math.max(py, qy) + half < minY || Math.min(py, qy) - half > maxY) continue;
+      segments.push(px, py, qx, qy, half);
+    }
+  }
+  return (x, y, biome) => {
+    const share = BANK_SHARES[biome];
+    if (!share) return false;
+    for (let i = 0; i < segments.length; i += 5) {
+      const [px, py, qx, qy] = [segments[i], segments[i + 1], segments[i + 2], segments[i + 3]];
+      const band = share * segments[i + 4];
+      if (x < Math.min(px, qx) - band || x > Math.max(px, qx) + band) continue;
+      if (y < Math.min(py, qy) - band || y > Math.max(py, qy) + band) continue;
+      if (segmentDistance(x, y, px, py, qx, qy) <= band) return true;
+    }
+    return false;
+  };
+}
+
+/**
+ * Whether (x, y), of the given biome, is floodplain at level z, see banks.
+ */
+export const bankAt = (sampler, x, y, z, biome) =>
+  BANK_SHARES[biome] > 0 && banks(sampler, z, [x, y, x, y])(x, y, biome);
 
 /**
  * What the world shaders need to widen the rivers for a view, see view.js: its line widths,

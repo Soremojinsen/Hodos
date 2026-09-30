@@ -3,8 +3,14 @@ import { WORLD_SIZE } from "../../src/constants.js";
 import { BIOME_DEFINITIONS } from "../../src/generation/biomes.js";
 import { WorldSampler } from "../../src/generation/fields.js";
 import { withWater } from "../../src/generation/hydrology.js";
-import { pixelSize, riverAt, riverCourses } from "../../src/generation/rivers.js";
-import { siteAt, tileCells } from "../../src/generation/tiles.js";
+import {
+  bankAt,
+  pixelSize,
+  riverAt,
+  riverCourses,
+  riverThreshold,
+} from "../../src/generation/rivers.js";
+import { buildTile, siteAt, tileCells, tileSize } from "../../src/generation/tiles.js";
 import { generateWorld } from "../../src/generation/world.js";
 import { RIVER_MARGIN_PX, inspectAt, reliefOf } from "../../src/map/inspect.js";
 
@@ -109,7 +115,9 @@ describe("water", () => {
     expect(inspectAt(watered, px, py, z).biome).toBe("river");
     const cell = watered.sampleAt(...siteAt("12345", px, py, z), z);
     expect(inspectAt(watered, px, py, z, { rivers: false })).toEqual({
-      biome: BIOME_DEFINITIONS[cell.biome].name,
+      biome: bankAt(watered, ...siteAt("12345", px, py, z), z, cell.biome)
+        ? "floodplain"
+        : BIOME_DEFINITIONS[cell.biome].name,
       relief: reliefOf(cell.altitude),
       landmass: inspectAt(watered, px, py, z).landmass,
     });
@@ -129,11 +137,51 @@ describe("water", () => {
       } else {
         land++;
         const cell = watered.sampleAt(...siteAt("12345", x, y, z), z);
-        expect(info.biome).toBe(BIOME_DEFINITIONS[cell.biome].name);
+        const [sx, sy] = siteAt("12345", x, y, z);
+        const expected =
+          cell.land && bankAt(watered, sx, sy, z, cell.biome)
+            ? "floodplain"
+            : BIOME_DEFINITIONS[cell.biome].name;
+        expect(info.biome).toBe(expected);
         expect(info.relief).toBe(reliefOf(cell.altitude));
       }
     }
     expect(rivers).toBeGreaterThan(0);
     expect(land).toBeGreaterThan(rivers);
+  });
+
+  test("the pointer finds the floodplains the tiles draw, in every mode", () => {
+    // The same tiles as tiles.test.js dryRiverTiles: at levels 3 to 5, around a dry-land river
+    const dry = ["Desert", "Savana"].map((n) => BIOME_DEFINITIONS.findIndex((d) => d.name === n));
+    const FLOODPLAIN = BIOME_DEFINITIONS.findIndex((d) => d.name === "floodplain");
+    let found = 0;
+    for (const z of [3, 4, 5]) {
+      const k = from.findIndex(
+        (a, e) =>
+          flow[e] >= riverThreshold(z) &&
+          dry.includes(watered.sampleAt(sites[2 * a], sites[2 * a + 1], z).biome),
+      );
+      if (k < 0) continue;
+      const size = tileSize(z);
+      const [x, y] = [
+        Math.floor(sites[2 * from[k]] / size),
+        Math.floor(sites[2 * from[k] + 1] / size),
+      ];
+      const tile = buildTile(watered, z, x, y);
+      let v = 0;
+      for (const cell of tileCells("12345", z, x, y)) {
+        if (tile.biomeIds[v] === FLOODPLAIN) {
+          found++;
+          for (const rivers of [true, false]) {
+            const info = inspectAt(watered, ...cell.site, z, { rivers });
+            // On the river itself the pointer finds the river, drawn over the floodplain
+            if (info.biome !== "river") expect(info.biome).toBe("floodplain");
+            expect(info.landmass).not.toBeNull();
+          }
+        }
+        v += 1 + cell.ring.length;
+      }
+    }
+    expect(found).toBeGreaterThan(0);
   });
 });

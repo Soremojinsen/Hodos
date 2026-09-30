@@ -2,7 +2,7 @@ import { Delaunay } from "d3-delaunay";
 import { MARK_SPACING_PX, WORLD_SIZE } from "../constants.js";
 import { aleaPRNG } from "../vendor/alea-prng.js";
 import { BIOME_DEFINITIONS } from "./biomes.js";
-import { buildRivers, pixelSize, riverSquares } from "./rivers.js";
+import { FLOODPLAIN, banks, buildRivers, pixelSize, riverSquares } from "./rivers.js";
 
 /**
  * Every tile has TILE_CELLS_SIDE² cells, whatever its level: about 8 px wide on screen.
@@ -112,6 +112,7 @@ export function tileCells(seed, z, x, y) {
  * coast, and the shaders light it smoothly. Slopes are flat at sea and on deltas.
  * The rivers are a mesh of their own, drawn over the cells, see rivers.js buildRivers; the
  * vegetation marks leave bare the squares of their grid that the rivers cover, see riverSquares.
+ * Dry land beside the rivers drawn at the tile's level is floodplain, see rivers.js banks.
  *
  * @param sampler {WorldSampler}
  * @returns {{z, x, y, positions: Float32Array, biomeIds: Float32Array,
@@ -133,6 +134,7 @@ export function buildTile(sampler, z, x, y) {
   ];
   const rivers = buildRivers(sampler, z, area);
   const marks = riverSquares(sampler, z, MARK_SPACING_PX * pixelSize(z), area);
+  const bank = banks(sampler, z, area);
   const vertexCount = cells.reduce((n, cell) => n + 1 + cell.ring.length, 0);
   const indexCount = cells.reduce((n, cell) => n + 3 * cell.ring.length, 0);
   if (Math.max(vertexCount, rivers.positions.length / 3) > 0x10000) {
@@ -163,10 +165,12 @@ export function buildTile(sampler, z, x, y) {
   };
   for (const cell of cells) {
     const sample = sampler.sampleAt(cell.site[0], cell.site[1], z);
-    const debugColor = BIOME_DEFINITIONS[sample.biome].debug;
+    const biome =
+      sample.land && bank(cell.site[0], cell.site[1], sample.biome) ? FLOODPLAIN : sample.biome;
+    const debugColor = BIOME_DEFINITIONS[biome].debug;
     const addVertex = (px, py, altitude, slope) => {
       positions.set([px, py, altitude], 3 * vertex);
-      biomeIds[vertex] = sample.biome;
+      biomeIds[vertex] = biome;
       debugColors.set(debugColor, 3 * vertex);
       slopes.set(slope, 2 * vertex);
       vertex++;

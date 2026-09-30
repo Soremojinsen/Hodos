@@ -1,15 +1,21 @@
 import { expect, test } from "vitest";
 import { MARK_SPACING_PX, TILE_PIXEL_SIZE, WORLD_SIZE } from "../../src/constants.js";
+import { BIOME_DEFINITIONS } from "../../src/generation/biomes.js";
 import { WorldSampler } from "../../src/generation/fields.js";
 import { withWater } from "../../src/generation/hydrology.js";
 import {
+  BANK_MIN_PX,
   BEND_WIDTHS,
+  FLOODPLAIN,
   MAX_SEGMENT_PX,
   MAX_WIDTH_PX,
   TRUE_WIDTH,
   TRUE_WIDTH_FLOW,
   MEANDER,
   MIN_WIDTH_PX,
+  bankAt,
+  bankHalfWidth,
+  banks,
   buildRivers,
   deepWater,
   drawnHalfWidth,
@@ -19,6 +25,7 @@ import {
   nearestWater,
   riverAt,
   riverCourse,
+  riverCourses,
   riverThreshold,
   riverPixels,
   riverSquares,
@@ -389,4 +396,69 @@ test("without water there are no rivers", () => {
     shapes: [],
     indices: [],
   });
+});
+
+const id = (name) => BIOME_DEFINITIONS.findIndex((definition) => definition.name === name);
+
+test("a floodplain is at least BANK_MIN_PX wide on screen, and grows with the river up close", () => {
+  for (let z = 0; z <= 7; z++) {
+    expect(bankHalfWidth(4, z)).toBeGreaterThanOrEqual(BANK_MIN_PX * pixelSize(z));
+    expect(bankHalfWidth(1024, z)).toBeGreaterThanOrEqual(bankHalfWidth(64, z));
+  }
+  expect(bankHalfWidth(1024, 7)).toBeGreaterThan(bankHalfWidth(64, 7));
+  expect(FLOODPLAIN).toBe(id("floodplain"));
+});
+
+test("dry land beside a river drawn at a level is floodplain, within its band only", () => {
+  const z = 5;
+  // A river drawn at this level with few others around: the bands of a crowd of channels overlap
+  let found = null;
+  for (let k = 0; k < rivers.flow.length && !found; k++) {
+    if (rivers.flow[k] < riverThreshold(z)) break;
+    const [px, py, qx, qy] = riverCourse(sampler, k, z).slice(0, 4);
+    const half = bankHalfWidth(rivers.flow[k], z);
+    const [mx, my] = [(px + qx) / 2, (py + qy) / 2];
+    const around = [mx - 3 * half, my - 3 * half, mx + 3 * half, my + 3 * half];
+    if ([...riverCourses(sampler, z, around)].length <= 3) found = { k, px, py, qx, qy, half };
+  }
+  expect(found).not.toBeNull();
+  const { px, py, qx, qy, half } = found;
+  const length = Math.hypot(qx - px, qy - py);
+  const [nx, ny] = [(py - qy) / length, (qx - px) / length];
+  const [mx, my] = [(px + qx) / 2, (py + qy) / 2];
+  const at = (d, biome) => bankAt(sampler, mx + d * nx, my + d * ny, z, biome);
+  // Well inside the band: Desert and Savana fully, Plain half as wide
+  expect(at(0.4 * half, id("Desert"))).toBe(true);
+  expect(at(0.4 * half, id("Savana"))).toBe(true);
+  expect(at(0.4 * half, id("Plain"))).toBe(true);
+  expect(at(0.8 * half, id("Plain"))).toBe(false);
+  // Never over other biomes
+  for (const name of ["Forest", "Jungle", "Taiga", "Tundra", "Mountain", "Swamp", "ocean"]) {
+    expect(at(0.1 * half, id(name))).toBe(false);
+  }
+  // Far out, no river's band reaches
+  const far = [mx + 50 * half * nx, my + 50 * half * ny];
+  expect(bankAt(sampler, ...far, z, id("Desert"))).toBe(
+    banks(sampler, z, [...far, ...far])(...far, id("Desert")),
+  );
+});
+
+test("a river too small for a level gives no floodplain there", () => {
+  // A point on a small river's level-7 course, with no river drawn at level 2 anywhere near
+  let point = null;
+  for (let k = 0; k < rivers.flow.length && !point; k++) {
+    if (rivers.flow[k] >= riverThreshold(2)) continue;
+    const [x, y] = riverCourse(sampler, k, 7).slice(2, 4);
+    if ([...riverCourses(sampler, 2, [x - 1000, y - 1000, x + 1000, y + 1000])].length === 0) {
+      point = [x, y];
+    }
+  }
+  expect(point).not.toBeNull();
+  expect(bankAt(sampler, ...point, 7, id("Desert"))).toBe(true);
+  expect(bankAt(sampler, ...point, 2, id("Desert"))).toBe(false);
+});
+
+test("without water there are no floodplains", () => {
+  const dry = new WorldSampler(generateWorld("12345"));
+  expect(bankAt(dry, 5000, 5000, 3, id("Desert"))).toBe(false);
 });
