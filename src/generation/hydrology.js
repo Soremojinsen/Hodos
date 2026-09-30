@@ -408,7 +408,13 @@ function growDelta(seed, drainage, m, wetlands, reserved) {
   if (outlet.size === 0) return null;
 
   // Up to K rim points, spread across the fan's angles
-  const count = Math.min(Math.max(2 + Math.round(Math.log2(flow[m] / DELTA_FLOW)), 2), 5);
+  // (at most as many as leave each with DELTA_FLOW / 2 of the flow, so that every channel of a
+  // delta is drawn from DELTA_MIN_LEVEL on, see fields.js)
+  const count = Math.min(
+    Math.max(2 + Math.round(Math.log2(flow[m] / DELTA_FLOW)), 2),
+    5,
+    Math.floor(flow[m] / (DELTA_FLOW / 2)),
+  );
   const rims = [...outlet.keys()].sort((a, b) => angleOf(a) - angleOf(b) || a - b);
   const [low, high] = [angleOf(rims[0]), angleOf(rims[rims.length - 1])];
   const chosen = [];

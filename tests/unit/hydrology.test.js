@@ -1,6 +1,11 @@
 import { expect, test } from "vitest";
 import { BIOME_DEFINITIONS, SWAMP_BIOMES } from "../../src/generation/biomes.js";
-import { DELTA_POINT, SWAMP_POINT, WorldSampler } from "../../src/generation/fields.js";
+import {
+  DELTA_MIN_LEVEL,
+  DELTA_POINT,
+  SWAMP_POINT,
+  WorldSampler,
+} from "../../src/generation/fields.js";
 import {
   DELTA_FLOW,
   DELTA_LOBES,
@@ -17,6 +22,7 @@ import {
   generateWater,
   withWater,
 } from "../../src/generation/hydrology.js";
+import { riverThreshold } from "../../src/generation/rivers.js";
 import { generateWorld } from "../../src/generation/world.js";
 
 const base = generateWorld("12345");
@@ -335,4 +341,45 @@ test("every river edge that ends in water ends in sea or a lake, never on delta 
       expect(!land[to] || lakes[to], `seed ${seed}`).toBeTruthy();
     });
   }
+});
+
+test("every channel of a delta is drawn from the first level deltas are drawn at, or none", () => {
+  let deltas = 0;
+  for (const seed of ["12345", "1", "42", "abc"]) {
+    const { wetlands, riverFrom, riverTo, riverFlow, riverMouth } = withWater(generateWorld(seed));
+    // Group the edges touching delta points by delta: delta points joined by an edge are one delta
+    const parent = new Map();
+    const find = (i) =>
+      parent.get(i) === i ? i : (parent.set(i, find(parent.get(i))), parent.get(i));
+    const isDelta = (i) => wetlands[i] === DELTA_POINT;
+    for (let k = 0; k < riverFrom.length; k++) {
+      for (const i of [riverFrom[k], riverTo[k]])
+        if (isDelta(i) && !parent.has(i)) parent.set(i, i);
+      if (isDelta(riverFrom[k]) && isDelta(riverTo[k])) {
+        parent.set(find(riverFrom[k]), find(riverTo[k]));
+      }
+    }
+    const groups = new Map();
+    for (let k = 0; k < riverFrom.length; k++) {
+      const i = [riverFrom[k], riverTo[k]].find(isDelta);
+      if (i === undefined) continue;
+      const key = find(i);
+      groups.set(key, [...(groups.get(key) ?? []), k]);
+    }
+    for (const edges of groups.values()) {
+      deltas++;
+      for (const k of edges) {
+        if (riverMouth[k])
+          expect(riverFlow[k], `seed ${seed}, edge ${k}`).toBeGreaterThanOrEqual(DELTA_FLOW / 2);
+      }
+      for (let z = DELTA_MIN_LEVEL; z <= 7; z++) {
+        const drawn = edges.filter((k) => riverFlow[k] >= riverThreshold(z)).length;
+        expect(
+          drawn === 0 || drawn === edges.length,
+          `seed ${seed}, delta ${edges}, level ${z}`,
+        ).toBe(true);
+      }
+    }
+  }
+  expect(deltas).toBeGreaterThan(3);
 });

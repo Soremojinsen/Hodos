@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { MARK_SPACING_PX, TILE_PIXEL_SIZE, WORLD_SIZE } from "../../src/constants.js";
-import { DELTA_MIN_LEVEL, DELTA_POINT, WorldSampler } from "../../src/generation/fields.js";
+import { WorldSampler } from "../../src/generation/fields.js";
 import { withWater } from "../../src/generation/hydrology.js";
 import {
   BEND_WIDTHS,
@@ -389,34 +389,4 @@ test("without water there are no rivers", () => {
     shapes: [],
     indices: [],
   });
-});
-
-test("from the first level deltas are drawn at, each delta has all its channels drawn or none", () => {
-  const water = withWater(generateWorld("12345"));
-  const { wetlands, riverFrom, riverTo, riverFlow } = water;
-  // Group the edges touching delta points by delta: delta points joined by an edge are one delta
-  const parent = new Map();
-  const find = (i) =>
-    parent.get(i) === i ? i : (parent.set(i, find(parent.get(i))), parent.get(i));
-  const isDelta = (i) => wetlands[i] === DELTA_POINT;
-  for (let k = 0; k < riverFrom.length; k++) {
-    for (const i of [riverFrom[k], riverTo[k]]) if (isDelta(i) && !parent.has(i)) parent.set(i, i);
-    if (isDelta(riverFrom[k]) && isDelta(riverTo[k])) {
-      parent.set(find(riverFrom[k]), find(riverTo[k]));
-    }
-  }
-  const deltas = new Map();
-  for (let k = 0; k < riverFrom.length; k++) {
-    const i = [riverFrom[k], riverTo[k]].find(isDelta);
-    if (i === undefined) continue;
-    const key = find(i);
-    deltas.set(key, [...(deltas.get(key) ?? []), k]);
-  }
-  expect(deltas.size).toBeGreaterThan(0);
-  for (const [, edges] of deltas) {
-    for (let z = DELTA_MIN_LEVEL; z <= 7; z++) {
-      const drawn = edges.filter((k) => riverFlow[k] >= riverThreshold(z)).length;
-      expect(drawn === 0 || drawn === edges.length, `delta ${edges}, level ${z}`).toBe(true);
-    }
-  }
 });

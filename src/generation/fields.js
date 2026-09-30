@@ -44,8 +44,8 @@ export const DELTA_ALTITUDE = 0.15;
  * The first level at which deltas are drawn as land. At level 0 a cell is about as large as a
  * whole delta fan, so a channel's end cell can have its site on delta land, and (river threshold
  * 256) a delta's trunk channels can be drawn while its outlets, with a smaller share of the flow,
- * are not. From level 1 (threshold 128) every channel is drawn: with 2 channels each has a share
- * of at least 128, with 3 or more the flow is at least about 724 so each has at least 241.
+ * are not. From level 1 (threshold 128) every channel is drawn: a delta's outlets carry at least
+ * DELTA_FLOW / 2 = 128 each (see hydrology.js growDelta), and the channels upstream of them more.
  */
 export const DELTA_MIN_LEVEL = 1;
 
