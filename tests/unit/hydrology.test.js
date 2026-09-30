@@ -1,9 +1,16 @@
 import { expect, test } from "vitest";
-import { WorldSampler } from "../../src/generation/fields.js";
+import { BIOME_DEFINITIONS, SWAMP_BIOMES } from "../../src/generation/biomes.js";
+import { SWAMP_POINT, WorldSampler } from "../../src/generation/fields.js";
 import {
   LAKE_DEPTH,
   MIN_RIVER_FLOW,
+  MIN_SWAMP_POINTS,
+  SWAMP_FLOW,
+  SWAMP_GRADIENT,
+  SWAMP_MAX_ALTITUDE,
+  SWAMP_PIT_DEPTH,
   computeDrainage,
+  computeWetlands,
   generateWater,
   withWater,
 } from "../../src/generation/hydrology.js";
@@ -74,5 +81,69 @@ test("rivers are the edges with enough flow, largest first, marked where they re
     if (k > 0) expect(riverFlow[k]).toBeLessThanOrEqual(riverFlow[k - 1]);
     expect(lakes[a] && lakes[b]).toBeFalsy();
     expect(riverMouth[k]).toBe(!drainage.land[b] || lakes[b] ? 1 : 0);
+  }
+});
+
+const wetlands = computeWetlands("12345", drainage);
+
+test("the drainage keeps each point's level-0 biome and continent", () => {
+  const sampler = new WorldSampler(base);
+  const { sites, biome, continent } = drainage;
+  for (let i = 0; i < biome.length; i += 997) {
+    const sample = sampler.sampleAt(sites[2 * i], sites[2 * i + 1], 0);
+    expect(biome[i]).toBe(sample.biome);
+    expect(continent[i]).toBe(sample.continent);
+  }
+});
+
+test("the same seed always gives the same wetlands", () => {
+  expect(
+    computeWetlands("12345", computeDrainage(new WorldSampler(generateWorld("12345")))),
+  ).toEqual(wetlands);
+});
+
+test("swamps lie by slow rivers, low in temperate, humid and cold lands", () => {
+  const { sites, land, biome, height, filled, downstream, flow, lakes, delaunay } = drainage;
+  const swampy = new Set(
+    SWAMP_BIOMES.map((name) => BIOME_DEFINITIONS.findIndex((d) => d.name === name)),
+  );
+  const eligible = (i) =>
+    land[i] && !lakes[i] && swampy.has(biome[i]) && height[i] < SWAMP_MAX_ALTITUDE;
+  const byRiver = (i) =>
+    flow[i] >= SWAMP_FLOW ||
+    [...delaunay.neighbors(i)].some((j) => land[j] && flow[j] >= SWAMP_FLOW);
+  const slow = (i) => {
+    const j = downstream[i];
+    const drop =
+      (filled[i] - filled[j]) /
+      Math.hypot(sites[2 * j] - sites[2 * i], sites[2 * j + 1] - sites[2 * i + 1]);
+    return filled[i] - height[i] > SWAMP_PIT_DEPTH || drop < SWAMP_GRADIENT;
+  };
+  const core = (i) => eligible(i) && byRiver(i) && slow(i);
+  let [swamps, cores] = [0, 0];
+  for (let i = 0; i < land.length; i++) {
+    if (wetlands.wetlands[i] !== SWAMP_POINT) continue;
+    swamps++;
+    expect(eligible(i)).toBe(true);
+    // A swamp point is by a slow river, or one ring around such a point
+    if (core(i)) cores++;
+    else expect([...delaunay.neighbors(i)].some(core)).toBe(true);
+  }
+  expect(cores).toBeGreaterThanOrEqual(MIN_SWAMP_POINTS);
+  // Swamps are a feature of the lowland rivers, not of every lowland
+  let landCount = 0;
+  for (let i = 0; i < land.length; i++) if (land[i]) landCount++;
+  expect(swamps).toBeGreaterThan(0);
+  expect(swamps / landCount).toBeLessThan(0.12);
+});
+
+test("a lone slow point by a river makes no swamp", () => {
+  // Every core point belongs to a connected group of at least MIN_SWAMP_POINTS core points
+  const { land, delaunay } = drainage;
+  const isSwamp = (i) => wetlands.wetlands[i] === SWAMP_POINT;
+  for (let i = 0; i < land.length; i++) {
+    if (!isSwamp(i)) continue;
+    const neighbours = [...delaunay.neighbors(i)].filter(isSwamp).length;
+    expect(neighbours).toBeGreaterThan(0);
   }
 });

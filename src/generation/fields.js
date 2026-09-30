@@ -29,6 +29,18 @@ export const ALTITUDE_DETAIL = 0.1;
 export const SEA_ALTITUDE = -0.1;
 
 /**
+ * What a water mesh point is besides land, sea or lake, see hydrology.js computeWetlands: 0 for
+ * nothing, SWAMP_POINT where a slow river spreads, DELTA_POINT for sea a delta turned into land.
+ */
+export const SWAMP_POINT = 1;
+export const DELTA_POINT = 2;
+
+/**
+ * The altitude of delta land: flat, above the beach band (below 0.1), so it is drawn as lowland.
+ */
+export const DELTA_ALTITUDE = 0.15;
+
+/**
  * How far apart, in world units, slopeAt samples the altitude: well under the wavelength of the
  * finest altitude octave (about 5 units at level 7).
  */

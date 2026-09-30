@@ -1,7 +1,8 @@
 import { Delaunay } from "d3-delaunay";
 import { WORLD_SIZE } from "../constants.js";
 import { aleaPRNG } from "../vendor/alea-prng.js";
-import { WorldSampler } from "./fields.js";
+import { SWAMP_POINT, WorldSampler } from "./fields.js";
+import { BIOME_DEFINITIONS, SWAMP_BIOMES } from "./biomes.js";
 
 /**
  * The water mesh has WATER_MESH_SIDE² points, one per square of a grid over the world
@@ -37,6 +38,24 @@ const JITTER = 0.8;
  * slope towards their outlet.
  */
 const FILL_STEP = 1e-5;
+
+/**
+ * A land point becomes a swamp where a slow river crosses low land: its base biome is one of
+ * SWAMP_BIOMES, it is lower than SWAMP_MAX_ALTITUDE, it or a neighbour carries at least
+ * SWAMP_FLOW, and it lies in a pit the fill raised by more than SWAMP_PIT_DEPTH (too shallow or
+ * small for a lake) or drops less than SWAMP_GRADIENT per world unit to its downstream point.
+ * Groups of fewer than MIN_SWAMP_POINTS such points are dropped; the others spread one ring.
+ * Measured on three seeds: of the ~500–780 low river points in swamp biomes, about 65 % lie in
+ * filled pits, and about a tenth of the others drop less than 3e-4.
+ */
+export const SWAMP_MAX_ALTITUDE = 0.35;
+export const SWAMP_FLOW = 16;
+export const SWAMP_PIT_DEPTH = 0.03;
+export const SWAMP_GRADIENT = 3e-4;
+export const MIN_SWAMP_POINTS = 3;
+
+const biomeId = (name) => BIOME_DEFINITIONS.findIndex((definition) => definition.name === name);
+const SWAMPY = new Set(SWAMP_BIOMES.map(biomeId));
 
 /**
  * A binary heap of values by increasing key.
@@ -97,9 +116,11 @@ class MinHeap {
  * How water drains over the world, on a jittered grid of points drawn from the seed only.
  *
  * @param sampler {WorldSampler} of a world without water
- * @returns {{sites: Float64Array, land: Uint8Array, height: Float64Array, filled: Float64Array,
- *            downstream: Int32Array, flow: Float32Array, lakes: Uint8Array}}
+ * @returns {{sites: Float64Array, land: Uint8Array, biome: Uint8Array, continent: Uint16Array,
+ *            height: Float64Array, filled: Float64Array, downstream: Int32Array, flow: Float32Array,
+ *            lakes: Uint8Array, delaunay: Delaunay}}
  *          downstream is the neighbour a land point drains to, -1 at sea
+ *          biome and continent are each point's level-0 sample
  */
 export function computeDrainage(sampler) {
   const random = aleaPRNG(`${sampler.seed}:water`);
@@ -116,10 +137,15 @@ export function computeDrainage(sampler) {
   const neighbors = (i) => delaunay.neighbors(i);
 
   const land = new Uint8Array(count);
+  const biome = new Uint8Array(count);
+  const continent = new Uint16Array(count);
   const height = new Float64Array(count);
   for (let i = 0; i < count; i++) {
     const [x, y] = [sites[2 * i], sites[2 * i + 1]];
-    land[i] = sampler.sampleAt(x, y, 0).land ? 1 : 0;
+    const sample = sampler.sampleAt(x, y, 0);
+    land[i] = sample.land ? 1 : 0;
+    biome[i] = sample.biome;
+    continent[i] = sample.continent;
     height[i] = land[i] ? sampler.altitudeAt(x, y, WATER_LEVEL) : -Infinity;
   }
 
@@ -185,7 +211,70 @@ export function computeDrainage(sampler) {
     flow[downstream[i]] += flow[i];
   }
 
-  return { sites, land, height, filled, downstream, flow, lakes };
+  return { sites, land, biome, continent, height, filled, downstream, flow, lakes, delaunay };
+}
+
+/**
+ * What the water makes of the land around it, on the water mesh: swamps along slow rivers, and
+ * deltas at the mouths of great rivers into the sea (see growDelta).
+ *
+ * @param seed the world's seed, for the deltas' shapes
+ * @param drainage see computeDrainage
+ * @returns {{wetlands: Uint8Array, deltaBiome: Uint8Array, deltaContinent: Uint16Array,
+ *            removed: Uint8Array, channels: {from: Number, to: Number, flow: Number,
+ *            mouth: Number}[]}}
+ *          wetlands: 0, SWAMP_POINT or DELTA_POINT per point; deltaBiome and deltaContinent: the
+ *          biome and continent of each delta point; removed: 1 for a mouth whose edge to the sea
+ *          its delta's channels replace
+ */
+export function computeWetlands(seed, drainage) {
+  const { sites, land, biome, height, filled, downstream, flow, lakes, delaunay } = drainage;
+  const count = land.length;
+  const wetlands = new Uint8Array(count);
+  const distance = (i, j) =>
+    Math.hypot(sites[2 * j] - sites[2 * i], sites[2 * j + 1] - sites[2 * i + 1]);
+
+  const eligible = (i) =>
+    land[i] === 1 && !lakes[i] && SWAMPY.has(biome[i]) && height[i] < SWAMP_MAX_ALTITUDE;
+  const byRiver = (i) => {
+    if (flow[i] >= SWAMP_FLOW) return true;
+    for (const j of delaunay.neighbors(i)) if (land[j] && flow[j] >= SWAMP_FLOW) return true;
+    return false;
+  };
+  const slow = (i) => {
+    const j = downstream[i];
+    if (filled[i] - height[i] > SWAMP_PIT_DEPTH) return true;
+    return j >= 0 && (filled[i] - filled[j]) / distance(i, j) < SWAMP_GRADIENT;
+  };
+  const core = (i) => eligible(i) && byRiver(i) && slow(i);
+  const grouped = new Uint8Array(count);
+  const kept = [];
+  for (let i = 0; i < count; i++) {
+    if (grouped[i] || !core(i)) continue;
+    const group = [i];
+    grouped[i] = 1;
+    for (let k = 0; k < group.length; k++) {
+      for (const j of delaunay.neighbors(group[k])) {
+        if (!grouped[j] && core(j)) {
+          grouped[j] = 1;
+          group.push(j);
+        }
+      }
+    }
+    if (group.length >= MIN_SWAMP_POINTS) kept.push(...group);
+  }
+  for (const i of kept) {
+    wetlands[i] = SWAMP_POINT;
+    for (const j of delaunay.neighbors(i)) if (eligible(j)) wetlands[j] = SWAMP_POINT;
+  }
+
+  return {
+    wetlands,
+    deltaBiome: new Uint8Array(count),
+    deltaContinent: new Uint16Array(count),
+    removed: new Uint8Array(count),
+    channels: [],
+  };
 }
 
 /**
