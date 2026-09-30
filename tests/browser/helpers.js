@@ -24,7 +24,10 @@ export async function openMap(page, url = SEED_URL) {
     if (m.type() === "error") errors.push(`console: ${m.text()}`);
   });
   await page.goto(url);
-  await expect(page.locator("html")).toHaveAttribute("data-map", /^(ready|error)$/);
+  // Generating the world takes seconds on a busy machine, like a CI runner
+  await expect(page.locator("html")).toHaveAttribute("data-map", /^(ready|error)$/, {
+    timeout: 30_000,
+  });
   if ((await page.locator("html").getAttribute("data-map")) === "ready") await waitForTiles(page);
   return errors;
 }
