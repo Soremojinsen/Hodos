@@ -25,6 +25,7 @@ Hodos creates maps for your imagination to thrive.
 - **Explore:** recenter and full-screen buttons; _Infos au survol_ shows the biome, relief and land mass under the pointer.
 - **Rivers and lakes:** rivers run downhill to the sea or into lakes, and zooming in reveals smaller tributaries.
 - **Relief and forests:** hills are shaded by a light from the north-west, and forests, jungles, taiga and swamps are drawn with small marks.
+- **Water shapes the land:** slow rivers spread into swamps, desert rivers are lined with green floodplains, and great rivers end in deltas.
 - **Zoom in for detail:** each zoom level has its own finer map, with more jagged coasts, islets and bays, and more intricate borders between biomes.
 - **Grid:** a square or hexagonal grid over the map, with a size and an opacity, for games.
 - **Export and print:** the whole world or the current view as a PNG up to 4096 px, or printed on 1, 2 × 2 or 3 × 3 A4 sheets.
@@ -32,7 +33,7 @@ Hodos creates maps for your imagination to thrive.
 
 ### Link parameters
 
-The same seed always produces the same map (since the version that brought zoom detail; older links may show a different map; links from before rivers show the same continents and coasts, now with rivers and lakes, and links from before relief shading show the same map, now shaded), and these parameters are kept stable.
+The same seed always produces the same map since the version that brought zoom detail, and these parameters are kept stable. Older links may show a different map. Links from before rivers show the same continents and coasts, now with rivers and lakes. Links from before relief shading show the same map, now shaded. Links from before swamps and deltas show the same continents and rivers, now with swamps, floodplains and deltas, whose coasts reach a little further out.
 
 | Parameter | Meaning                                                         | Default   |
 | --------- | --------------------------------------------------------------- | --------- |
