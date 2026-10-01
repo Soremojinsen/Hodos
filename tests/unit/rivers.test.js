@@ -15,7 +15,6 @@ import {
   MIN_WIDTH_PX,
   bankAt,
   bankHalfWidth,
-  banks,
   buildRivers,
   deepWater,
   drawnHalfWidth,
@@ -436,11 +435,10 @@ test("dry land beside a river drawn at a level is floodplain, within its band on
   for (const name of ["Forest", "Jungle", "Taiga", "Tundra", "Mountain", "Swamp", "ocean"]) {
     expect(at(0.1 * half, id(name))).toBe(false);
   }
-  // Far out, no river's band reaches
-  const far = [mx + 50 * half * nx, my + 50 * half * ny];
-  expect(bankAt(sampler, ...far, z, id("Desert"))).toBe(
-    banks(sampler, z, [...far, ...far])(...far, id("Desert")),
-  );
+  // Far out (100 half-widths), no river course reaches, so no band does
+  const far = [mx + 100 * half * nx, my + 100 * half * ny];
+  expect([...riverCourses(sampler, z, [...far, ...far])]).toHaveLength(0);
+  expect(bankAt(sampler, ...far, z, id("Desert"))).toBe(false);
 });
 
 test("a river too small for a level gives no floodplain there", () => {

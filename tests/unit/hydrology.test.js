@@ -176,12 +176,7 @@ test("a lone slow point by a river makes no swamp", () => {
     const isKept = component.length >= MIN_SWAMP_POINTS;
     for (const i of component) {
       // Core points in kept components must be swamps
-      if (isKept) {
-        expect(wetlands.wetlands[i]).toBe(SWAMP_POINT);
-      } else {
-        // Core points in small components must not be swamps (unless grown to by kept components)
-        // This is checked separately below
-      }
+      if (isKept) expect(wetlands.wetlands[i]).toBe(SWAMP_POINT);
     }
   }
 
@@ -193,25 +188,19 @@ test("a lone slow point by a river makes no swamp", () => {
       // If this core point is a swamp, it must be because it's a neighbor of a kept core
       if (wetlands.wetlands[i] === SWAMP_POINT) {
         const hasKeptCoreNeighbor = [...delaunay.neighbors(i)].some(
-          (j) =>
-            core(j) &&
-            grouped[j] &&
-            components.some((c) => c.length >= MIN_SWAMP_POINTS && c.includes(j)),
+          (j) => core(j) && components.some((c) => c.length >= MIN_SWAMP_POINTS && c.includes(j)),
         );
         expect(hasKeptCoreNeighbor).toBe(true);
       }
     }
   }
 
-  // Verify growth ring: eligible neighbors of kept core points should be swamps
+  // Growth ring: every eligible neighbour of a core point in a kept group is a swamp point
   for (const component of components) {
     if (component.length < MIN_SWAMP_POINTS) continue;
     for (const i of component) {
       for (const j of delaunay.neighbors(i)) {
-        if (eligible(j) && wetlands.wetlands[j] === SWAMP_POINT) {
-          // This is a growth-ring swamp, which is correct
-          expect(true).toBe(true);
-        }
+        if (eligible(j)) expect(wetlands.wetlands[j]).toBe(SWAMP_POINT);
       }
     }
   }

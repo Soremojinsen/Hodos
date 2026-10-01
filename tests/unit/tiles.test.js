@@ -267,7 +267,7 @@ const watered = new WorldSampler(withWater(generateWorld(SEED)));
 test("rivers are a mesh of their own, at sea level, over the same cells", () => {
   const tile = buildTile(watered, 3, 2, 3);
   const land = buildTile(sampler, 3, 2, 3);
-  for (const key of ["positions", "indices"]) {
+  for (const key of ["positions", "indices", "slopes"]) {
     expect(tile[key]).toEqual(land[key]);
   }
   expect(land.riverIndices).toHaveLength(0);

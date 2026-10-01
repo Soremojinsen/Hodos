@@ -23,7 +23,8 @@ uniform sampler2D mark_blocked;
 uniform vec2 mark_origin;
 uniform vec2 mark_size;
 
-// Texel k of a biome: 0 its low color, 1 its high color, 2 its mark kind (in red, kind / 255) and its Parchemin tint (in green)
+// Texel k of a biome: 0 its low color, 1 its high color, 2 its mark kind (in red, kind / 255)
+// and its Parchemin tint (in green)
 vec4 biomeTexel(float id, float k) {
     return texture2D(biomes, vec2((3.0 * id + k + 0.5) / (3.0 * max_id + 3.0), 0.5));
 }

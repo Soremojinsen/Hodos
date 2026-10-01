@@ -24,7 +24,7 @@ test("rivers are as wide as riverPixels says, and keep their width when the leve
     // elsewhere. Floodplains blend that towards the parchment green (0.4, 0.55, 0.28), whose
     // direction (0.15, -0.12) lies between the plains' and away from water's: measured against it,
     // any mix of the two comes out 0 or negative. Splitting a pixel's (g - r, b - r) into f times water's plus some multiple of
-    // the plains' gives f, 0 on any plains pixel however lit or marked. Beach, mountain and snow
+    // the parchment green's gives f, 0 on any plains pixel however lit or marked. Beach, mountain and snow
     // colours come out negative, so 0 too.
     const widthAt = async (x, y, zoom) => {
       const pixelsPerUnit = (TILE_PIXEL_SIZE * 2 ** zoom) / WORLD_SIZE;

@@ -395,8 +395,8 @@ export class MapRenderer {
   }
 
   #loadBiomeColors() {
-    // Low color, high color, and mark kind (red) and Parchemin tint (green) of each biome, by id (the index in BIOME_DEFINITIONS),
-    // see shaders/relief.glsl biomeTexel
+    // Low color, high color, and mark kind (red) and Parchemin tint (green) of each biome, by id
+    // (the index in BIOME_DEFINITIONS), see shaders/relief.glsl biomeTexel
     const colors = new Uint8Array(9 * BIOME_DEFINITIONS.length);
     BIOME_DEFINITIONS.forEach(({ low, high, mark, parchment = 0 }, id) => {
       colors.set(

@@ -76,8 +76,9 @@ const SWAMPY = BIOME_DEFINITIONS.map((definition) => SWAMP_BIOMES.includes(defin
 
 /**
  * How many water grid squares around a delta point a sea sample looks for it: the lake warp
- * moves a point by at most 2 × LAKE_WARP_AMPLITUDE (about 2 squares), and the nearest water
- * point is at most 2 squares further (see #nearestWaterPoint). The rest of the sea skips the
+ * moves a point by at most 2 × LAKE_WARP_AMPLITUDE (80 / 39 squares rounded up, plus flooring,
+ * so the square index shifts by up to 3), and the nearest water point is at most 2 squares
+ * further (see #nearestWaterPoint): 5 = 3 + 2 is the exact bound. The rest of the sea skips the
  * lookup, which the rivers' search for deep water would otherwise pay thousands of times a tile.
  */
 const DELTA_NEAR = 5;
