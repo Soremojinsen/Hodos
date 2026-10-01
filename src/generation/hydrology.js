@@ -46,10 +46,11 @@ const FILL_STEP = 1e-5;
  * small for a lake) or drops less than SWAMP_GRADIENT per world unit to its downstream point.
  * Groups of fewer than MIN_SWAMP_POINTS such points are dropped; the others spread one ring.
  * Measured on three seeds: of the ~500–780 low river points in swamp biomes, about 65 % lie in
- * filled pits, and about a tenth of the others drop less than 3e-4.
+ * filled pits, and about a tenth of the others drop less than 3e-4. SWAMP_FLOW is the flow of
+ * the rivers drawn from level 3 on (see rivers.js riverThreshold): a swamp shows with its river.
  */
 export const SWAMP_MAX_ALTITUDE = 0.35;
-export const SWAMP_FLOW = 16;
+export const SWAMP_FLOW = 32;
 export const SWAMP_PIT_DEPTH = 0.03;
 export const SWAMP_GRADIENT = 3e-4;
 export const MIN_SWAMP_POINTS = 3;

@@ -337,24 +337,68 @@ function findCourse(sampler, k, z) {
 export function* riverCourses(sampler, z, [minX, minY, maxX, maxY]) {
   const rivers = sampler.rivers;
   if (!rivers) return;
-  const threshold = riverThreshold(z);
-  const { sites, from, to, flow, mouth } = rivers;
+  const { flow } = rivers;
+  const { bounds, halves } = edgeBounds(sampler, z);
   // Edges come largest flow first
-  for (let k = 0; k < flow.length && flow[k] >= threshold; k++) {
+  for (let k = 0; k < halves.length; k++) {
+    if (
+      bounds[4 * k + 2] >= minX &&
+      bounds[4 * k] <= maxX &&
+      bounds[4 * k + 3] >= minY &&
+      bounds[4 * k + 1] <= maxY
+    ) {
+      yield { course: riverCourse(sampler, k, z), flow: flow[k], half: halves[k] };
+    }
+  }
+}
+
+/**
+ * The boxes of the edges drawn at level z, by sampler then level: riverCourses asks for them at
+ * every tile and at every move of the pointer, and computing their widths is most of its time.
+ */
+const edgeBoxes = new WeakMap();
+
+/**
+ * The edges drawn at level z, largest first: the box each course stays in, padded by its
+ * largest half width (minX, minY, maxX, maxY per edge), and that half width, see maxHalfWidth.
+ *
+ * @param sampler {WorldSampler}
+ * @returns {{bounds: Float64Array, halves: Float64Array}}
+ */
+function edgeBounds(sampler, z) {
+  let known = edgeBoxes.get(sampler);
+  if (!known) {
+    known = new Map();
+    edgeBoxes.set(sampler, known);
+  }
+  let boxes = known.get(z);
+  if (boxes) return boxes;
+  const threshold = riverThreshold(z);
+  const { sites, from, to, flow, mouth } = sampler.rivers;
+  let count = 0;
+  while (count < flow.length && flow[count] >= threshold) count++;
+  const bounds = new Float64Array(4 * count);
+  const halves = new Float64Array(count);
+  for (let k = 0; k < count; k++) {
     const [a, b] = [from[k], to[k]];
     const [ax, ay, bx, by] = [sites[2 * a], sites[2 * a + 1], sites[2 * b], sites[2 * b + 1]];
     const half = maxHalfWidth(flow[k], z);
     // A course strays at most about 0.36 of its length from its edge (and its reach from b)
     const pad = Math.hypot(bx - ax, by - ay) / 2 + half + (mouth[k] ? 1.4 * maxReach(z) : 0);
-    if (
-      Math.max(ax, bx) + pad >= minX &&
-      Math.min(ax, bx) - pad <= maxX &&
-      Math.max(ay, by) + pad >= minY &&
-      Math.min(ay, by) - pad <= maxY
-    ) {
-      yield { course: riverCourse(sampler, k, z), flow: flow[k], half };
-    }
+    bounds.set(
+      [
+        Math.min(ax, bx) - pad,
+        Math.min(ay, by) - pad,
+        Math.max(ax, bx) + pad,
+        Math.max(ay, by) + pad,
+      ],
+      4 * k,
+    );
+    halves[k] = half;
   }
+  boxes = { bounds, halves };
+  known.set(z, boxes);
+  return boxes;
 }
 
 /**

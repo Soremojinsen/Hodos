@@ -462,3 +462,24 @@ test("without water there are no floodplains", () => {
   const dry = new WorldSampler(generateWorld("12345"));
   expect(bankAt(dry, 5000, 5000, 3, id("Desert"))).toBe(false);
 });
+
+test("riverCourses yields every course drawn at a level that passes through an area", () => {
+  const random = aleaPRNG("river courses");
+  for (const z of [0, 3, 7]) {
+    const count = rivers.flow.filter((flow) => flow >= riverThreshold(z)).length;
+    for (let round = 0; round < 20; round++) {
+      const k = Math.floor(random() * count);
+      const course = riverCourse(sampler, k, z);
+      const i = 2 * Math.floor((random() * course.length) / 2);
+      const [x, y] = [course[i], course[i + 1]];
+      const found = [...riverCourses(sampler, z, [x, y, x, y])];
+      expect(found.some(({ course: other }) => other === course)).toBe(true);
+      expect(found.find(({ course: other }) => other === course).half).toBe(
+        maxHalfWidth(rivers.flow[k], z),
+      );
+    }
+    // Only rivers drawn at the level
+    const all = [...riverCourses(sampler, z, [0, 0, WORLD_SIZE, WORLD_SIZE])];
+    expect(all.length).toBe(count);
+  }
+});
