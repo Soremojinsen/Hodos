@@ -521,6 +521,45 @@ export function riverSquares(sampler, z, cell, [minX, minY, maxX, maxY]) {
   return { origin: [i0, j0], size: [columns, rows], blocked };
 }
 
+/**
+ * Whether points of an area are within a margin of a river of level z as drawn at any zoom the
+ * level is drawn at (see drawnHalfWidth): the vegetation marks leave out a tree whose crown a
+ * river would cut, see trees.js treeGrid.
+ *
+ * @param sampler {WorldSampler}
+ * @param area the points to test are in it, [minX, minY, maxX, maxY]
+ * @param margin in world units, added to each river's half width
+ * @returns {function(Number, Number): boolean} (x, y) => near a river
+ */
+export function nearRivers(sampler, z, [minX, minY, maxX, maxY], margin) {
+  const rivers = sampler.rivers;
+  if (!rivers || rivers.flow.length === 0) return () => false;
+  // Edges come largest flow first: no river is wider than the first one
+  const reach = drawnHalfWidth(rivers.flow[0], z) + margin;
+  const padded = [minX - reach, minY - reach, maxX + reach, maxY + reach];
+  // x0, y0, x1, y1, reach of each segment that may come near the area
+  const segments = [];
+  for (const { course, flow } of riverCourses(sampler, z, padded)) {
+    const near = drawnHalfWidth(flow, z) + margin;
+    for (let i = 0; i + 3 < course.length; i += 2) {
+      const [px, py, qx, qy] = [course[i], course[i + 1], course[i + 2], course[i + 3]];
+      if (Math.max(px, qx) + near < minX || Math.min(px, qx) - near > maxX) continue;
+      if (Math.max(py, qy) + near < minY || Math.min(py, qy) - near > maxY) continue;
+      segments.push(px, py, qx, qy, near);
+    }
+  }
+  return (x, y) => {
+    for (let i = 0; i < segments.length; i += 5) {
+      const [px, py, qx, qy] = [segments[i], segments[i + 1], segments[i + 2], segments[i + 3]];
+      const near = segments[i + 4];
+      if (x < Math.min(px, qx) - near || x > Math.max(px, qx) + near) continue;
+      if (y < Math.min(py, qy) - near || y > Math.max(py, qy) + near) continue;
+      if (segmentDistance(x, y, px, py, qx, qy) <= near) return true;
+    }
+    return false;
+  };
+}
+
 // The distance from the segment from p to q to a box [minX, minY, maxX, maxY]: 0 if they meet,
 // else from one's corner to the other, the nearest points of two convex shapes apart
 function segmentBoxDistance(px, py, qx, qy, box) {

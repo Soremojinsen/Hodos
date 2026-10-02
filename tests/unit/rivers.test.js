@@ -22,6 +22,7 @@ import {
   meander,
   pixelSize,
   nearestWater,
+  nearRivers,
   riverAt,
   riverCourse,
   riverCourses,
@@ -170,6 +171,44 @@ test("the marks leave bare every square a river is drawn over, and only squares 
     }
     expect(bare).toBeGreaterThan(0);
     expect(bare).toBeLessThan(0.2 * blocked.length);
+  }
+});
+
+test("nearRivers finds every point a river is drawn over, and points within the margin of one", () => {
+  const random = aleaPRNG("near rivers");
+  for (const [z, x, y] of [
+    [2, 1, 1],
+    [5, 9, 19],
+    [7, 30, 75],
+  ]) {
+    const size = WORLD_SIZE / 2 ** z;
+    const area = [x * size, y * size, (x + 1) * size, (y + 1) * size];
+    const margin = 0.45 * MARK_SPACING_PX * pixelSize(z);
+    const near = nearRivers(sampler, z, area, margin);
+    const drawn = nearRivers(sampler, z, area, 0);
+    const triangles = buildRivers(sampler, z, area);
+    expect(triangles.indices.length).toBeGreaterThan(0);
+    const widest = drawnHalfWidth(sampler.rivers.flow[0], z);
+    let checked = 0;
+    let inMargin = 0;
+    for (let n = 0; n < 400; n++) {
+      const v = Math.floor(random() * (triangles.positions.length / 3));
+      const [vx, vy] = [triangles.positions[3 * v], triangles.positions[3 * v + 1]];
+      const [px, py] = [vx + (random() - 0.5) * 4 * margin, vy + (random() - 0.5) * 4 * margin];
+      if (px < area[0] || px >= area[2] || py < area[1] || py >= area[3]) continue;
+      for (const zoom of [z - 0.49, z, z + 0.49]) {
+        if (!covered(triangles, px, py, zoom)) continue;
+        checked++;
+        expect(drawn(px, py)).toBe(true);
+      }
+      if (near(px, py) && !drawn(px, py)) inMargin++;
+      // Near a river means within the margin of a course as wide as the widest river drawn
+      if (near(px, py)) {
+        expect(riverAt(sampler, px, py, z, { zoom: z, margin: margin + widest })).toBe(true);
+      }
+    }
+    expect(checked).toBeGreaterThan(50);
+    expect(inMargin).toBeGreaterThan(0);
   }
 });
 
