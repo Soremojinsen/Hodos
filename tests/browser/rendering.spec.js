@@ -292,30 +292,49 @@ test("hills are lit from the north-west in the Parchemin and Biomes renderings, 
 });
 
 /**
- * A level-5 point of a biome whose square of `reach` × 32 px around it is all that biome, away
- * from rivers and at altitudes that the relief noise cannot push into the beach or mountain
- * colours. A plain needs a wider ring, clear of the trees that spill from forests.
+ * A level-5 point of a biome whose 64-px square around it is all that biome, away from rivers
+ * and at altitudes that the relief noise cannot push into the beach or mountain colours, and
+ * that `accept` takes, (x, y) => boolean.
  */
-const uniformArea = (sampler, name, seed, reach = 1) => {
+const uniformArea = (sampler, name, seed, accept = () => true) => {
   const biome = BIOME_DEFINITIONS.findIndex((definition) => definition.name === name);
   const half = (32 * 10000) / (256 * 2 ** 5);
   const random = aleaPRNG(seed);
-  const offsets = [];
-  for (let k = -2 * reach; k <= 2 * reach; k++) offsets.push((k * half) / 2);
-  const outer = reach * half;
   for (let n = 0; n < 500_000; n++) {
-    const [x, y] = [outer + random() * (10000 - 2 * outer), outer + random() * (10000 - 2 * outer)];
+    const [x, y] = [half + random() * (10000 - 2 * half), half + random() * (10000 - 2 * half)];
     let uniform = true;
-    for (const dx of offsets) {
-      for (const dy of offsets) {
+    for (const dx of [-half, 0, half]) {
+      for (const dy of [-half, 0, half]) {
         const sample = sampler.sampleAt(x + dx, y + dy, 5);
         if (sample.biome !== biome || sample.altitude < 0.25 || sample.altitude > 0.5)
           uniform = false;
       }
     }
-    if (uniform && !riverAt(sampler, x, y, 5, { margin: 2 * half })) return [x, y];
+    if (uniform && !riverAt(sampler, x, y, 5, { margin: 2 * half }) && accept(x, y)) return [x, y];
   }
   throw new Error(`No uniform ${name} area`);
+};
+
+/**
+ * A predicate for uniformArea: no square centre of the marks' grid within the view's 32 px and
+ * the squares a tree spills over (SPILL + 1 of 12 px) has a biome whose trees spill onto a plain.
+ */
+const farFromForests = (sampler) => {
+  const spilling = ["Forest", "Jungle", "Taiga"].map((name) =>
+    BIOME_DEFINITIONS.findIndex((definition) => definition.name === name),
+  );
+  const cell = MARK_SPACING_PX * pixelSize(5);
+  const radius = 32 * pixelSize(5) + (SPILL + 1) * cell;
+  const steps = Math.ceil(radius / cell);
+  return (x, y) => {
+    for (let i = -steps; i <= steps; i++) {
+      for (let j = -steps; j <= steps; j++) {
+        if (Math.hypot(i * cell, j * cell) > radius) continue;
+        if (spilling.includes(sampler.sampleAt(x + i * cell, y + j * cell, 5).biome)) return false;
+      }
+    }
+    return true;
+  };
 };
 
 /**
@@ -356,7 +375,7 @@ const markShare = (page, [x, y], mode) =>
 test("forests are drawn with marks, plains are not, and debug mode has none", async ({ page }) => {
   const sampler = new WorldSampler(withWater(generateWorld("12345")));
   const forest = uniformArea(sampler, "Forest", "forest");
-  const plain = uniformArea(sampler, "Plain", "plain", Math.ceil((32 + (SPILL + 1) * 12) / 32));
+  const plain = uniformArea(sampler, "Plain", "plain", farFromForests(sampler));
   await openMap(page);
   for (const mode of ["default", "biomes"]) {
     expect(await markShare(page, forest, mode)).toBeGreaterThan(0.05);
@@ -371,15 +390,15 @@ test("trees spill a little into a plain beside a forest, and no further", async 
     BIOME_DEFINITIONS.findIndex((definition) => definition.name === name),
   );
   const cell = MARK_SPACING_PX * pixelSize(5);
-  // A border running north–south: forest over 3 squares west, plain over 14 squares east, along
-  // 6 squares, away from rivers
+  // A border running north–south: forest over 3 squares west, plain over 6 squares east, along
+  // 7 squares, away from rivers
   const random = aleaPRNG("spill");
   let border = null;
   for (let n = 0; n < 2_000_000 && !border; n++) {
     const [x, y] = [random() * 10000, random() * 10000];
     let straight = true;
     for (let dy = -3; dy <= 3 && straight; dy++) {
-      for (let dx = -3; dx <= 14 && straight; dx++) {
+      for (let dx = -3; dx <= 6 && straight; dx++) {
         if (dx === 0) continue;
         const sample = sampler.sampleAt(x + dx * cell, y + dy * cell, 5);
         const expected = dx < 0 ? forest : plain;
@@ -387,13 +406,19 @@ test("trees spill a little into a plain beside a forest, and no further", async 
           straight = false;
       }
     }
-    if (straight && !riverAt(sampler, x + 7 * cell, y, 5, { margin: 9 * cell })) border = [x, y];
+    if (straight && !riverAt(sampler, x + 1.5 * cell, y, 5, { margin: 5 * cell })) border = [x, y];
   }
   expect(border).not.toBeNull();
   await openMap(page);
-  // markShare's view is 64 px, 5.3 squares wide: just past the border, and well past SPILL
+  // markShare's view is 64 px, 5.3 squares wide. near: just past the border, within the spill
+  // of the forest. far: a plain with no forest within the view and the spill, as in "forests are
+  // drawn with marks, plains are not"
   const near = await markShare(page, [border[0] + 2.8 * cell, border[1]], "default");
-  const far = await markShare(page, [border[0] + 11 * cell, border[1]], "default");
+  const far = await markShare(
+    page,
+    uniformArea(sampler, "Plain", "plain", farFromForests(sampler)),
+    "default",
+  );
   // As little as on any plain, see "forests are drawn with marks, plains are not"
   expect(far).toBeLessThan(0.02);
   expect(near).toBeGreaterThan(far + 0.01);
