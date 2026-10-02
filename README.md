@@ -24,7 +24,7 @@ Hodos creates maps for your imagination to thrive.
 - **Share a map:** _Copier le lien_ copies a link to the map as you see it: seed, view, mode and grid.
 - **Explore:** recenter and full-screen buttons; _Infos au survol_ shows the biome, relief and land mass under the pointer.
 - **Rivers and lakes:** rivers run downhill to the sea or into lakes, and zooming in reveals smaller tributaries.
-- **Relief and forests:** hills are shaded by a light from the north-west, and forests, jungles, taiga and swamps are drawn with small marks.
+- **Relief and forests:** hills are shaded by a light from the north-west, and forests, jungles, taiga and swamps are drawn with small marks, in stands and clearings that thin out at their edges and line the rivers of dry lands.
 - **Water shapes the land:** slow rivers spread into swamps, desert rivers are lined with green floodplains, and great rivers end in deltas.
 - **Zoom in for detail:** each zoom level has its own finer map, with more jagged coasts, islets and bays, and more intricate borders between biomes.
 - **Grid:** a square or hexagonal grid over the map, with a size and an opacity, for games.
@@ -33,7 +33,7 @@ Hodos creates maps for your imagination to thrive.
 
 ### Link parameters
 
-The same seed always produces the same map since the version that brought zoom detail, and these parameters are kept stable. Older links may show a different map. Links from before rivers show the same continents and coasts, now with rivers and lakes. Links from before relief shading show the same map, now shaded. Links from before swamps and deltas show the same continents and rivers, now with swamps, floodplains and deltas, whose coasts reach a little further out.
+The same seed always produces the same map since the version that brought zoom detail, and these parameters are kept stable. Older links may show a different map. Links from before rivers show the same continents and coasts, now with rivers and lakes. Links from before relief shading show the same map, now shaded. Links from before swamps and deltas show the same continents and rivers, now with swamps, floodplains and deltas, whose coasts reach a little further out. Links from before natural forests show the same map, with its trees placed differently.
 
 | Parameter | Meaning                                                         | Default   |
 | --------- | --------------------------------------------------------------- | --------- |

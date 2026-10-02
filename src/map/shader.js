@@ -255,7 +255,7 @@ export class WorldShaderProgram extends ShaderProgram {
   }
 
   /**
-   * Sets the biome texture: low color, high color and mark kind of each biome.
+   * Sets the biome texture: low color, high color and Parchemin tint of each biome.
    *
    * @param biomeTexture  the gl texture handle
    * @param maxId         the maximum id stored in the texture

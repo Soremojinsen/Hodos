@@ -7,7 +7,7 @@ precision highp float;
 precision mediump float;
 #endif
 
-// Low color, high color, and and Parchemin tint of each biome, 3 texels per biome id, see renderer.js
+// Low color, high color, and Parchemin tint of each biome, 3 texels per biome id, see renderer.js
 // #loadBiomeColors
 uniform sampler2D biomes;
 uniform float max_id;
@@ -159,8 +159,9 @@ vec3 drawMarks(vec3 color, vec2 point) {
             float kind = floor(tree.r * 255.0 + 0.5);
             if (kind < 0.5) continue;
             float rnd = floor(tree.g * 255.0 + 0.5);
-            // 0.75 to 1.25 times its size, and up to 8 % darker or lighter, apart
-            float scale = 0.75 + 0.5 * rnd / 255.0;
+            // 0.75 to 1.18 times its size, at most what trees.js TREE_REACH allows, and up to
+            // 8 % darker or lighter, apart
+            float scale = 0.75 + 0.43 * rnd / 255.0;
             float shade = 1.0 + 0.16 * (fract(rnd * 0.618034) - 0.5);
             vec2 centre = square + (floor(tree.ba * 255.0 + 0.5) + 0.5) / 256.0;
             vec2 q = (point / mark_cell - centre) / scale;

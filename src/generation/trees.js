@@ -5,7 +5,7 @@ import { hashSeed } from "./util.js";
 
 /**
  * How far a tree and its shadow reach from its centre at most, in grid squares: the largest
- * crown (jungle, 0.31 with its shadow) at the largest scale (1.25), and half a pixel of
+ * crown (jungle, 0.33 with its shadow) at the largest scale (1.18), and half a pixel of
  * antialiasing at the farthest zoom a level is drawn (√2 / MARK_SPACING_PX / 2 < 0.06). Less than
  * a square, so shaders/relief.glsl drawMarks finds every tree over a pixel in its 3 × 3 squares.
  */
@@ -19,17 +19,19 @@ export const SPILL = 4;
 // Inside a forest, the keep chance is EDGE_IN times on its border, rising to 1 INNER squares in;
 // outside, EDGE_OUT times one square out, falling to 0 at SPILL squares
 const INNER = 3;
-const EDGE_IN = 0.6;
+const EDGE_IN = 0.75;
 const EDGE_OUT = 0.5;
 
-// The chance of a tree in a square, by kind (see biomes.js markKind), and along floodplains
-const DENSITY = [0, 0.85, 1, 0.9, 0.45];
-const FLOODPLAIN_DENSITY = 0.35;
+// The chance of a tree in a square, by kind (see biomes.js markKind), and along floodplains,
+// before the woodland noise multiplies it by 0.75 on average. Above 1, the kind's stands are
+// closed over a wider area: jungles are the thickest
+const DENSITY = [0, 1, 1.3, 1.1, 0.7];
+const FLOODPLAIN_DENSITY = 0.45;
 
 // The woodland noise multiplies the chance by 0.75 ± CLUMPING, by kind: closed stands and
 // glades. Taiga is the patchiest. Stands and glades are about WOODLAND_SQUARES / 2 squares across,
 // half a wavelength of the noise
-const CLUMPING = [0, 0.4, 0.4, 0.6, 0.4];
+const CLUMPING = [0, 0.4, 0.3, 0.55, 0.5];
 const WOODLAND_SQUARES = 16;
 // The woodland noise is multiplied by NOISE_GAIN (then clamped to ±1) because simplex2's rms is
 // about 0.44, so it rarely reaches ±1 and the factor would otherwise span far less than its range
