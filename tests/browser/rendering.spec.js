@@ -386,40 +386,31 @@ test("forests are drawn with marks, plains are not, and debug mode has none", as
 
 test("trees spill a little into a plain beside a forest, and no further", async ({ page }) => {
   const sampler = new WorldSampler(withWater(generateWorld("12345")));
-  const [forest, plain] = ["Forest", "Plain"].map((name) =>
-    BIOME_DEFINITIONS.findIndex((definition) => definition.name === name),
-  );
+  const forest = BIOME_DEFINITIONS.findIndex((definition) => definition.name === "Forest");
   const cell = MARK_SPACING_PX * pixelSize(5);
-  // A border running north–south: forest over 3 squares west, plain over 6 squares east, along
-  // 7 squares, away from rivers
-  const random = aleaPRNG("spill");
-  let border = null;
-  for (let n = 0; n < 2_000_000 && !border; n++) {
-    const [x, y] = [random() * 10000, random() * 10000];
-    let straight = true;
-    for (let dy = -3; dy <= 3 && straight; dy++) {
-      for (let dx = -3; dx <= 6 && straight; dx++) {
-        if (dx === 0) continue;
-        const sample = sampler.sampleAt(x + dx * cell, y + dy * cell, 5);
-        const expected = dx < 0 ? forest : plain;
-        if (sample.biome !== expected || sample.altitude < 0.25 || sample.altitude > 0.5)
-          straight = false;
+  // The view's 32 px and a square and a half: a forest square centre within that, in a box
+  // around the point, lies just outside the view, which is all plain (see uniformArea)
+  const reach = 32 * pixelSize(5) + 1.5 * cell;
+  const steps = Math.ceil(reach / cell);
+  const nearForest = (x, y) => {
+    for (let i = -steps; i <= steps; i++) {
+      for (let j = -steps; j <= steps; j++) {
+        if (Math.max(Math.abs(i), Math.abs(j)) * cell > reach) continue;
+        if (sampler.sampleAt(x + i * cell, y + j * cell, 5).biome === forest) return true;
       }
     }
-    if (straight && !riverAt(sampler, x + 1.5 * cell, y, 5, { margin: 5 * cell })) border = [x, y];
-  }
-  expect(border).not.toBeNull();
+    return false;
+  };
   await openMap(page);
-  // markShare's view is 64 px, 5.3 squares wide. near: just past the border, within the spill
-  // of the forest. far: a plain with no forest within the view and the spill, as in "forests are
-  // drawn with marks, plains are not"
-  const near = await markShare(page, [border[0] + 2.8 * cell, border[1]], "default");
+  // near: a plain view with a forest just outside it, so its marks are trees spilled from it
+  const near = await markShare(page, uniformArea(sampler, "Plain", "spill", nearForest), "default");
+  // far: a plain with no forest within the view and the spill, as in "forests are drawn with
+  // marks, plains are not"
   const far = await markShare(
     page,
     uniformArea(sampler, "Plain", "plain", farFromForests(sampler)),
     "default",
   );
-  // As little as on any plain, see "forests are drawn with marks, plains are not"
   expect(far).toBeLessThan(0.02);
   expect(near).toBeGreaterThan(far + 0.01);
 });
