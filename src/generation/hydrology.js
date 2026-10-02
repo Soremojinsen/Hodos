@@ -399,6 +399,107 @@ function growDelta(seed, drainage, m, wetlands, reserved) {
     }
   }
 
+  // The fan must wall in no sea: of the pieces of free sea beside it, one stays the open sea
+  // (and any piece that no way joins to it, another sea). Each other piece becomes fan when no
+  // river ends in it and the rim reaches all of it; else a canal opens through the fan to it
+  const outer = radius * (1 + DELTA_LOBES / 2);
+  for (const open = new Set(); ;) {
+    // The pieces grow in turn, a point at a time, and join where they meet. Once at most one
+    // still grows, the others are whole, and the one still growing, past them all, is open
+    const piece = new Map();
+    const root = [];
+    const find = (a) => (root[a] === a ? a : (root[a] = find(root[a])));
+    const queues = [];
+    for (const j of fan) {
+      for (const n of delaunay.neighbors(j)) {
+        if (!free(n) || inside.has(n) || piece.has(n)) continue;
+        piece.set(n, root.length);
+        root.push(root.length);
+        queues.push({ points: [n], next: 0 });
+      }
+    }
+    if (queues.length === 0) break;
+    const growing = () =>
+      new Set(
+        queues.filter((q) => q.next < q.points.length).map((q) => find(piece.get(q.points[0]))),
+      );
+    for (let roots = growing(); roots.size > 1; roots = growing()) {
+      for (const q of queues) {
+        if (q.next === q.points.length) continue;
+        const i = q.points[q.next++];
+        for (const p of delaunay.neighbors(i)) {
+          if (!free(p) || inside.has(p)) continue;
+          if (!piece.has(p)) {
+            piece.set(p, piece.get(i));
+            q.points.push(p);
+          } else if (find(piece.get(p)) !== find(piece.get(i))) {
+            root[find(piece.get(p))] = find(piece.get(i));
+          }
+        }
+      }
+    }
+    const pieces = new Map();
+    for (const q of queues) {
+      const r = find(piece.get(q.points[0]));
+      pieces.set(r, [...(pieces.get(r) ?? []), ...q.points]);
+    }
+    const [still] = growing();
+    if (open.size === 0) {
+      const largest = [...pieces.values()].reduce((a, b) => (b.length > a.length ? b : a));
+      open.add(still === undefined ? largest[0] : pieces.get(still)[0]);
+    }
+    // Open pieces are known by one of their points: pieces are numbered anew each round
+    const opened = new Set([...open].filter((p) => piece.has(p)).map((p) => find(piece.get(p))));
+    if (still !== undefined) opened.add(still);
+    const walled = [...pieces.keys()].find((r) => !opened.has(r));
+    if (walled === undefined) break;
+    const points = pieces.get(walled);
+    if (points.every((p) => !reserved(p) && distance(m, p) <= outer)) {
+      for (const p of points) {
+        inside.add(p);
+        fan.push(p);
+      }
+      continue;
+    }
+    // The canal: the fewest fan points from the piece to an open one, through other pieces,
+    // away from m if it can be, lest it cut the whole fan off from its river
+    const beside = new Set(delaunay.neighbors(m));
+    const canal = (away) => {
+      const from = new Map(points.map((p) => [p, -1]));
+      const queue = [...points];
+      for (let q = 0; q < queue.length; q++) {
+        for (const p of delaunay.neighbors(queue[q])) {
+          if (from.has(p) || !(inside.has(p) || piece.has(p)) || (away && beside.has(p))) continue;
+          from.set(p, queue[q]);
+          if (piece.has(p) && opened.has(find(piece.get(p)))) return { reached: p, from };
+          queue.push(p);
+        }
+      }
+      return null;
+    };
+    const path = canal(true) ?? canal(false);
+    if (!path) {
+      open.add(points[0]);
+      continue;
+    }
+    const { reached, from } = path;
+    for (let p = reached; p >= 0; p = from.get(p)) inside.delete(p);
+    // The fan points the canal cut off from m are sea again, joined to it
+    const kept = new Set();
+    const reach = [m];
+    for (let q = 0; q < reach.length; q++) {
+      for (const j of delaunay.neighbors(reach[q])) {
+        if (inside.has(j) && !kept.has(j)) {
+          kept.add(j);
+          reach.push(j);
+        }
+      }
+    }
+    fan.splice(0, fan.length, ...fan.filter((j) => kept.has(j)));
+    inside.clear();
+    for (const j of fan) inside.add(j);
+  }
+
   // The rim: fan points beside free sea outside the fan, each with its nearest such point
   const outlet = new Map();
   for (const j of fan) {

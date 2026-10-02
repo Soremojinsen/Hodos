@@ -332,6 +332,61 @@ test("every river edge that ends in water ends in sea or a lake, never on delta 
   }
 });
 
+test("deltas wall in no sea: what is left of each sea is all one water", () => {
+  for (const seed of ["12345", "1", "hodos", "42", "abc"]) {
+    const drained = computeDrainage(new WorldSampler(generateWorld(seed)));
+    const { land, delaunay } = drained;
+    const { wetlands } = computeWetlands(seed, drained);
+    // The points of each connected group of sea points among those kept
+    const groups = (kept) => {
+      const group = new Int32Array(land.length).fill(-1);
+      let count = 0;
+      for (let i = 0; i < land.length; i++) {
+        if (group[i] >= 0 || !kept(i)) continue;
+        group[i] = count;
+        const queue = [i];
+        for (let q = 0; q < queue.length; q++) {
+          for (const j of delaunay.neighbors(queue[q])) {
+            if (group[j] < 0 && kept(j)) {
+              group[j] = count;
+              queue.push(j);
+            }
+          }
+        }
+        count++;
+      }
+      return group;
+    };
+    const before = groups((i) => !land[i]);
+    const after = groups((i) => !land[i] && wetlands[i] !== DELTA_POINT);
+    // Each sea left stays one group: no two groups left share a sea from before
+    const seaOf = new Map();
+    for (let i = 0; i < land.length; i++) {
+      if (after[i] < 0) continue;
+      const known = seaOf.get(before[i]);
+      if (known === undefined) seaOf.set(before[i], after[i]);
+      else expect(after[i], `seed ${seed}, sea point ${i}`).toBe(known);
+    }
+  }
+});
+
+test("a delta that walls in the sea point its river ends in opens it and still grows", () => {
+  // On this seed, a small river shares the sea point of the great river 21591, which must stay
+  // sea: the fan grows around it, and the canal that opens it must not cut the fan off
+  const drained = computeDrainage(new WorldSampler(generateWorld("hodos")));
+  const m = 21591;
+  const sea = drained.downstream[m];
+  const { wetlands, removed, channels } = computeWetlands("hodos", drained);
+  expect(removed[m]).toBe(1);
+  expect(channels.some((c) => c.from === m)).toBe(true);
+  expect(wetlands[sea]).not.toBe(DELTA_POINT);
+  expect(
+    [...drained.delaunay.neighbors(sea)].some(
+      (j) => !drained.land[j] && wetlands[j] !== DELTA_POINT,
+    ),
+  ).toBe(true);
+});
+
 test("every channel of a delta is drawn from the first level deltas are drawn at, or none", () => {
   let deltas = 0;
   for (const seed of ["12345", "1", "42", "abc"]) {
