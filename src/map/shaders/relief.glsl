@@ -149,6 +149,13 @@ float reeds(vec2 q) {
 vec3 drawMarks(vec3 color, vec2 point) {
     vec2 here = floor(point / mark_cell);
     float pixel = pixel_world / mark_cell;
+    // A bound on how far a tree and its shadow reach from its centre, in grid squares. The
+    // farthest is a conifer's shadow corner, at 0.372 times the tree's scale (at most 1.18, so
+    // 0.439), plus 1.6 times the half pixel its edges are antialiased over (see cover): about 0.53
+    // squares at the farthest zoom a level is drawn. 0.45 plus a whole pixel bounds it at any zoom
+    float reach = 0.45 + pixel;
+    float reachSquared = reach * reach;
+    vec2 at = point / mark_cell;
     vec3 base = color;
     for (int dy = 1; dy >= -1; dy--) {
         for (int dx = -1; dx <= 1; dx++) {
@@ -158,13 +165,16 @@ vec3 drawMarks(vec3 color, vec2 point) {
             vec4 tree = texture2D(mark_trees, (texel + 0.5) / mark_size);
             float kind = floor(tree.r * 255.0 + 0.5);
             if (kind < 0.5) continue;
+            vec2 centre = square + (floor(tree.ba * 255.0 + 0.5) + 0.5) / 256.0;
+            // Most of the 9 trees are out of the pixel's reach: skip them before their shapes
+            vec2 offset = at - centre;
+            if (dot(offset, offset) > reachSquared) continue;
             float rnd = floor(tree.g * 255.0 + 0.5);
-            // 0.75 to 1.18 times its size, at most what trees.js TREE_REACH allows, and up to
-            // 8 % darker or lighter, apart
+            // 0.75 to 1.18 times its size, so it reaches less than a square (see trees.js
+            // TREE_REACH), and up to 8 % darker or lighter, apart
             float scale = 0.75 + 0.43 * rnd / 255.0;
             float shade = 1.0 + 0.16 * (fract(rnd * 0.618034) - 0.5);
-            vec2 centre = square + (floor(tree.ba * 255.0 + 0.5) + 0.5) / 256.0;
-            vec2 q = (point / mark_cell - centre) / scale;
+            vec2 q = offset / scale;
             float p = pixel / scale;
             float mark;
             float shadow = 0.0;
