@@ -17,6 +17,7 @@ import {
   treeGrid,
   treesOf,
 } from "../../src/generation/trees.js";
+import { siteAt } from "../../src/generation/tiles.js";
 import { generateWorld } from "../../src/generation/world.js";
 import { aleaPRNG } from "../../src/vendor/alea-prng.js";
 
@@ -78,6 +79,16 @@ const borders = (forestName, openName, count, seed) => {
   }
   expect(found.length).toBe(count);
   return found;
+};
+
+/**
+ * Whether the cell drawn under a level-Z point is floodplain, as tiles.js buildTile colours it at
+ * the cell's site.
+ */
+const floodplainAt = (x, y) => {
+  const [sx, sy] = siteAt(sampler.seed, x, y, Z);
+  const site = sampler.sampleAt(sx, sy, Z);
+  return site.land && bankAt(sampler, sx, sy, Z, site.biome);
 };
 
 // The texel of a square of the world in a grid, or null outside it
@@ -205,7 +216,7 @@ test("trees thin out towards a forest's border, spill a little past it, and no f
           ];
           if (d > SPILL + 1e-9 && texel[0] === 1 && sampler.sampleAt(tx, ty, Z).biome === plain) {
             // A broadleaf tree on a plain this far from any forest can only line a floodplain
-            expect(bankAt(sampler, tx, ty, Z, plain)).toBe(true);
+            expect(floodplainAt(tx, ty)).toBe(true);
           }
           const bucket = d <= 1.5 ? outside.near : d > 2.5 && d <= SPILL ? outside.far : null;
           if (bucket) [bucket[0], bucket[1]] = [bucket[0] + tree, bucket[1] + 1];
@@ -241,7 +252,7 @@ test("trees stand on land between beach and tree line, spill only onto open land
       const definition = BIOME_DEFINITIONS[sample.biome];
       if (definition.mark) {
         expect(t.kind).toBe(MARKS.indexOf(definition.mark) + 1);
-      } else if (bankAt(sampler, t.x, t.y, Z, sample.biome)) {
+      } else if (floodplainAt(t.x, t.y)) {
         expect(t.kind).toBe(1);
       } else {
         spilled++;
@@ -272,14 +283,16 @@ test("floodplains are lined with round crowns", () => {
     if (sampler.sampleAt(x, y, Z).biome !== desert || !bankAt(sampler, x, y, Z, desert)) continue;
     found++;
     for (const t of treesOf(treeGrid(sampler, Z, CELL, area([x, y], 4 * CELL)), CELL)) {
-      if (bankAt(sampler, t.x, t.y, Z, sampler.sampleAt(t.x, t.y, Z).biome)) {
+      if (!BIOME_DEFINITIONS[sampler.sampleAt(t.x, t.y, Z).biome].mark && floodplainAt(t.x, t.y)) {
         expect(t.kind).toBe(1);
         lined++;
       }
     }
   }
   expect(found).toBe(8);
-  expect(lined).toBeGreaterThan(3);
+  // Trees stand anywhere in a floodplain cell clear of the river: 23 here, against 16 when they
+  // had to stand within the floodplain's band itself
+  expect(lined).toBeGreaterThan(19);
 });
 
 test("no river comes within a tree's reach, at any zoom its level is drawn at", () => {

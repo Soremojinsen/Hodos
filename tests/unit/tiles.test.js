@@ -10,6 +10,7 @@ import {
   TILE_CELLS_SIDE,
   buildTile,
   siteAt,
+  sitesIn,
   tileCells,
   tilePoints,
   tileSize,
@@ -178,6 +179,23 @@ test("siteAt on the world's edge finds a drawn cell, not its mirror image outsid
       expect(x).toBeLessThanOrEqual(WORLD_SIZE);
       expect(y).toBeGreaterThanOrEqual(0);
       expect(y).toBeLessThanOrEqual(WORLD_SIZE);
+    }
+  }
+});
+
+test("sitesIn finds the same sites as siteAt over an area, up to the world's edges", () => {
+  for (const [z, area] of [
+    [0, [0, 0, WORLD_SIZE, WORLD_SIZE]],
+    [3, [-10, 4000, 900, 4900]],
+    [7, [5000, 9800, 5300, WORLD_SIZE]],
+  ]) {
+    const siteOf = sitesIn(SEED, z, area);
+    for (let k = 0; k <= 20; k++) {
+      for (let l = 0; l <= 20; l++) {
+        const px = Math.min(Math.max(area[0] + ((area[2] - area[0]) * k) / 20, 0), WORLD_SIZE);
+        const py = Math.min(Math.max(area[1] + ((area[3] - area[1]) * l) / 20, 0), WORLD_SIZE);
+        expect(siteOf(px, py)).toEqual(siteAt(SEED, px, py, z));
+      }
     }
   }
 });

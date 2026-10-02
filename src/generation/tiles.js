@@ -240,3 +240,59 @@ export function siteAt(seed, px, py, z) {
   }
   return best;
 }
+
+/**
+ * siteAt for many points of an area at once: the points of the tiles around it are drawn once,
+ * and each point only looks at the sites of the 5 × 5 squares of the site grid around it.
+ * A site is at most 0.4 of a square from its square's centre, so the site of a point's own
+ * square is within 0.9√2 < 1.3 squares, and the sites 3 squares away or more are over 2.
+ *
+ * @param area the points to look up are in it, [minX, minY, maxX, maxY]
+ * @returns {function(Number, Number): Number[]} (x, y) => [x, y] of its site
+ */
+export function sitesIn(seed, z, [minX, minY, maxX, maxY]) {
+  const size = tileSize(z);
+  const step = size / TILE_CELLS_SIDE;
+  const count = 2 ** z;
+  const [i0, j0] = [Math.floor(minX / step) - 2, Math.floor(minY / step) - 2];
+  const columns = Math.floor(maxX / step) + 3 - i0;
+  const rows = Math.floor(maxY / step) + 3 - j0;
+  // The sites of the grid's squares, x then y, NaN outside the world
+  const sites = new Float64Array(2 * columns * rows).fill(NaN);
+  const [tx0, ty0] = [Math.floor(i0 / TILE_CELLS_SIDE), Math.floor(j0 / TILE_CELLS_SIDE)];
+  const [tx1, ty1] = [
+    Math.floor((i0 + columns - 1) / TILE_CELLS_SIDE),
+    Math.floor((j0 + rows - 1) / TILE_CELLS_SIDE),
+  ];
+  for (let ty = Math.max(ty0, 0); ty <= Math.min(ty1, count - 1); ty++) {
+    for (let tx = Math.max(tx0, 0); tx <= Math.min(tx1, count - 1); tx++) {
+      const points = tilePoints(seed, z, tx, ty);
+      for (let row = 0; row < TILE_CELLS_SIDE; row++) {
+        const r = ty * TILE_CELLS_SIDE + row - j0;
+        if (r < 0 || r >= rows) continue;
+        for (let col = 0; col < TILE_CELLS_SIDE; col++) {
+          const c = tx * TILE_CELLS_SIDE + col - i0;
+          if (c < 0 || c >= columns) continue;
+          const k = 2 * (row * TILE_CELLS_SIDE + col);
+          sites.set([points[k], points[k + 1]], 2 * (r * columns + c));
+        }
+      }
+    }
+  }
+  return (px, py) => {
+    const [c0, r0] = [Math.floor(px / step) - i0, Math.floor(py / step) - j0];
+    let best = null;
+    let bestDistance = Infinity;
+    for (let r = r0 - 2; r <= r0 + 2; r++) {
+      for (let c = c0 - 2; c <= c0 + 2; c++) {
+        const k = 2 * (r * columns + c);
+        const distance = (sites[k] - px) ** 2 + (sites[k + 1] - py) ** 2;
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          best = [sites[k], sites[k + 1]];
+        }
+      }
+    }
+    return best;
+  };
+}

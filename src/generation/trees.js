@@ -1,6 +1,7 @@
 import { createNoise } from "../vendor/perlin.js";
 import { BIOME_DEFINITIONS, markKind } from "./biomes.js";
 import { banks, nearRivers } from "./rivers.js";
+import { TILE_CELLS_SIDE, sitesIn, tileSize } from "./tiles.js";
 import { fnv1a, hashSeed } from "./util.js";
 
 /**
@@ -140,7 +141,8 @@ const clamp01 = (value) => Math.min(Math.max(value, 0), 1);
  * only on the seed, the level and where the square is, so neighbouring tiles agree.
  *
  * - A biome with a mark grows its own kind, thinning over the INNER squares inside its border.
- * - Dry land beside a river (rivers.js banks) grows broadleaf trees, as gallery forests.
+ * - Floodplain cells (rivers.js banks, at the cell's site as tiles.js buildTile colours them)
+ *   grow broadleaf trees, as gallery forests.
  * - Open land (HOSTS) grows the kind of the nearest forest it may host, up to SPILL squares out.
  * - The woodland noise groups trees into stands and glades; slopes and the tree line thin them.
  * - A tree a river would cut, at any zoom its level is drawn at, is left out.
@@ -189,7 +191,21 @@ export function treeGrid(sampler, z, cell, [minX, minY, maxX, maxY]) {
 
   const margin = TREE_REACH * cell;
   const box = [i0 * cell, j0 * cell, (i0 + columns) * cell, (j0 + rows) * cell];
-  const bank = banks(sampler, z, box);
+  // A tree's cell may have its site up to about 1.3 cells away, see tiles.js sitesIn
+  const siteMargin = (2 * tileSize(z)) / TILE_CELLS_SIDE;
+  const bank = banks(sampler, z, [
+    box[0] - siteMargin,
+    box[1] - siteMargin,
+    box[2] + siteMargin,
+    box[3] + siteMargin,
+  ]);
+  const siteOf = sitesIn(sampler.seed, z, box);
+  // Whether the cell drawn under a point is floodplain, as buildTile decides it at its site
+  const floodplain = (x, y) => {
+    const [sx, sy] = siteOf(x, y);
+    const site = sampler.sampleAt(sx, sy, z);
+    return site.land && bank(sx, sy, site.biome);
+  };
   const river = nearRivers(sampler, z, box, margin);
   const noise = woodland(sampler.seed);
   // All 32 bits of the seed's hash, apart from the world's: hashSeed keeps only 16, for the noise
@@ -215,7 +231,7 @@ export function treeGrid(sampler, z, cell, [minX, minY, maxX, maxY]) {
       if (kind) {
         const d = distanceOut(kind)[g];
         chance = DENSITY[kind] * (EDGE_IN + (1 - EDGE_IN) * clamp01((d - 1) / (INNER - 1)));
-      } else if (bank(x, y, sample.biome)) {
+      } else if (floodplain(x, y)) {
         kind = 1;
         chance = FLOODPLAIN_DENSITY;
       } else {
