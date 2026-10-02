@@ -238,19 +238,18 @@ export class WorldShaderProgram extends ShaderProgram {
   }
 
   /**
-   * Draws a tile's squares next, see mesh.js uploadMarkSquares: its vegetation marks leave bare
-   * the squares its rivers cover.
+   * Draws a tile's trees next, see mesh.js uploadTrees.
    *
-   * @param texture the tile's texture of covered squares
+   * @param texture the tile's texture of trees, a texel per square
    * @param origin  the column and row of its first square
    * @param size    its number of columns and rows
    */
-  setMarkSquares(texture, origin, size) {
+  setTrees(texture, origin, size) {
     const gl = this.gl;
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.activeTexture(gl.TEXTURE0);
-    gl.uniform1i(gl.getUniformLocation(this.glProgram, "mark_blocked"), 1);
+    gl.uniform1i(gl.getUniformLocation(this.glProgram, "mark_trees"), 1);
     gl.uniform2fv(gl.getUniformLocation(this.glProgram, "mark_origin"), origin);
     gl.uniform2fv(gl.getUniformLocation(this.glProgram, "mark_size"), size);
   }

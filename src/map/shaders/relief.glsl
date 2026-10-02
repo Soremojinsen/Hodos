@@ -7,7 +7,7 @@ precision highp float;
 precision mediump float;
 #endif
 
-// Low color, high color, and mark kind and Parchemin tint of each biome, 3 texels per biome id, see renderer.js
+// Low color, high color, and and Parchemin tint of each biome, 3 texels per biome id, see renderer.js
 // #loadBiomeColors
 uniform sampler2D biomes;
 uniform float max_id;
@@ -16,15 +16,15 @@ uniform float max_id;
 // pixel of the view, see shader.js setLevel and setView
 uniform float mark_cell;
 uniform float pixel_world;
-// The squares of the tile drawn that its rivers cover, a texel per square (1 if covered), from
-// the square at column and row mark_origin, mark_size of them, see generation/rivers.js
-// riverSquares: a river drawn over a mark would cut it, so the mark is left out
-uniform sampler2D mark_blocked;
+// The trees of the tile drawn, a texel per square of a grid mark_cell wide anchored in the world,
+// from the square at column and row mark_origin, mark_size of them, see generation/trees.js
+// treeGrid: the tree's kind in red (0 for none, else its index in MARKS + 1), a random byte for
+// its size and shade in green, and its centre in the square in blue and alpha
+uniform sampler2D mark_trees;
 uniform vec2 mark_origin;
 uniform vec2 mark_size;
 
-// Texel k of a biome: 0 its low color, 1 its high color, 2 its mark kind (in red, kind / 255)
-// and its Parchemin tint (in green)
+// Texel k of a biome: 0 its low color, 1 its high color, 2 its Parchemin tint (in green)
 vec4 biomeTexel(float id, float k) {
     return texture2D(biomes, vec2((3.0 * id + k + 0.5) / (3.0 * max_id + 3.0), 0.5));
 }
@@ -116,24 +116,8 @@ vec3 hillShade(vec3 color, vec2 slope, vec2 noiseSlope) {
     return color * mix(1.0, clamp(lit, SHADE_MIN, SHADE_MAX), SHADE_STRENGTH);
 }
 
-// Vegetation marks, one per square of a grid mark_cell wide anchored in the world, drawn only
-// where the pixel's own biome has a mark, and only above the beach and below the mountains
-const float MARK_BEACH = 0.1;
-const float MARK_MOUNTAIN = 0.65;
-// Where a mark's shadow falls, in grid squares: to the south-east, away from the light
+// Where a tree's shadow falls, in grid squares: to the south-east, away from the light
 const vec2 MARK_SHADOW = vec2(0.06, -0.08);
-// Half a pixel, in grid squares, at the most a mark's antialiasing reaches: a level is drawn
-// from half a zoom level out, where a grid square is MARK_SPACING_PX / sqrt(2) pixels wide:
-// sqrt(2) / 12 / 2 < 0.06. MARK_SPACING_PX is defined in constants.js; update this if it changes.
-const float MARK_EDGE = 0.06;
-
-// A random number in [0, 1) for a grid square ("Hash without Sine", Dave Hoskins, MIT): no
-// sin, whose precision on large arguments varies between GPUs
-float markHash(vec2 p) {
-    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
-    p3 += dot(p3, p3.yzx + 33.33);
-    return fract((p3.x + p3.y) * p3.z);
-}
 
 // How much of a pixel a shape covers, from its signed distance (negative inside) and the
 // pixel's size, both in grid squares
@@ -159,48 +143,54 @@ float reeds(vec2 q) {
     return d;
 }
 
-// A color with the mark of its biome drawn over it, at a world point and altitude
-vec3 drawMarks(vec3 color, float id, vec2 point, float altitude) {
-    float kind = floor(biomeTexel(id, 2.0).r * 255.0 + 0.5);
-    if (kind < 0.5 || altitude < MARK_BEACH || altitude >= MARK_MOUNTAIN) return color;
-    vec2 square = floor(point / mark_cell);
-    vec2 texel = square - mark_origin;
-    if (all(greaterThanEqual(texel, vec2(0.0))) && all(lessThan(texel, mark_size)) &&
-        texture2D(mark_blocked, (texel + 0.5) / mark_size).r > 0.5) {
-        return color;
-    }
+// A land color with its trees drawn over it, at a world point: the trees of the pixel's square
+// and the 8 around, as a tree reaches less than a square from its centre (trees.js TREE_REACH).
+// Northern trees are drawn first, so a southern crown covers them
+vec3 drawMarks(vec3 color, vec2 point) {
+    vec2 here = floor(point / mark_cell);
     float pixel = pixel_world / mark_cell;
-    // How far each mark and its shadow reach from its centre, in grid squares, on each axis
-    float reach = kind < 1.5 ? 0.28 : (kind < 2.5 ? 0.31 : (kind < 3.5 ? 0.3 : 0.2));
-    // The mark's centre stays that far, and MARK_EDGE more, from the square's sides, so no mark
-    // or shadow crosses into the next square, which does not draw it
-    float margin = reach + MARK_EDGE;
-    vec2 jitter = vec2(markHash(square), markHash(square + 17.0));
-    vec2 q = point / mark_cell - square - (margin + (1.0 - 2.0 * margin) * jitter);
-    float keep = markHash(square + 41.0);
-    float mark = 0.0;
-    float shadow = 0.0;
-    float dark = 0.55;
-    if (kind < 1.5) {
-        // Broadleaf: round crowns, a few squares left bare
-        if (keep > 0.85) return color;
-        mark = cover(length(q) - 0.18, pixel);
-        shadow = cover(length(q - MARK_SHADOW) - 0.2, pixel);
-    } else if (kind < 2.5) {
-        // Jungle: larger, darker crowns in every square
-        mark = cover(length(q) - 0.21, pixel);
-        shadow = cover(length(q - MARK_SHADOW) - 0.23, pixel);
-        dark = 0.42;
-    } else if (kind < 3.5) {
-        mark = cover(conifer(q), pixel);
-        shadow = cover(conifer(q - MARK_SHADOW), pixel);
-        dark = 0.5;
-    } else {
-        // Reeds, sparse
-        if (keep > 0.6) return color;
-        mark = cover(reeds(q), pixel);
-        dark = 0.6;
+    vec3 base = color;
+    for (int dy = 1; dy >= -1; dy--) {
+        for (int dx = -1; dx <= 1; dx++) {
+            vec2 square = here + vec2(float(dx), float(dy));
+            vec2 texel = square - mark_origin;
+            if (any(lessThan(texel, vec2(0.0))) || any(greaterThanEqual(texel, mark_size))) continue;
+            vec4 tree = texture2D(mark_trees, (texel + 0.5) / mark_size);
+            float kind = floor(tree.r * 255.0 + 0.5);
+            if (kind < 0.5) continue;
+            float rnd = floor(tree.g * 255.0 + 0.5);
+            // 0.75 to 1.25 times its size, and up to 8 % darker or lighter, apart
+            float scale = 0.75 + 0.5 * rnd / 255.0;
+            float shade = 1.0 + 0.16 * (fract(rnd * 0.618034) - 0.5);
+            vec2 centre = square + (floor(tree.ba * 255.0 + 0.5) + 0.5) / 256.0;
+            vec2 q = (point / mark_cell - centre) / scale;
+            float p = pixel / scale;
+            float mark;
+            float shadow = 0.0;
+            float dark;
+            if (kind < 1.5) {
+                // Broadleaf: a round crown
+                mark = cover(length(q) - 0.18, p);
+                shadow = cover(length(q - MARK_SHADOW) - 0.2, p);
+                dark = 0.55;
+            } else if (kind < 2.5) {
+                // Jungle: a larger, darker crown
+                mark = cover(length(q) - 0.21, p);
+                shadow = cover(length(q - MARK_SHADOW) - 0.23, p);
+                dark = 0.42;
+            } else if (kind < 3.5) {
+                mark = cover(conifer(q), p);
+                shadow = cover(conifer(q - MARK_SHADOW), p);
+                dark = 0.5;
+            } else {
+                // Reeds, without a shadow
+                mark = cover(reeds(q), p);
+                dark = 0.6;
+            }
+            // A shadow only darkens, even over another crown; a crown is drawn over all before
+            color = mix(color, min(color, base * 0.75), shadow * (1.0 - mark));
+            color = mix(color, base * dark * shade, mark);
+        }
     }
-    color = mix(color, color * 0.75, shadow * (1.0 - mark));
-    return mix(color, color * dark, mark);
+    return color;
 }

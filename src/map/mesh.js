@@ -80,7 +80,7 @@ export class Tile extends Mesh {
       riverShapes: upload(gl.ARRAY_BUFFER, data.riverShapes),
       riverIndices: upload(gl.ELEMENT_ARRAY_BUFFER, data.riverIndices),
     };
-    this.#markTexture = uploadMarkSquares(gl, data.markBlocked, data.markSize);
+    this.#markTexture = uploadTrees(gl, data.markTexels, data.markSize);
     this.#markOrigin = data.markOrigin;
     this.#markSize = data.markSize;
     this.#indexCount = data.indices.length;
@@ -99,7 +99,7 @@ export class Tile extends Mesh {
     const gl = shaderProgram.gl;
     const buffers = this.#buffers;
     shaderProgram.setLevel(this.#z);
-    shaderProgram.setMarkSquares(this.#markTexture, this.#markOrigin, this.#markSize);
+    shaderProgram.setTrees(this.#markTexture, this.#markOrigin, this.#markSize);
     shaderProgram.bindSurfaceVertexPositionBuffer(buffers.positions);
     shaderProgram.bindDebugSurfaceColorsBuffer(buffers.debugColors);
     shaderProgram.bindBiomeIdBuffer(buffers.biomeIds);
@@ -124,28 +124,15 @@ export class Tile extends Mesh {
 }
 
 /**
- * A texture of a tile's mark squares that rivers cover, a texel per square, see
- * generation/rivers.js riverSquares. It is bound to texture unit 1 when drawing, see
- * WorldShaderProgram.setMarkSquares; unit 0 stays active.
+ * A texture of a tile's trees, a texel per square of their grid, see generation/trees.js
+ * treeGrid. It is bound to texture unit 1 when drawing, see WorldShaderProgram.setTrees; unit 0
+ * stays active.
  */
-function uploadMarkSquares(gl, blocked, [columns, rows]) {
+function uploadTrees(gl, texels, [columns, rows]) {
   const texture = gl.createTexture();
   gl.activeTexture(gl.TEXTURE1);
   gl.bindTexture(gl.TEXTURE_2D, texture);
-  // Rows of single bytes, not padded to 4
-  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-  gl.texImage2D(
-    gl.TEXTURE_2D,
-    0,
-    gl.LUMINANCE,
-    columns,
-    rows,
-    0,
-    gl.LUMINANCE,
-    gl.UNSIGNED_BYTE,
-    blocked,
-  );
-  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, columns, rows, 0, gl.RGBA, gl.UNSIGNED_BYTE, texels);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);

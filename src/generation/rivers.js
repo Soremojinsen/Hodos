@@ -484,44 +484,6 @@ export function riverAt(sampler, x, y, z, { zoom = z, margin = 0 } = {}) {
 }
 
 /**
- * The squares of a grid anchored in the world, `cell` wide, that a river of level z covers in
- * part at any zoom the level is drawn at (see drawnHalfWidth): the vegetation marks leave them
- * bare, as a river drawn over a mark would cut it (see MARK_SPACING_PX).
- *
- * @param sampler {WorldSampler}
- * @param area the squares that reach into it are returned, [minX, minY, maxX, maxY]
- * @returns {{origin: Number[], size: Number[], blocked: Uint8Array}} the first square's column
- *          and row, the number of columns and rows, and 255 per covered square (0 otherwise),
- *          row by row from origin
- */
-export function riverSquares(sampler, z, cell, [minX, minY, maxX, maxY]) {
-  const [i0, j0] = [Math.floor(minX / cell), Math.floor(minY / cell)];
-  const [columns, rows] = [Math.floor(maxX / cell) - i0 + 1, Math.floor(maxY / cell) - j0 + 1];
-  const blocked = new Uint8Array(columns * rows);
-  const squares = [i0 * cell, j0 * cell, (i0 + columns) * cell, (j0 + rows) * cell];
-  const column = (x) => Math.min(Math.max(Math.floor(x / cell) - i0, 0), columns - 1);
-  const row = (y) => Math.min(Math.max(Math.floor(y / cell) - j0, 0), rows - 1);
-  for (const { course, flow } of riverCourses(sampler, z, squares)) {
-    const half = drawnHalfWidth(flow, z);
-    for (let k = 0; k + 3 < course.length; k += 2) {
-      const [px, py, qx, qy] = [course[k], course[k + 1], course[k + 2], course[k + 3]];
-      if (Math.max(px, qx) + half < squares[0] || Math.min(px, qx) - half > squares[2]) continue;
-      if (Math.max(py, qy) + half < squares[1] || Math.min(py, qy) - half > squares[3]) continue;
-      for (let j = row(Math.min(py, qy) - half); j <= row(Math.max(py, qy) + half); j++) {
-        for (let i = column(Math.min(px, qx) - half); i <= column(Math.max(px, qx) + half); i++) {
-          if (blocked[j * columns + i]) continue;
-          const [x0, y0] = [(i0 + i) * cell, (j0 + j) * cell];
-          if (segmentBoxDistance(px, py, qx, qy, [x0, y0, x0 + cell, y0 + cell]) <= half) {
-            blocked[j * columns + i] = 255;
-          }
-        }
-      }
-    }
-  }
-  return { origin: [i0, j0], size: [columns, rows], blocked };
-}
-
-/**
  * Whether points of an area are within a margin of a river of level z as drawn at any zoom the
  * level is drawn at (see drawnHalfWidth): the vegetation marks leave out a tree whose crown a
  * river would cut, see trees.js treeGrid.
@@ -558,35 +520,6 @@ export function nearRivers(sampler, z, [minX, minY, maxX, maxY], margin) {
     }
     return false;
   };
-}
-
-// The distance from the segment from p to q to a box [minX, minY, maxX, maxY]: 0 if they meet,
-// else from one's corner to the other, the nearest points of two convex shapes apart
-function segmentBoxDistance(px, py, qx, qy, box) {
-  const [minX, minY, maxX, maxY] = box;
-  // Clips the segment to the box (Liang–Barsky): some of it is left if they meet
-  const [dx, dy] = [qx - px, qy - py];
-  let [t0, t1] = [0, 1];
-  const clip = (p, q) => {
-    if (p === 0) return q >= 0;
-    const r = q / p;
-    if (p < 0) t0 = Math.max(t0, r);
-    else t1 = Math.min(t1, r);
-    return t0 <= t1;
-  };
-  if (clip(-dx, px - minX) && clip(dx, maxX - px) && clip(-dy, py - minY) && clip(dy, maxY - py)) {
-    return 0;
-  }
-  const outside = (x, y) =>
-    Math.hypot(Math.max(minX - x, 0, x - maxX), Math.max(minY - y, 0, y - maxY));
-  return Math.min(
-    outside(px, py),
-    outside(qx, qy),
-    segmentDistance(minX, minY, px, py, qx, qy),
-    segmentDistance(maxX, minY, px, py, qx, qy),
-    segmentDistance(minX, maxY, px, py, qx, qy),
-    segmentDistance(maxX, maxY, px, py, qx, qy),
-  );
 }
 
 // The distance from (x, y) to the segment from p to q

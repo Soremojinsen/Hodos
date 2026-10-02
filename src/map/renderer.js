@@ -1,5 +1,5 @@
 import { MAX_ZOOM } from "../constants.js";
-import { BIOME_DEFINITIONS, markKind } from "../generation/biomes.js";
+import { BIOME_DEFINITIONS } from "../generation/biomes.js";
 import { t } from "../i18n/i18n.js";
 import { flipRows } from "./pixels.js";
 import { DebugWorldShaderProgram, WorldShaderProgram } from "./shader.js";
@@ -395,15 +395,14 @@ export class MapRenderer {
   }
 
   #loadBiomeColors() {
-    // Low color, high color, and mark kind (red) and Parchemin tint (green) of each biome, by id
+    // Low color, high color, and Parchemin tint (green) of each biome, by id
     // (the index in BIOME_DEFINITIONS), see shaders/relief.glsl biomeTexel
     const colors = new Uint8Array(9 * BIOME_DEFINITIONS.length);
-    BIOME_DEFINITIONS.forEach(({ low, high, mark, parchment = 0 }, id) => {
+    BIOME_DEFINITIONS.forEach(({ low, high, parchment = 0 }, id) => {
       colors.set(
         [...low, ...high].map((component) => component * 0xff),
         9 * id,
       );
-      colors[9 * id + 6] = markKind(mark);
       colors[9 * id + 7] = Math.round(parchment * 0xff);
     });
     this.#maxBiomeId = BIOME_DEFINITIONS.length - 1;

@@ -2,7 +2,8 @@ import { Delaunay } from "d3-delaunay";
 import { MARK_SPACING_PX, WORLD_SIZE } from "../constants.js";
 import { aleaPRNG } from "../vendor/alea-prng.js";
 import { BIOME_DEFINITIONS } from "./biomes.js";
-import { FLOODPLAIN, banks, buildRivers, pixelSize, riverSquares } from "./rivers.js";
+import { FLOODPLAIN, banks, buildRivers, pixelSize } from "./rivers.js";
+import { treeGrid } from "./trees.js";
 
 /**
  * Every tile has TILE_CELLS_SIDE² cells, whatever its level: about 8 px wide on screen.
@@ -111,15 +112,15 @@ export function tileCells(seed, z, x, y) {
  * and slopes are sampled at each vertex, so a land cell with a corner at sea slopes down to the
  * coast, and the shaders light it smoothly. Slopes are flat at sea and on deltas.
  * The rivers are a mesh of their own, drawn over the cells, see rivers.js buildRivers; the
- * vegetation marks leave bare the squares of their grid that the rivers cover, see riverSquares.
+ * vegetation marks are decided per square of their grid, see trees.js treeGrid.
  * Dry land beside the rivers drawn at the tile's level is floodplain, see rivers.js banks.
  *
  * @param sampler {WorldSampler}
  * @returns {{z, x, y, positions: Float32Array, biomeIds: Float32Array,
  *            debugColors: Float32Array, slopes: Float32Array, indices: Uint16Array,
  *            riverPositions: Float32Array, riverShapes: Float32Array, riverIndices: Uint16Array,
- *            markOrigin: Number[], markSize: Number[], markBlocked: Uint8Array}}
- *          slopes: dx, dy per vertex, see WorldSampler.slopeAt; mark*: see riverSquares
+ *            markOrigin: Number[], markSize: Number[], markTexels: Uint8Array}}
+ *          slopes: dx, dy per vertex, see WorldSampler.slopeAt; mark*: see trees.js treeGrid
  */
 export function buildTile(sampler, z, x, y) {
   const cells = tileCells(sampler.seed, z, x, y);
@@ -133,7 +134,7 @@ export function buildTile(sampler, z, x, y) {
     (y + 1) * size + margin,
   ];
   const rivers = buildRivers(sampler, z, area);
-  const marks = riverSquares(sampler, z, MARK_SPACING_PX * pixelSize(z), area);
+  const marks = treeGrid(sampler, z, MARK_SPACING_PX * pixelSize(z), area);
   const bank = banks(sampler, z, area);
   const vertexCount = cells.reduce((n, cell) => n + 1 + cell.ring.length, 0);
   const indexCount = cells.reduce((n, cell) => n + 3 * cell.ring.length, 0);
@@ -203,7 +204,7 @@ export function buildTile(sampler, z, x, y) {
     riverIndices: new Uint16Array(rivers.indices),
     markOrigin: marks.origin,
     markSize: marks.size,
-    markBlocked: marks.blocked,
+    markTexels: marks.texels,
   };
 }
 

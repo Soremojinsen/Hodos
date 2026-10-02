@@ -34,7 +34,7 @@ void main(void) {
         float tint = biomeTexel(b_id, 2.0).g;
         color.rgb = mix(color.rgb, PARCHMENT_GREEN, plains * tint * PARCHMENT_TINT);
         color.rgb = hillShade(color.rgb, land_slope, land * relief.xy);
-        color.rgb = drawMarks(color.rgb, b_id, position.xy, altitude);
+        color.rgb = drawMarks(color.rgb, position.xy);
     }
     gl_FragColor = color;
 }
