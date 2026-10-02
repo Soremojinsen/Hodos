@@ -42,6 +42,21 @@ export const getRandomSeed = () => {
 };
 
 /**
+ * Hashes a string with FNV-1a, over its UTF-16 code units.
+ *
+ * @param {string} text
+ * @returns {Number} a 32-bit signed integer
+ */
+export const fnv1a = (text) => {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash;
+};
+
+/**
  * Hashes a seed string (FNV-1a) into a seed for the noise library, which supports 2^16 values,
  * though it makes each h below 256 the same as h * 257: seeds share their noise a little more
  * often than 1 in 65536, but their coarse sites (from the whole seed) still differ.
@@ -50,11 +65,7 @@ export const getRandomSeed = () => {
  * @returns {Number}    an integer in the range [0, 65536)
  */
 export const hashSeed = (seed) => {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < seed.length; i++) {
-    hash ^= seed.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
-  }
+  const hash = fnv1a(seed);
   return ((hash >>> 16) ^ hash) & 0xffff;
 };
 

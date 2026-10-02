@@ -317,8 +317,9 @@ const uniformArea = (sampler, name, seed, options = {}) => {
 };
 
 /**
- * A predicate for uniformArea: no square centre of the marks' grid within the view's 32 px and
- * the squares a tree spills over (SPILL + 1 of 12 px) has a biome whose trees spill onto a plain.
+ * A predicate for uniformArea: no point of a lattice one mark square apart, centred on the view
+ * (not on the marks' grid), within the view's 32 px and the squares a tree spills over (SPILL + 1
+ * of 12 px) has a biome whose trees spill onto a plain.
  */
 const farFromForests = (sampler) => {
   const spilling = ["Forest", "Jungle", "Taiga"].map((name) =>

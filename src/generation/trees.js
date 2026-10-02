@@ -1,13 +1,17 @@
 import { createNoise } from "../vendor/perlin.js";
 import { BIOME_DEFINITIONS, markKind } from "./biomes.js";
 import { banks, nearRivers } from "./rivers.js";
-import { hashSeed } from "./util.js";
+import { fnv1a, hashSeed } from "./util.js";
 
 /**
- * How far a tree and its shadow reach from its centre at most, in grid squares: the largest
- * crown (jungle, 0.33 with its shadow) at the largest scale (1.18), and half a pixel of
- * antialiasing at the farthest zoom a level is drawn (√2 / MARK_SPACING_PX / 2 < 0.06). Less than
- * a square, so shaders/relief.glsl drawMarks finds every tree over a pixel in its 3 × 3 squares.
+ * How far a river keeps from a tree's centre, in grid squares, beyond its own drawn half width.
+ *
+ * A tree and its shadow reach farther: the conifer's shadow corner is the farthest, about 0.532
+ * squares at the largest scale (1.18) with half a pixel of antialiasing at the farthest zoom a
+ * level is drawn (√2 / MARK_SPACING_PX / 2 < 0.06), against 0.448 for the jungle's round crown.
+ * That is still less than a square, so shaders/relief.glsl drawMarks finds every tree over a
+ * pixel in its 3 × 3 squares. The river clearance keeps 0.45, which covers every crown: only a
+ * fringe of a conifer's shadow, under a pixel wide, may pass under a river, which is drawn on top.
  */
 export const TREE_REACH = 0.45;
 
@@ -57,16 +61,16 @@ const OWN = BIOME_DEFINITIONS.map(({ mark }) => markKind(mark));
 const SPILL_HOSTS = { Plain: [1, 2, 3], Savana: [1, 2], Tundra: [3] };
 const HOSTS = BIOME_DEFINITIONS.map(({ name }) => SPILL_HOSTS[name] ?? []);
 
-// The woodland noise of each seed
-const woodlands = new Map();
+// The woodland noise of the last seed: a worker draws one world at a time
+let woodlandSeed = null;
+let woodlandNoise = null;
 const woodland = (seed) => {
-  let noise = woodlands.get(seed);
-  if (!noise) {
-    noise = createNoise();
-    noise.seed(hashSeed(`${seed}:trees`));
-    woodlands.set(seed, noise);
+  if (seed !== woodlandSeed) {
+    woodlandNoise = createNoise();
+    woodlandNoise.seed(hashSeed(`${seed}:trees`));
+    woodlandSeed = seed;
   }
-  return noise;
+  return woodlandNoise;
 };
 
 /**
@@ -86,13 +90,6 @@ function squareRandom(hash, z, i, j) {
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
-}
-
-// A 32-bit hash of a seed (FNV-1a), apart from the world's
-function seedHash(seed) {
-  let hash = 0x811c9dc5;
-  for (const char of `${seed}:trees`) hash = Math.imul(hash ^ char.charCodeAt(0), 0x01000193);
-  return hash;
 }
 
 /**
@@ -195,7 +192,8 @@ export function treeGrid(sampler, z, cell, [minX, minY, maxX, maxY]) {
   const bank = banks(sampler, z, box);
   const river = nearRivers(sampler, z, box, margin);
   const noise = woodland(sampler.seed);
-  const hash = seedHash(sampler.seed);
+  // All 32 bits of the seed's hash, apart from the world's: hashSeed keeps only 16, for the noise
+  const hash = fnv1a(`${sampler.seed}:trees`);
   const scale = WOODLAND_SQUARES * cell;
 
   for (let r = 0; r < rows; r++) {
