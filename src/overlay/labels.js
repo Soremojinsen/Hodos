@@ -185,7 +185,97 @@ export function placeLabels(view, labels, { text, measure, previous = new Set() 
   return placed;
 }
 
-// Rivers come in Task 10: until then they have no place
-function riverLayouts() {
-  return [];
+/**
+ * A river is named once per RIVER_REPEAT_PX of its course on screen, on stretches that turn by
+ * at most MAX_RIVER_BEND in all, RIVER_OFFSET_PX above its course so the letters stay off the
+ * water (rivers meander around their course up close).
+ */
+export const RIVER_REPEAT_PX = 400;
+export const MAX_RIVER_BEND = Math.PI / 4;
+export const RIVER_OFFSET_PX = 8;
+
+// The course on screen, and the length along it at each point
+const screenPath = (view, path) => {
+  const points = [];
+  const lengths = [];
+  for (let i = 0; i < path.length; i += 2) {
+    const p = worldToScreen(view, path[i], path[i + 1]);
+    const last = points.at(-1);
+    lengths.push(last ? lengths.at(-1) + Math.hypot(p.x - last.x, p.y - last.y) : 0);
+    points.push(p);
+  }
+  return { points, lengths };
+};
+
+// The point at a length along the course, and the course's direction there
+const pointAt = ({ points, lengths }, s) => {
+  let low = 0;
+  let high = lengths.length - 1;
+  while (high - low > 1) {
+    const mid = (low + high) >> 1;
+    if (lengths[mid] <= s) low = mid;
+    else high = mid;
+  }
+  const [a, b] = [points[low], points[high]];
+  const length = lengths[high] - lengths[low] || 1;
+  const t = Math.min(Math.max((s - lengths[low]) / length, 0), 1);
+  return {
+    x: a.x + (b.x - a.x) * t,
+    y: a.y + (b.y - a.y) * t,
+    dx: (b.x - a.x) / length,
+    dy: (b.y - a.y) / length,
+  };
+};
+
+// How much the course turns between two lengths along it, in radians
+const bendWithin = ({ points, lengths }, start, end) => {
+  let bend = 0;
+  for (let i = 1; i + 1 < points.length; i++) {
+    if (lengths[i] <= start || lengths[i] >= end) continue;
+    const [a, b, c] = [points[i - 1], points[i], points[i + 1]];
+    const turn = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(b.y - a.y, b.x - a.x);
+    bend += Math.abs(Math.atan2(Math.sin(turn), Math.cos(turn)));
+  }
+  return bend;
+};
+
+// The letters of a stretch of the course from start, reading left to right
+const pathGlyphs = (course, start, widths, gap, total) => {
+  const [a, b] = [pointAt(course, start), pointAt(course, start + total)];
+  const reverse = b.x < a.x;
+  const glyphs = [];
+  let s = 0;
+  for (const width of widths) {
+    const centre = reverse ? start + total - (s + width / 2) : start + s + width / 2;
+    const p = pointAt(course, centre);
+    const [tx, ty] = reverse ? [-p.dx, -p.dy] : [p.dx, p.dy];
+    // Above the reading direction: its left on a screen whose y grows downwards
+    glyphs.push({
+      x: p.x + ty * RIVER_OFFSET_PX,
+      y: p.y - tx * RIVER_OFFSET_PX,
+      angle: Math.atan2(ty, tx),
+    });
+    s += width + gap;
+  }
+  return glyphs;
+};
+
+// Where a river's name may go: the stretches of its course that are straight enough
+function riverLayouts(view, label, width) {
+  const course = screenPath(view, label.path);
+  const total = course.lengths.at(-1);
+  if (total < width) return [];
+  const layouts = [];
+  const count = Math.max(1, Math.floor(total / RIVER_REPEAT_PX));
+  for (let k = 0; k < count; k++) {
+    const centre = total < RIVER_REPEAT_PX ? total / 2 : (k + 0.5) * RIVER_REPEAT_PX;
+    const start = centre - width / 2;
+    if (start < 0 || start + width > total) continue;
+    if (bendWithin(course, start, start + width) > MAX_RIVER_BEND) continue;
+    layouts.push({
+      key: `${label.id}@${k}`,
+      glyphs: (widths, gap) => pathGlyphs(course, start, widths, gap, width),
+    });
+  }
+  return layouts;
 }

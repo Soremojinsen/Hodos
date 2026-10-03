@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { zoomOf } from "../../src/map/view.js";
-import { LABEL_STYLES, placeLabels } from "../../src/overlay/labels.js";
+import { LABEL_STYLES, RIVER_OFFSET_PX, placeLabels } from "../../src/overlay/labels.js";
 
 // Letters half as wide as the font size
 const measure = (text, font) => text.length * 0.5 * Number(font.match(/(\d+)px/)[1]);
@@ -94,4 +94,46 @@ test("the ocean shows at each of its anchors", () => {
 
 test("a label wholly off the view is left out", () => {
   expect(placeLabels(viewAt(2, 500, 500), [label()], { text, measure })).toHaveLength(0);
+});
+
+// A river through the view's middle at zoom 4, from (x0, y) to (x1, y), a point every 40 units
+const river = (x0, x1, y = 5000, wiggle = 0) => {
+  const count = Math.abs(x1 - x0) / 40 + 1;
+  const path = new Float32Array(2 * count);
+  for (let i = 0; i < count; i++) {
+    path[2 * i] = x0 + Math.sign(x1 - x0) * 40 * i;
+    path[2 * i + 1] = y + (i % 2 ? wiggle : 0);
+  }
+  return label({
+    id: "river:1",
+    kind: "river",
+    text: "Fleuve Zahir",
+    priority: 1300,
+    path,
+    flow: 300,
+  });
+};
+
+test("a river's name runs along it, just above, reading left to right", () => {
+  for (const r of [river(4000, 6000), river(6000, 4000)]) {
+    const placed = placeLabels(viewAt(4), [r], { text, measure });
+    expect(placed.length).toBeGreaterThan(0);
+    const { glyphs } = placed[0];
+    expect(glyphs.map((g) => g.char).join("")).toBe("Fleuve Zahir");
+    for (let i = 1; i < glyphs.length; i++) expect(glyphs[i].x).toBeGreaterThan(glyphs[i - 1].x);
+    for (const g of glyphs) {
+      expect(g.angle).toBeCloseTo(0);
+      // The river is at y = 350 on screen
+      expect(g.y).toBeCloseTo(350 - RIVER_OFFSET_PX);
+    }
+  }
+});
+
+test("a long river is named several times, a short or twisting one not at all", () => {
+  // 4000 units at zoom 4 are 1640 px
+  const keys = placeLabels(viewAt(4), [river(3000, 7000)], { text, measure }).map((p) => p.key);
+  expect(keys.length).toBeGreaterThanOrEqual(2);
+  expect(keys.every((key) => key.startsWith("river:1@"))).toBe(true);
+  expect(placeLabels(viewAt(4), [river(4980, 5020)], { text, measure })).toHaveLength(0);
+  expect(placeLabels(viewAt(4), [river(4000, 6000, 5000, 60)], { text, measure })).toHaveLength(0);
 });
