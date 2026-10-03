@@ -246,6 +246,8 @@ export function siteAt(seed, px, py, z) {
  * and each point only looks at the sites of the 5 × 5 squares of the site grid around it.
  * A site is at most 0.4 of a square from its square's centre, so the site of a point's own
  * square is within 0.9√2 < 1.3 squares, and the sites 3 squares away or more are over 2.
+ * Past the world's edge, where the squares have no sites, a point more than 2 squares out finds
+ * none around it and asks siteAt, which looks as far as the next tile.
  *
  * @param area the points to look up are in it, [minX, minY, maxX, maxY]
  * @returns {function(Number, Number): Number[]} (x, y) => [x, y] of its site
@@ -293,6 +295,6 @@ export function sitesIn(seed, z, [minX, minY, maxX, maxY]) {
         }
       }
     }
-    return best;
+    return best ?? siteAt(seed, px, py, z);
   };
 }

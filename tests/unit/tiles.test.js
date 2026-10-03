@@ -200,6 +200,34 @@ test("sitesIn finds the same sites as siteAt over an area, up to the world's edg
   }
 });
 
+test("sitesIn finds the same sites as siteAt past the world's edges, as far as trees look", () => {
+  // A tile's tree grid reaches 2 cells and a square past the tile: up to 5 squares out
+  for (const z of [0, 4, 7]) {
+    const step = tileSize(z) / TILE_CELLS_SIDE;
+    const far = 6 * step;
+    const siteOf = sitesIn(SEED, z, [-far, -far, WORLD_SIZE + far, WORLD_SIZE + far]);
+    for (let k = 0; k <= 60; k++) {
+      const along = (WORLD_SIZE * k) / 60;
+      for (let d = 0; d <= far; d += step / 4) {
+        for (const [px, py] of [
+          [-d, along],
+          [WORLD_SIZE + d, along],
+          [along, -d],
+          [along, WORLD_SIZE + d],
+        ]) {
+          expect(siteOf(px, py)).toEqual(siteAt(SEED, px, py, z));
+        }
+      }
+    }
+  }
+});
+
+test("a world with land past its edge builds its edge tiles", () => {
+  // Seed 4 has land on its left edge, which treeless land past the edge checks for floodplains
+  const watered = new WorldSampler(withWater(generateWorld("4")));
+  expect(() => buildTile(watered, 4, 0, 7)).not.toThrow();
+});
+
 test("a deeper level draws the same coast with more, smaller cells", () => {
   const coastalCells = (z, x, y) =>
     tileCells(SEED, z, x, y).filter((cell) => {
