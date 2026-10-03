@@ -22,18 +22,19 @@ Hodos creates maps for your imagination to thrive.
 - **Keep a map:** the address bar always holds the seed and the view, so a bookmark or a refresh brings the same map back.
 - **Find a map:** _Nouvelle carte_ rolls a new seed, and the browser's Back button returns to the previous map. Any word or number can be a seed.
 - **Share a map:** _Copier le lien_ copies a link to the map as you see it: seed, view, mode and grid.
-- **Explore:** recenter and full-screen buttons; _Infos au survol_ shows the biome, relief and land mass under the pointer.
+- **Explore:** recenter and full-screen buttons; _Infos au survol_ shows the biome, relief, land mass and place name under the pointer.
 - **Rivers and lakes:** rivers run downhill to the sea or into lakes, and zooming in reveals smaller tributaries.
 - **Relief and forests:** hills are shaded by a light from the north-west, and forests, jungles, taiga and swamps are drawn with small marks, in stands and clearings that thin out at their edges and line the rivers of dry lands.
 - **Water shapes the land:** slow rivers spread into swamps, desert rivers are lined with green floodplains, and great rivers end in deltas.
+- **Place names:** continents, islands, seas, the ocean, mountain ranges, lakes and rivers are named in several cultures spread across the world, each with its own sounds, and zooming in reveals the names of smaller features. _Noms de lieux_ in the settings hides them.
 - **Zoom in for detail:** each zoom level has its own finer map, with more jagged coasts, islets and bays, and more intricate borders between biomes.
 - **Grid:** a square or hexagonal grid over the map, with a size and an opacity, for games.
-- **Export and print:** the whole world or the current view as a PNG up to 4096 px, or printed on 1, 2 × 2 or 3 × 3 A4 sheets.
+- **Export and print:** the whole world or the current view as a PNG up to 4096 px, or printed on 1, 2 × 2 or 3 × 3 A4 sheets, with or without the grid and the place names.
 - **Languages:** French and English, following the browser settings, with a switch in the settings.
 
 ### Link parameters
 
-The same seed always produces the same map since the version that brought zoom detail, and these parameters are kept stable. Older links may show a different map. Links from before rivers show the same continents and coasts, now with rivers and lakes. Links from before relief shading show the same map, now shaded. Links from before swamps and deltas show the same continents and rivers, now with swamps, floodplains and deltas, whose coasts reach a little further out. Links from before natural forests show the same map, with its trees placed differently.
+The same seed always produces the same map since the version that brought zoom detail, and these parameters are kept stable. Older links may show a different map. Links from before rivers show the same continents and coasts, now with rivers and lakes. Links from before relief shading show the same map, now shaded. Links from before swamps and deltas show the same continents and rivers, now with swamps, floodplains and deltas, whose coasts reach a little further out. Links from before natural forests show the same map, with its trees placed differently. Links from before place names show the same map, now named.
 
 | Parameter | Meaning                                                         | Default   |
 | --------- | --------------------------------------------------------------- | --------- |
@@ -44,6 +45,7 @@ The same seed always produces the same map since the version that brought zoom d
 | `grid`    | `square` or `hex`                                               | no grid   |
 | `gs`      | grid cell size in world units (100 to 1000)                     | 250       |
 | `go`      | grid opacity in percent (10 to 100)                             | 40        |
+| `labels`  | `off` hides the place names                                     | shown     |
 
 ## History
 
