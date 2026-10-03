@@ -1,5 +1,6 @@
 import { MAX_ZOOM, MIN_ZOOM, TILE_PIXEL_SIZE, WORLD_SIZE } from "../constants.js";
 import { WorldSampler } from "../generation/fields.js";
+import { EMPTY_ATLAS } from "../generation/labels.js";
 import { getRandomSeed } from "../generation/util.js";
 import { inspectAt } from "./inspect.js";
 import { MapRenderer } from "./renderer.js";
@@ -23,6 +24,7 @@ export class WorldMap {
   // {worker, pending}: pending counts the tiles requested from the worker, not yet answered
   #workers;
   #sampler;
+  #atlas = EMPTY_ATLAS;
   #renderer;
   #controller;
 
@@ -59,7 +61,7 @@ export class WorldMap {
         entry.worker.onmessage = ({ data }) => {
           if (data.type === "world") {
             // Every worker sends the same world: the first one is kept
-            resolve(data.base);
+            resolve(data);
           } else if (data.type === "tile") {
             entry.pending--;
             this.#renderer.tiles.receive(data.tile);
@@ -82,8 +84,9 @@ export class WorldMap {
     });
     for (const { worker } of this.#workers) worker.postMessage({ type: "init", seed: this.#seed });
     try {
-      const [base] = await Promise.all([world, this.#renderer.load()]);
+      const [{ base, atlas }] = await Promise.all([world, this.#renderer.load()]);
       this.#sampler = new WorldSampler(base);
+      this.#atlas = atlas ?? EMPTY_ATLAS;
     } catch (error) {
       for (const { worker } of this.#workers) worker.terminate();
       throw error;
@@ -121,6 +124,13 @@ export class WorldMap {
    */
   get sampler() {
     return this.#sampler;
+  }
+
+  /**
+   * The named features and their labels, see generation/labels.js buildAtlas; empty until loaded.
+   */
+  get atlas() {
+    return this.#atlas;
   }
 
   get camera() {
