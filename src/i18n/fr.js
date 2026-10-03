@@ -124,6 +124,7 @@ export default {
   "export.sizeWorldTooLarge": "{width} × {height} px, trop grand pour ce navigateur",
   "export.sizeViewTooLarge": "×{factor} ({width} × {height} px), trop grand pour ce navigateur",
   "export.includeGrid": "Inclure la grille",
+  "export.includeLabels": "Inclure les noms de lieux",
   "export.download": "Télécharger (PNG)",
   "export.preparing": "Préparation…",
   "export.failed": "L'export a échoué.",

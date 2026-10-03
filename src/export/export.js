@@ -80,7 +80,7 @@ export const gridLineWidth = (width, height) =>
   Math.max(1, Math.round(Math.max(width, height) / 1024));
 
 /**
- * Draws a view of the map offscreen, chunk by chunk, then the grid over it. Each chunk waits
+ * Draws a view of the map offscreen, chunk by chunk, then the grid and the place names over it. Each chunk waits
  * for the tiles of the view's level, so an export is as detailed as its scale, whatever the
  * screen shows. Every chunk is drawn in the rendering mode of the start: the mode can be
  * changed while the chunks wait.
@@ -89,9 +89,10 @@ export const gridLineWidth = (width, height) =>
  *                  ensureTiles(view, level) and renderToPixels(view, level, mode)
  * @param view      see map/view.js
  * @param grid      {Object|null} the grid settings, or null for no grid
+ * @param labels    {function|null} draws the place names over the image: (context, view, mode), or null for none
  * @returns {Promise<HTMLCanvasElement>}
  */
-export async function renderImage(renderer, view, grid) {
+export async function renderImage(renderer, view, grid, labels = null) {
   const canvas = document.createElement("canvas");
   canvas.width = view.width;
   canvas.height = view.height;
@@ -109,6 +110,7 @@ export async function renderImage(renderer, view, grid) {
     }
   }
   if (grid) drawGrid(context, view, grid, gridLineWidth(view.width, view.height));
+  if (labels) labels(context, view, mode);
   return canvas;
 }
 

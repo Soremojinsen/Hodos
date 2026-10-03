@@ -5,19 +5,22 @@ import { applyTranslations } from "./language.js";
 import { downloadBlob, screenshotFileName } from "./screenshot.js";
 
 /**
- * Connects the Exporter dialog: area, size, grid, download and printing.
+ * Connects the Exporter dialog: area, size, grid, place
+ * names, download and printing.
  * The sizes are rebuilt each time the dialog opens, since they depend on the window size.
  *
  * @param worldMap  {WorldMap}
  * @param overlay   {GridOverlay}
+ * @param labelLayer {LabelLayer}
  * @returns {{viewResized: function}} to call when the map view changes size other than by a
  *          window resize, e.g. once the map is generated
  */
-export function setupExportDialog(worldMap, overlay) {
+export function setupExportDialog(worldMap, overlay, labelLayer) {
   const dialog = document.getElementById("export-dialog");
   const form = document.getElementById("export-form");
   const sizeSelect = document.getElementById("export-size");
   const gridCheckbox = document.getElementById("export-grid");
+  const labelsCheckbox = document.getElementById("export-labels");
   const status = document.getElementById("export-status");
   const downloadButton = document.getElementById("export-download");
   const printButton = document.getElementById("print-button");
@@ -87,6 +90,7 @@ export function setupExportDialog(worldMap, overlay) {
     refreshSizes();
     gridCheckbox.disabled = overlay.settings.type === "none";
     gridCheckbox.checked = !gridCheckbox.disabled;
+    labelsCheckbox.checked = labelLayer.enabled;
     // Reopened during an export: its status stays until it ends
     if (!busy) setStatus(null);
   };
@@ -124,6 +128,13 @@ export function setupExportDialog(worldMap, overlay) {
       worldMap.renderer,
       exportView(selectedArea, size, worldMap.camera.view),
       gridCheckbox.checked && !gridCheckbox.disabled ? overlay.settings : null,
+      labelsCheckbox.checked
+        ? (context, view, mode) =>
+            // A view export is the screen's labels, sharper: scaled by its factor
+            selectedArea === "view"
+              ? labelLayer.drawExport(context, view, mode, size)
+              : labelLayer.drawExport(context, view, mode)
+        : null,
     );
 
   form.addEventListener("submit", (event) => {

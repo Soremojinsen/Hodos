@@ -247,3 +247,14 @@ test("the export buttons wait for a map still generating, then offer it", async 
   const { png } = await download(page);
   expect(pngSize(png)).toEqual({ width: 1024, height: 1024 });
 });
+
+test("place names are in the export only when asked", async ({ page }) => {
+  await openMap(page);
+  await openExport(page);
+  await page.locator("#export-size").selectOption("1024");
+  await expect(page.locator("#export-labels")).toBeChecked();
+  const withLabels = (await download(page)).png;
+  await page.locator("#export-labels").uncheck();
+  const withoutLabels = (await download(page)).png;
+  expect(await countDifferentPixels(page, withLabels, withoutLabels)).toBeGreaterThan(500);
+});

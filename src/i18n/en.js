@@ -123,6 +123,7 @@ export default {
   "export.sizeWorldTooLarge": "{width} × {height} px, too large for this browser",
   "export.sizeViewTooLarge": "×{factor} ({width} × {height} px), too large for this browser",
   "export.includeGrid": "Include the grid",
+  "export.includeLabels": "Include place names",
   "export.download": "Download (PNG)",
   "export.preparing": "Preparing…",
   "export.failed": "Export failed.",

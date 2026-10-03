@@ -86,15 +86,16 @@ export class LabelLayer {
 
   /**
    * Draws the labels of an export's view at its scale, see labels.js layoutAndDraw.
+   *
+   * @param context {CanvasRenderingContext2D}
+   * @param view    see map/view.js
+   * @param mode    {string} the rendering mode
+   * @param scale   {number} the label scale: the export's factor over the screen for a view of the
+   *                screen, so the labels match the screen's, sharper. Defaults to labelScale.
    */
-  drawExport(context, view, mode) {
+  drawExport(context, view, mode, scale = labelScale(view.width, view.height)) {
     const labels = this.#worldMap.atlas.labels;
     if (labels.length === 0 || mode === "debug") return;
-    layoutAndDraw(
-      context,
-      view,
-      labels,
-      this.#options(context, mode, new Set(), labelScale(view.width, view.height)),
-    );
+    layoutAndDraw(context, view, labels, this.#options(context, mode, new Set(), scale));
   }
 }
