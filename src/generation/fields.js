@@ -66,7 +66,7 @@ export const LAKE_WARP_AMPLITUDE = 40;
  */
 export const LAKE_WARP_WAVELENGTH = 160;
 
-const MARITIME = BIOME_DEFINITIONS.map((definition) => definition.maritime === true);
+export const MARITIME = BIOME_DEFINITIONS.map((definition) => definition.maritime === true);
 
 const LAKE = BIOME_DEFINITIONS.findIndex((definition) => definition.name === "lake");
 
