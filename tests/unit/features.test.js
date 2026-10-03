@@ -1,21 +1,28 @@
 import { expect, test } from "vitest";
 import {
   MAX_TILT,
+  MIN_LAKE_NAMED,
   MIN_RANGE_POINTS,
+  MIN_RIVER_NAMED,
+  MIN_RIVER_POINTS,
   RANGE_ALTITUDE,
   components,
   continentFeatures,
   innerPoint,
   islandFeatures,
+  lakeFeatures,
   mainAxis,
   rangeFeatures,
+  riverFeatures,
   worldGeometry,
 } from "../../src/generation/features.js";
+import { WorldSampler } from "../../src/generation/fields.js";
 import { withWater } from "../../src/generation/hydrology.js";
 import { generateWorld } from "../../src/generation/world.js";
 
 const base = withWater(generateWorld("12345"));
 const world = worldGeometry(base);
+const sampler = new WorldSampler(base);
 
 // A side × side grid of points one unit apart, with 4-neighbours
 const grid = (side) => {
@@ -113,4 +120,52 @@ test("ranges are large groups of high water points, named after their highest", 
     expect(feature.id).toBe(`range:${Math.round(x)},${Math.round(y)}`);
     expect(feature.terrain).toBe("high");
   }
+});
+
+test("lakes are named lake groups, after their outlet", () => {
+  const lakes = lakeFeatures(base, world);
+  expect(lakes.length).toBeGreaterThan(0);
+  for (const feature of lakes) {
+    expect(feature.members.length).toBeGreaterThanOrEqual(MIN_LAKE_NAMED);
+    for (const i of feature.members) expect(base.lakes[i]).toBe(1);
+    const outlet = feature.members.find(
+      (i) =>
+        feature.id ===
+        `lake:${Math.round(base.waterSites[2 * i])},${Math.round(base.waterSites[2 * i + 1])}`,
+    );
+    expect(outlet).toBeDefined();
+    const leaves = [...base.riverFrom.keys()].some(
+      (k) => base.riverFrom[k] === outlet && !base.lakes[base.riverTo[k]],
+    );
+    const anyLeaves = [...base.riverFrom.keys()].some(
+      (k) => feature.members.includes(base.riverFrom[k]) && !base.lakes[base.riverTo[k]],
+    );
+    expect(leaves || !anyLeaves).toBe(true);
+    expect(feature.angle).toBe(0);
+  }
+});
+
+test("rivers are chains of edges from a mouth or a confluence upstream", () => {
+  const rivers = riverFeatures(base, sampler);
+  expect(rivers.length).toBeGreaterThan(5);
+  expect(new Set(rivers.map((f) => f.id)).size).toBe(rivers.length);
+  const owner = new Map();
+  for (const [index, river] of rivers.entries()) {
+    expect(river.flow).toBeGreaterThanOrEqual(MIN_RIVER_NAMED);
+    expect(river.path.length / 2).toBeGreaterThanOrEqual(MIN_RIVER_POINTS);
+    expect(river.path.length / 2).toBe(river.members.length + 1);
+    for (let k = 1; k < river.members.length; k++) {
+      expect(base.riverTo[river.members[k]]).toBe(base.riverFrom[river.members[k - 1]]);
+    }
+    for (const edge of river.members) {
+      expect(owner.has(edge)).toBe(false);
+      owner.set(edge, index);
+    }
+    expect(["fleuve", "riviere"]).toContain(river.form);
+  }
+  // The largest mouth starts the first river
+  let largest = -1;
+  for (let k = 0; k < base.riverMouth.length; k++)
+    if (base.riverMouth[k] && largest < 0) largest = k;
+  expect(rivers[0].members[0]).toBe(largest);
 });

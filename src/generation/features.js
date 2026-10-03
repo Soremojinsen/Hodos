@@ -249,3 +249,114 @@ export function rangeFeatures(base, world) {
       };
     });
 }
+
+/**
+ * Lakes of at least MIN_LAKE_NAMED water points are named (measured: 5 to 10 a world).
+ */
+export const MIN_LAKE_NAMED = 20;
+
+/**
+ * Rivers whose most downstream edge carries at least MIN_RIVER_NAMED are named: those drawn from
+ * level 2 on, see rivers.js riverThreshold. A river needs MIN_RIVER_POINTS points, which leaves
+ * out the short channels of deltas. A river reaching the sea with FLEUVE_FLOW or more is a
+ * "fleuve" in French, the others a "rivière".
+ */
+export const MIN_RIVER_NAMED = 64;
+export const MIN_RIVER_POINTS = 6;
+export const FLEUVE_FLOW = 128;
+
+/**
+ * The lakes to name, labelled at their point farthest from the shore, named after their outlet
+ * (the point the river leaving them starts from, the largest if several do).
+ */
+export function lakeFeatures(base, world) {
+  const { lakes, waterSites, riverFrom, riverTo } = base;
+  // The first edge leaving a lake from each point: edges come largest first
+  const leaving = new Map();
+  for (let k = 0; k < riverFrom.length; k++) {
+    const a = riverFrom[k];
+    if (lakes[a] && !lakes[riverTo[k]] && !leaving.has(a)) leaving.set(a, k);
+  }
+  return components(world.side ** 2, (i) => lakes[i] === 1, world.gridNeighbors)
+    .filter((group) => group.length >= MIN_LAKE_NAMED)
+    .map((group) => {
+      let outlet = group[0];
+      for (const i of group) {
+        if (leaving.has(i) && (!leaving.has(outlet) || leaving.get(i) < leaving.get(outlet)))
+          outlet = i;
+      }
+      let [minX, maxX] = [Infinity, -Infinity];
+      for (const i of group)
+        [minX, maxX] = [Math.min(minX, waterSites[2 * i]), Math.max(maxX, waterSites[2 * i])];
+      return {
+        id: `lake:${pointId(...site(waterSites, outlet))}`,
+        kind: "lake",
+        anchors: [site(waterSites, innerPoint(group, world.gridNeighbors, waterSites))],
+        angle: 0,
+        span: maxX - minX + world.step,
+        terrain: "water",
+        members: group,
+      };
+    });
+}
+
+/**
+ * The rivers to name. Each starts at a mouth, largest first, and goes upstream along the largest
+ * edge at each junction. The other edges of a junction carrying MIN_RIVER_NAMED or more start
+ * rivers of their own, named after the edge that reaches the confluence, after every mouth's.
+ *
+ * @param sampler {WorldSampler} for the biome at each river's mouth
+ */
+export function riverFeatures(base, sampler) {
+  const { waterSites, riverFrom, riverTo, riverFlow, riverMouth, lakes } = base;
+  const edges = riverFrom.length;
+  // The edges reaching each point, largest first as the edges come
+  const incoming = new Map();
+  for (let k = 0; k < edges; k++) {
+    if (!incoming.has(riverTo[k])) incoming.set(riverTo[k], []);
+    incoming.get(riverTo[k]).push(k);
+  }
+  const used = new Uint8Array(edges);
+  const rivers = [];
+  const walk = (start, branches) => {
+    const members = [start];
+    used[start] = 1;
+    let point = riverFrom[start];
+    for (;;) {
+      const next = (incoming.get(point) ?? []).filter((k) => !used[k]);
+      if (next.length === 0) break;
+      for (const k of next.slice(1)) if (riverFlow[k] >= MIN_RIVER_NAMED) branches.push(k);
+      members.push(next[0]);
+      used[next[0]] = 1;
+      point = riverFrom[next[0]];
+    }
+    if (members.length + 1 < MIN_RIVER_POINTS) return;
+    const points = [riverTo[start], ...members.map((k) => riverFrom[k])];
+    const path = new Float32Array(2 * points.length);
+    points.forEach((p, i) => path.set(site(waterSites, p), 2 * i));
+    const [mx, my] = site(waterSites, riverFrom[start]);
+    const toSea = riverMouth[start] === 1 && !lakes[riverTo[start]];
+    rivers.push({
+      id: `river:${pointId(mx, my)},${pointId(...site(waterSites, riverTo[start]))}`,
+      kind: "river",
+      anchors: [[mx, my]],
+      angle: 0,
+      span: 0,
+      terrain: terrainOf("river", BIOME_DEFINITIONS[sampler.sampleAt(mx, my, 0).biome].name),
+      members,
+      path,
+      flow: riverFlow[start],
+      form: toSea && riverFlow[start] >= FLEUVE_FLOW ? "fleuve" : "riviere",
+    });
+  };
+  let branches = [];
+  for (let k = 0; k < edges; k++) {
+    if (riverMouth[k] && !used[k] && riverFlow[k] >= MIN_RIVER_NAMED) walk(k, branches);
+  }
+  while (branches.length > 0) {
+    const round = branches.sort((a, b) => riverFlow[b] - riverFlow[a] || a - b);
+    branches = [];
+    for (const k of round) if (!used[k]) walk(k, branches);
+  }
+  return rivers;
+}
