@@ -7,7 +7,7 @@ const DELAY = 300;
 
 /**
  * Keeps the address bar in sync with the map, without adding history entries:
- * a refresh or a bookmark brings back the same map, view, mode and grid.
+ * a refresh or a bookmark brings back the same map, view, mode, grid and place names.
  *
  * @param renderer      {MapRenderer} every drawn frame may have changed the state
  * @param currentState  {function} returns the state to write, see url-state.js

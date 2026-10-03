@@ -306,7 +306,7 @@ export function lakeFeatures(base, world) {
  * edge at each junction. The other edges of a junction carrying MIN_RIVER_NAMED or more start
  * rivers of their own, named after the edge that reaches the confluence, after every mouth's.
  *
- * @param sampler {WorldSampler} for the biome at each river's mouth
+ * @param sampler {WorldSampler} for the biome just upstream of each river's mouth
  */
 export function riverFeatures(base, sampler) {
   const { waterSites, riverFrom, riverTo, riverFlow, riverMouth, lakes } = base;

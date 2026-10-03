@@ -67,7 +67,7 @@ export function setupHoverInfo(worldMap) {
       if (names.landmass) setText(land, "hover.continent", { name: labelText(names.landmass) });
       else setText(land, "land.continent", { n: info.landmass.number });
     } else if (info.landmass) {
-      if (names.landmass) setText(land, "hover.island", { name: labelText(names.landmass) });
+      if (names.landmass) setText(land, "hover.name", { name: labelText(names.landmass) });
       else setText(land, "land.island");
     }
     nameLine.hidden = !names.feature;

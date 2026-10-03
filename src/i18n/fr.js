@@ -45,7 +45,6 @@ export default {
   "land.continent": "Continent n°{n}",
   "land.island": "Île",
   "hover.continent": "Continent : {name}",
-  "hover.island": "Île : {name}",
   "hover.name": "{name}",
   "biome.ocean": "Océan",
   "biome.continent": "Terres",
