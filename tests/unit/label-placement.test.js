@@ -144,6 +144,30 @@ test("a long river is named several times, a short or twisting one not at all", 
   expect(placeLabels(viewAt(4), [river(4000, 6000, 5000, 60)], { text, measure })).toHaveLength(0);
 });
 
+test("a river whose course only jitters about a straight line is named", () => {
+  // At zoom 4 a point every 16 px, each up to 2.5 px off the line: turns the eye does not see
+  const jittered = river(4000, 6000);
+  for (let i = 1; i < jittered.path.length / 2 - 1; i++) {
+    jittered.path[2 * i + 1] += ((i * 7919) % 13) - 6;
+  }
+  const placed = placeLabels(viewAt(4), [jittered], { text, measure });
+  expect(placed.length).toBeGreaterThan(0);
+  for (const g of placed[0].glyphs) expect(Math.abs(g.angle)).toBeLessThan(0.1);
+});
+
+test("a river's name sits beside a sharp bend, not across it", () => {
+  // 120 px due east to the view's middle, then 120 px due north: a right angle mid-course
+  const path = [];
+  for (let x = 4700; x <= 5000; x += 40) path.push(x, 5000);
+  for (let y = 5040; y <= 5320; y += 40) path.push(5000, y);
+  const bent = river(0, 0);
+  bent.path = new Float32Array(path);
+  const placed = placeLabels(viewAt(4), [bent], { text, measure });
+  expect(placed).toHaveLength(1);
+  const angles = placed[0].glyphs.map((g) => g.angle);
+  for (const angle of angles) expect(angle).toBeCloseTo(angles[0]);
+});
+
 test("exports lay labels out as the screen would, then scale them up", () => {
   expect(labelScale(800, 600)).toBe(1);
   expect(labelScale(4096, 2048)).toBe(4);
