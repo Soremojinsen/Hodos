@@ -48,7 +48,7 @@ test("with hover info on, the panel names the land under the pointer", async ({ 
   const point = await landPoint(page);
   await page.mouse.move(point.x, point.y);
   await expect(page.locator("#hover-info")).toBeVisible();
-  await expect(page.locator("#hover-land")).toContainText("Continent n°");
+  await expect(page.locator("#hover-land")).toContainText("Continent : ");
   await expect(page.locator("#hover-biome")).not.toBeEmpty();
   await expect(page.locator("#hover-relief")).not.toBeEmpty();
 
@@ -159,14 +159,14 @@ test("the hover panel follows a language switch", async ({ page }) => {
   await enableHoverInfo(page);
   const point = await landPoint(page);
   await page.mouse.move(point.x, point.y);
-  await expect(page.locator("#hover-land")).toContainText("Continent n°");
+  await expect(page.locator("#hover-land")).toContainText("Continent : ");
   // Switch without moving the pointer, so the panel stays up
   await page.evaluate(() => {
     const select = document.getElementById("language-select");
     select.value = "en";
     select.dispatchEvent(new Event("change"));
   });
-  await expect(page.locator("#hover-land")).toContainText("Continent #");
+  await expect(page.locator("#hover-land")).toContainText("Continent: ");
   await expect(page.locator("#hover-info")).toContainText("Relief:");
 });
 

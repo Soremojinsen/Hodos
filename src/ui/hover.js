@@ -1,4 +1,5 @@
 import { screenToWorld } from "../map/view.js";
+import { labelText } from "../overlay/label-text.js";
 import { readPreference, writePreference } from "../state/preferences.js";
 import { applyTranslations } from "./language.js";
 
@@ -18,6 +19,8 @@ export function setupHoverInfo(worldMap) {
   const relief = document.getElementById("hover-relief");
   const landLine = document.getElementById("hover-land-line");
   const land = document.getElementById("hover-land");
+  const nameLine = document.getElementById("hover-name-line");
+  const name = document.getElementById("hover-name");
 
   // Where the mouse is over the map, in client pixels, or null once it has left
   let pointer = null;
@@ -57,11 +60,18 @@ export function setupHoverInfo(worldMap) {
     setText(biome, `biome.${info.biome}`);
     setText(relief, `relief.${info.relief}`);
     landLine.hidden = !info.landmass;
+    // Names are texts of the current language: a language switch draws a frame, which shows
+    // the panel again
+    const names = worldMap.namesAt(point.x, point.y, info);
     if (info.landmass?.type === "continent") {
-      setText(land, "land.continent", { n: info.landmass.number });
+      if (names.landmass) setText(land, "hover.continent", { name: labelText(names.landmass) });
+      else setText(land, "land.continent", { n: info.landmass.number });
     } else if (info.landmass) {
-      setText(land, "land.island");
+      if (names.landmass) setText(land, "hover.island", { name: labelText(names.landmass) });
+      else setText(land, "land.island");
     }
+    nameLine.hidden = !names.feature;
+    if (names.feature) setText(name, "hover.name", { name: labelText(names.feature) });
     panel.hidden = false;
   };
 

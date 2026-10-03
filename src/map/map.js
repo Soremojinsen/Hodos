@@ -3,6 +3,7 @@ import { WorldSampler } from "../generation/fields.js";
 import { EMPTY_ATLAS } from "../generation/labels.js";
 import { getRandomSeed } from "../generation/util.js";
 import { inspectAt } from "./inspect.js";
+import { namesAt } from "./place-names.js";
 import { MapRenderer } from "./renderer.js";
 import { worldToScreen } from "./view.js";
 
@@ -111,6 +112,18 @@ export class WorldMap {
   inspect(x, y) {
     if (!this.#sampler) return null;
     return inspectAt(this.#sampler, x, y, this.camera.zoom, {
+      rivers: this.#renderer.renderingMode !== "debug",
+    });
+  }
+
+  /**
+   * The named features at a world point, see place-names.js; none before loading.
+   *
+   * @param info what inspect gives at this point, if already known
+   */
+  namesAt(x, y, info = this.inspect(x, y)) {
+    if (!this.#sampler) return { landmass: null, feature: null };
+    return namesAt(this.#sampler, this.#atlas, info, x, y, this.camera.zoom, {
       rivers: this.#renderer.renderingMode !== "debug",
     });
   }
