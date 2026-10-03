@@ -1,0 +1,100 @@
+import { labelText } from "./label-text.js";
+import { labelScale, layoutAndDraw } from "./labels.js";
+
+/**
+ * How long labels wait for the IM Fell faces, in milliseconds, before using the fallback serif.
+ */
+export const FONT_TIMEOUT = 3000;
+
+/**
+ * The place names over the map, drawn by the overlay after each frame (see overlay.js).
+ */
+export class LabelLayer {
+  #worldMap;
+  #enabled = true;
+  #ready = false;
+  #placed = [];
+  #widths = new Map();
+
+  constructor(worldMap) {
+    this.#worldMap = worldMap;
+    const faces = Promise.all(
+      ["16px", "italic 16px"].map((font) => document.fonts.load(`${font} "IM Fell Double Pica"`)),
+    );
+    const timeout = new Promise((resolve) => setTimeout(resolve, FONT_TIMEOUT));
+    Promise.race([faces, timeout])
+      .catch(() => {})
+      .then(() => {
+        this.#ready = true;
+        // Widths measured with the fallback font no longer hold
+        this.#widths.clear();
+        worldMap.renderer.requestRender();
+      });
+  }
+
+  get enabled() {
+    return this.#enabled;
+  }
+
+  set enabled(enabled) {
+    this.#enabled = enabled;
+    this.#worldMap.renderer.requestRender();
+  }
+
+  /**
+   * The labels placed on the last frame, see labels.js placeLabels.
+   */
+  get placed() {
+    return this.#placed;
+  }
+
+  // A text's width in a font, measured once
+  #measure(context, text, font) {
+    const key = `${font}|${text}`;
+    let width = this.#widths.get(key);
+    if (width === undefined) {
+      context.font = font;
+      width = context.measureText(text).width;
+      this.#widths.set(key, width);
+    }
+    return width;
+  }
+
+  #options(context, mode, previous, scale) {
+    return {
+      mode,
+      text: labelText,
+      measure: (text, font) => this.#measure(context, text, font),
+      previous,
+      scale,
+    };
+  }
+
+  /**
+   * Draws the labels of the screen's view, keeping those of the last frame in place.
+   */
+  draw(context, view) {
+    const labels = this.#worldMap.atlas.labels;
+    const mode = this.#worldMap.renderer.renderingMode;
+    if (!this.#enabled || !this.#ready || labels.length === 0 || mode === "debug") {
+      this.#placed = [];
+      return;
+    }
+    const previous = new Set(this.#placed.map((p) => p.key));
+    this.#placed = layoutAndDraw(context, view, labels, this.#options(context, mode, previous, 1));
+  }
+
+  /**
+   * Draws the labels of an export's view at its scale, see labels.js layoutAndDraw.
+   */
+  drawExport(context, view, mode) {
+    const labels = this.#worldMap.atlas.labels;
+    if (labels.length === 0 || mode === "debug") return;
+    layoutAndDraw(
+      context,
+      view,
+      labels,
+      this.#options(context, mode, new Set(), labelScale(view.width, view.height)),
+    );
+  }
+}

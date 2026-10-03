@@ -14,6 +14,8 @@ const overlayImage = (page) =>
 
 test("there is no grid by default", async ({ page }) => {
   await openMap(page);
+  // The place names share the overlay: leave them out to look at the grid alone
+  await page.evaluate(() => (window.hodosLabels.enabled = false));
   await page.waitForTimeout(300);
   expect(await overlayInk(page)).toBe(0);
 });

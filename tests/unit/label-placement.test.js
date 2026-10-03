@@ -1,6 +1,12 @@
 import { expect, test } from "vitest";
 import { zoomOf } from "../../src/map/view.js";
-import { LABEL_STYLES, RIVER_OFFSET_PX, placeLabels } from "../../src/overlay/labels.js";
+import {
+  LABEL_STYLES,
+  RIVER_OFFSET_PX,
+  labelScale,
+  layoutAndDraw,
+  placeLabels,
+} from "../../src/overlay/labels.js";
 
 // Letters half as wide as the font size
 const measure = (text, font) => text.length * 0.5 * Number(font.match(/(\d+)px/)[1]);
@@ -136,4 +142,33 @@ test("a long river is named several times, a short or twisting one not at all", 
   expect(keys.every((key) => key.startsWith("river:1@"))).toBe(true);
   expect(placeLabels(viewAt(4), [river(4980, 5020)], { text, measure })).toHaveLength(0);
   expect(placeLabels(viewAt(4), [river(4000, 6000, 5000, 60)], { text, measure })).toHaveLength(0);
+});
+
+test("exports lay labels out as the screen would, then scale them up", () => {
+  expect(labelScale(800, 600)).toBe(1);
+  expect(labelScale(4096, 2048)).toBe(4);
+  const calls = [];
+  const context = new Proxy(
+    {},
+    {
+      get: (_, name) =>
+        name === "font" || name === "fillStyle" || name === "strokeStyle"
+          ? ""
+          : (...args) => calls.push([name, ...args]),
+      set: () => true,
+    },
+  );
+  const view = viewAt(1);
+  const big = { ...view, width: 4000, height: 2800, pixelsPerUnit: view.pixelsPerUnit * 4 };
+  const onScreen = placeLabels(view, [label()], { text, measure });
+  const exported = layoutAndDraw(context, big, [label()], {
+    mode: "default",
+    text,
+    measure,
+    previous: new Set(),
+    scale: 4,
+  });
+  expect(exported.map((p) => p.glyphs)).toEqual(onScreen.map((p) => p.glyphs));
+  expect(calls).toContainEqual(["scale", 4, 4]);
+  expect(calls.filter(([name]) => name === "fillText")).toHaveLength("VELORN".length);
 });

@@ -1,5 +1,6 @@
 import { getRandomSeed } from "./generation/util.js";
 import { WorldMap } from "./map/map.js";
+import { LabelLayer } from "./overlay/label-layer.js";
 import { GridOverlay } from "./overlay/overlay.js";
 import { parseState } from "./state/url-state.js";
 import { setupControls } from "./ui/controls.js";
@@ -20,6 +21,10 @@ const worldMap = new WorldMap(document.getElementById("map"), initialState.seed 
 // Debug handle, for the browser console and the browser tests
 window.hodos = worldMap;
 const overlay = new GridOverlay(document.getElementById("map"), worldMap);
+const labelLayer = new LabelLayer(worldMap);
+overlay.labels = labelLayer;
+// Debug handle, for the browser tests
+window.hodosLabels = labelLayer;
 
 /**
  * The mode of the settings form: the link's, until one is chosen, even while the map is
@@ -72,6 +77,10 @@ watchPixelRatio();
 setupControls(worldMap);
 setupModals();
 setupLanguageSwitch();
+// The labels are drawn on the canvas: a language switch draws them again in the new language
+document
+  .getElementById("language-select")
+  .addEventListener("change", () => worldMap.renderer.requestRender());
 setupNavigation(currentState, urlSync);
 setupViewButtons(worldMap);
 setupGridControls(overlay, initialState.grid);

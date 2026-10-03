@@ -2,13 +2,15 @@ import { DEFAULT_GRID, normalizeGrid } from "../state/url-state.js";
 import { drawGrid } from "./grid.js";
 
 /**
- * A transparent canvas over the map, where the grid is drawn after each map frame.
+ * A transparent canvas over the map, where the grid and the
+ * place names are drawn after each map frame.
  */
 export class GridOverlay {
   #canvas;
   #context;
   #worldMap;
   #settings = DEFAULT_GRID;
+  #labels = null;
 
   /**
    * @param mapElement  {HTMLElement} the element holding the map canvas
@@ -36,6 +38,14 @@ export class GridOverlay {
   }
 
   /**
+   * The place names to draw over the grid, see label-layer.js.
+   */
+  set labels(layer) {
+    this.#labels = layer;
+    this.#worldMap.renderer.requestRender();
+  }
+
+  /**
    * Draws the grid for the current camera, with as many device pixels as the map canvas.
    */
   draw() {
@@ -56,5 +66,6 @@ export class GridOverlay {
     const ratio = renderer.pixelRatio;
     this.#context.setTransform(ratio, 0, 0, ratio, 0, 0);
     drawGrid(this.#context, this.#worldMap.camera.view, this.#settings);
+    this.#labels?.draw(this.#context, this.#worldMap.camera.view);
   }
 }

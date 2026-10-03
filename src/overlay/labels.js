@@ -279,3 +279,70 @@ function riverLayouts(view, label, width) {
   }
   return layouts;
 }
+
+/**
+ * The inks of each rendering mode: land and water labels, and the halo that keeps them legible
+ * over the map. Debug mode has no labels.
+ */
+export const INKS = {
+  default: { land: "rgb(52, 38, 26)", water: "rgb(54, 76, 98)", halo: "rgba(240, 228, 200, 0.85)" },
+  biomes: { land: "rgb(20, 20, 20)", water: "rgb(20, 40, 90)", halo: "rgba(255, 255, 255, 0.85)" },
+};
+export const HALO_WIDTH = 3;
+
+/**
+ * Draws placed labels, letter by letter, each over its halo.
+ *
+ * @param placed see placeLabels
+ * @param mode   "default", "biomes" or "debug" (draws nothing)
+ */
+export function drawLabels(context, placed, mode) {
+  const inks = INKS[mode];
+  if (!inks) return;
+  context.save();
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.lineJoin = "round";
+  context.lineWidth = HALO_WIDTH;
+  context.strokeStyle = inks.halo;
+  for (const { style, glyphs } of placed) {
+    context.font = fontOf(style);
+    context.fillStyle = inks[style.ink];
+    for (const glyph of glyphs) {
+      context.save();
+      context.translate(glyph.x, glyph.y);
+      context.rotate(glyph.angle);
+      context.strokeText(glyph.char, 0, 0);
+      context.fillText(glyph.char, 0, 0);
+      context.restore();
+    }
+  }
+  context.restore();
+}
+
+/**
+ * How much larger than on screen labels are drawn in an image: as the grid's lines, see
+ * export/export.js gridLineWidth, one more CSS pixel per 1024 pixels of the longest side.
+ */
+export const labelScale = (width, height) => Math.max(1, Math.max(width, height) / 1024);
+
+/**
+ * Places the labels of a view as a screen scale times smaller would, then draws them scale times
+ * larger: an export shows the labels the screen would, not tiny ones.
+ *
+ * @returns see placeLabels, in the smaller view's pixels
+ */
+export function layoutAndDraw(context, view, labels, { mode, text, measure, previous, scale = 1 }) {
+  const layoutView = {
+    ...view,
+    width: view.width / scale,
+    height: view.height / scale,
+    pixelsPerUnit: view.pixelsPerUnit / scale,
+  };
+  const placed = placeLabels(layoutView, labels, { text, measure, previous });
+  context.save();
+  context.scale(scale, scale);
+  drawLabels(context, placed, mode);
+  context.restore();
+  return placed;
+}
