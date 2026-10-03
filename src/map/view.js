@@ -21,6 +21,11 @@ export const cameraView = (camera, width, height) => ({
 });
 
 /**
+ * A view's zoom level, the inverse of cameraView's pixelsPerUnit.
+ */
+export const zoomOf = (view) => Math.log2((view.pixelsPerUnit * WORLD_SIZE) / TILE_PIXEL_SIZE);
+
+/**
  * The matrix the world shaders use to draw a view (world coordinates to clip space).
  */
 export const viewMatrix = (view) => {
