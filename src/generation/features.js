@@ -2,6 +2,7 @@ import { Delaunay } from "d3-delaunay";
 import { WORLD_SIZE } from "../constants.js";
 import { BIOME_DEFINITIONS } from "./biomes.js";
 import { MARITIME } from "./fields.js";
+import { cultureAt } from "./names/names.js";
 import { WATER_MESH_SIDE } from "./hydrology.js";
 
 /**
@@ -359,4 +360,185 @@ export function riverFeatures(base, sampler) {
     for (const k of round) if (!used[k]) walk(k, branches);
   }
   return rivers;
+}
+/**
+ * Coastal seas are the sea cells within SEA_REACH steps of a continent, each taking the
+ * continent and the culture of the coast it is reached from. A continent's band is cut into
+ * sectors of about SEA_TARGET_CELLS cells around its centre, so no sea wraps all around it.
+ * Seas of fewer than MIN_SEA_CELLS cells join a neighbouring sea of the same continent, or
+ * stay ocean. The ocean's labels keep OCEAN_MARGIN of the world's side from its edges.
+ */
+export const SEA_REACH = 3;
+export const MIN_SEA_CELLS = 8;
+export const SEA_TARGET_CELLS = 40;
+export const OCEAN_MARGIN = 0.1;
+
+/**
+ * The coastal seas and the ocean.
+ *
+ * @param centres see names/names.js placeCultureCentres
+ * @returns {{seas: Object[], ocean: Object|null}} see continentFeatures; seas have a culture
+ */
+export function seaFeatures(base, world, centres) {
+  const { count, land, neighbors } = world;
+  const sites = base.sites;
+  // Each coastal sea cell's steps from continent land, and the continent cell it is reached from
+  const steps = new Int16Array(count).fill(-1);
+  const coast = new Int32Array(count).fill(-1);
+  const queue = [];
+  for (let i = 0; i < count; i++) {
+    if (land[i]) continue;
+    for (const j of neighbors(i)) {
+      if (land[j] && base.continents[j] > 0 && (coast[i] < 0 || j < coast[i])) coast[i] = j;
+    }
+    if (coast[i] >= 0) {
+      steps[i] = 1;
+      queue.push(i);
+    }
+  }
+  for (let k = 0; k < queue.length; k++) {
+    const i = queue[k];
+    if (steps[i] === SEA_REACH) continue;
+    for (const j of neighbors(i)) {
+      if (land[j] || steps[j] >= 0) continue;
+      steps[j] = steps[i] + 1;
+      coast[j] = coast[i];
+      queue.push(j);
+    }
+  }
+
+  // The centre of each continent and how many coastal sea cells it has
+  const centre = new Map();
+  const coastal = new Map();
+  for (let i = 0; i < count; i++) {
+    const number = base.continents[i];
+    if (land[i] && number > 0) {
+      const [x, y, n] = centre.get(number) ?? [0, 0, 0];
+      centre.set(number, [x + sites[2 * i], y + sites[2 * i + 1], n + 1]);
+    }
+    if (coast[i] >= 0) {
+      const owner = base.continents[coast[i]];
+      coastal.set(owner, (coastal.get(owner) ?? 0) + 1);
+    }
+  }
+  const keyOf = new Array(count).fill(null);
+  const cultureOf = new Map();
+  for (let i = 0; i < count; i++) {
+    if (coast[i] < 0) continue;
+    const c = coast[i];
+    const number = base.continents[c];
+    const culture = cultureAt(centres, sites[2 * c], sites[2 * c + 1]);
+    const [sx, sy, n] = centre.get(number);
+    const sectors = Math.max(1, Math.round(coastal.get(number) / SEA_TARGET_CELLS));
+    const turn =
+      (Math.atan2(sites[2 * i + 1] - sy / n, sites[2 * i] - sx / n) + Math.PI) / (2 * Math.PI);
+    const key = `${number}:${culture}:${Math.min(sectors - 1, Math.floor(turn * sectors))}`;
+    keyOf[i] = key;
+    cultureOf.set(key, culture);
+  }
+  const groups = components(
+    count,
+    (i) => keyOf[i] !== null,
+    function* (i) {
+      for (const j of neighbors(i)) if (keyOf[j] === keyOf[i]) yield j;
+    },
+  );
+
+  // Small seas join the largest neighbouring sea of their continent that is large enough
+  const groupOf = new Int32Array(count).fill(-1);
+  groups.forEach((group, index) => {
+    for (const i of group) groupOf[i] = index;
+  });
+  const continentOf = (group) => base.continents[coast[group[0]]];
+  for (let index = 0; index < groups.length; index++) {
+    const group = groups[index];
+    if (group.length === 0 || group.length >= MIN_SEA_CELLS) continue;
+    let target = -1;
+    for (const i of group) {
+      for (const j of neighbors(i)) {
+        const other = groupOf[j];
+        if (other < 0 || other === index || groups[other].length < MIN_SEA_CELLS) continue;
+        if (continentOf(groups[other]) !== continentOf(group)) continue;
+        if (
+          target < 0 ||
+          groups[other].length > groups[target].length ||
+          (groups[other].length === groups[target].length && other < target)
+        ) {
+          target = other;
+        }
+      }
+    }
+    for (const i of group) groupOf[i] = target;
+    if (target >= 0) groups[target].push(...group);
+    groups[index] = [];
+  }
+
+  const seas = groups
+    .filter((group) => group.length >= MIN_SEA_CELLS)
+    .map((group) => {
+      const axis = mainAxis(group, sites);
+      const anchor = site(sites, innerPoint(group, neighbors, sites));
+      return {
+        id: `sea:${pointId(...anchor)}`,
+        kind: "sea",
+        anchors: [anchor],
+        angle: axis.angle,
+        span: axis.span + world.cellSize,
+        terrain: "water",
+        culture: cultureOf.get(keyOf[group[0]]),
+        members: group,
+      };
+    });
+
+  // The ocean: every other sea cell, labelled where it is farthest from any land
+  const inSea = new Uint8Array(count);
+  for (const sea of seas) for (const i of sea.members) inSea[i] = 1;
+  const fromLand = new Int16Array(count).fill(-1);
+  const around = [];
+  for (let i = 0; i < count; i++) {
+    if (land[i]) continue;
+    for (const j of neighbors(i)) {
+      if (land[j]) {
+        fromLand[i] = 1;
+        around.push(i);
+        break;
+      }
+    }
+  }
+  for (let k = 0; k < around.length; k++) {
+    for (const j of neighbors(around[k])) {
+      if (!land[j] && fromLand[j] < 0) {
+        fromLand[j] = fromLand[around[k]] + 1;
+        around.push(j);
+      }
+    }
+  }
+  const members = [];
+  for (let i = 0; i < count; i++) if (!land[i] && !inSea[i]) members.push(i);
+  const [low, high] = [OCEAN_MARGIN * WORLD_SIZE, (1 - OCEAN_MARGIN) * WORLD_SIZE];
+  const candidates = members.filter((i) => {
+    const [x, y] = site(sites, i);
+    return x >= low && x <= high && y >= low && y <= high;
+  });
+  const farthest = (pool) => pool.reduce((a, b) => (fromLand[b] > fromLand[a] ? b : a), pool[0]);
+  if (candidates.length === 0) return { seas, ocean: null };
+  const first = farthest(candidates);
+  const [fx, fy] = site(sites, first);
+  const away = candidates.filter(
+    (i) => Math.hypot(sites[2 * i] - fx, sites[2 * i + 1] - fy) >= WORLD_SIZE / 2,
+  );
+  const anchors = [[fx, fy]];
+  if (away.length > 0) anchors.push(site(sites, farthest(away)));
+  return {
+    seas,
+    ocean: {
+      id: "ocean",
+      kind: "ocean",
+      anchors,
+      angle: 0,
+      span: WORLD_SIZE / 2,
+      terrain: "water",
+      members,
+    },
+  };
 }

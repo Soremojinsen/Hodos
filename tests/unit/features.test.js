@@ -2,10 +2,13 @@ import { expect, test } from "vitest";
 import {
   MAX_TILT,
   MIN_LAKE_NAMED,
+  MIN_SEA_CELLS,
+  OCEAN_MARGIN,
   MIN_RANGE_POINTS,
   MIN_RIVER_NAMED,
   MIN_RIVER_POINTS,
   RANGE_ALTITUDE,
+  SEA_REACH,
   components,
   continentFeatures,
   innerPoint,
@@ -14,10 +17,12 @@ import {
   mainAxis,
   rangeFeatures,
   riverFeatures,
+  seaFeatures,
   worldGeometry,
 } from "../../src/generation/features.js";
 import { WorldSampler } from "../../src/generation/fields.js";
 import { withWater } from "../../src/generation/hydrology.js";
+import { placeCultureCentres } from "../../src/generation/names/names.js";
 import { generateWorld } from "../../src/generation/world.js";
 
 const base = withWater(generateWorld("12345"));
@@ -168,4 +173,69 @@ test("rivers are chains of edges from a mouth or a confluence upstream", () => {
   for (let k = 0; k < base.riverMouth.length; k++)
     if (base.riverMouth[k] && largest < 0) largest = k;
   expect(rivers[0].members[0]).toBe(largest);
+});
+
+const landSites = [];
+for (let i = 0; i < world.count; i++)
+  if (world.land[i]) landSites.push(base.sites[2 * i], base.sites[2 * i + 1]);
+const centres = placeCultureCentres(base.seed, landSites);
+
+// Steps from each sea cell to the nearest continent cell
+const stepsFromContinents = () => {
+  const steps = new Int16Array(world.count).fill(-1);
+  const queue = [];
+  for (let i = 0; i < world.count; i++) {
+    if (world.land[i] && base.continents[i] > 0) {
+      steps[i] = 0;
+      queue.push(i);
+    }
+  }
+  for (let k = 0; k < queue.length; k++) {
+    for (const j of world.neighbors(queue[k])) {
+      if (!world.land[j] && steps[j] < 0) {
+        steps[j] = steps[queue[k]] + 1;
+        queue.push(j);
+      }
+    }
+  }
+  return steps;
+};
+
+test("coastal seas lie along the continents, apart from each other", () => {
+  const { seas } = seaFeatures(base, world, centres);
+  const steps = stepsFromContinents();
+  expect(seas.length).toBeGreaterThanOrEqual(
+    new Set([...base.continents].filter((n) => n > 0)).size,
+  );
+  const seen = new Set();
+  for (const sea of seas) {
+    expect(sea.members.length).toBeGreaterThanOrEqual(MIN_SEA_CELLS);
+    expect(sea.id).toBe(`sea:${Math.round(sea.anchors[0][0])},${Math.round(sea.anchors[0][1])}`);
+    for (const i of sea.members) {
+      expect(world.land[i]).toBe(0);
+      expect(steps[i]).toBeGreaterThan(0);
+      expect(steps[i]).toBeLessThanOrEqual(SEA_REACH);
+      expect(seen.has(i)).toBe(false);
+      seen.add(i);
+    }
+  }
+});
+
+test("the ocean is the rest of the sea, with two anchors far apart", () => {
+  const { seas, ocean } = seaFeatures(base, world, centres);
+  expect(ocean.id).toBe("ocean");
+  const inSeas = new Set(seas.flatMap((s) => s.members));
+  for (const i of ocean.members) {
+    expect(world.land[i]).toBe(0);
+    expect(inSeas.has(i)).toBe(false);
+  }
+  expect(ocean.anchors).toHaveLength(2);
+  const [[ax, ay], [bx, by]] = ocean.anchors;
+  expect(Math.hypot(ax - bx, ay - by)).toBeGreaterThanOrEqual(5000);
+  for (const [x, y] of ocean.anchors) {
+    for (const v of [x, y]) {
+      expect(v).toBeGreaterThanOrEqual(OCEAN_MARGIN * 10_000);
+      expect(v).toBeLessThanOrEqual((1 - OCEAN_MARGIN) * 10_000);
+    }
+  }
 });
