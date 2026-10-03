@@ -213,6 +213,24 @@ export class WorldSampler {
     ];
   }
 
+  /**
+   * The coarse cell whose biome sampleAt reads at (x, y) and a level.
+   */
+  cellAt(x, y, level) {
+    const [wx, wy] = this.warp(x, y, level);
+    // The hint only speeds up the search: find always returns the nearest site
+    const cell = this.#delaunay.find(wx, wy, this.#hint);
+    this.#hint = cell;
+    return cell;
+  }
+
+  /**
+   * The water mesh point nearest to (x, y), or -1 in a world without water.
+   */
+  waterPointAt(x, y) {
+    return this.#waterSide ? this.#nearestWaterPoint(x, y) : -1;
+  }
+
   // The column and row of the water grid square of (x, y), clamped to the grid
   #square(x, y) {
     const side = this.#waterSide;
@@ -248,10 +266,7 @@ export class WorldSampler {
    *          flat: delta land, level whatever the altitude noise (the tiles give it no slope)
    */
   sampleAt(x, y, level) {
-    const [wx, wy] = this.warp(x, y, level);
-    // The hint only speeds up the search: find always returns the nearest site
-    const cell = this.#delaunay.find(wx, wy, this.#hint);
-    this.#hint = cell;
+    const cell = this.cellAt(x, y, level);
     const biome = this.#base.biomes[cell];
     const land = !MARITIME[biome];
     const base = this.#base;

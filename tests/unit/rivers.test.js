@@ -26,6 +26,7 @@ import {
   riverAt,
   riverCourse,
   riverCourses,
+  riverEdgeAt,
   riverThreshold,
   riverPixels,
   riverWidth,
@@ -472,4 +473,11 @@ test("riverCourses yields every course drawn at a level that passes through an a
     const all = [...riverCourses(sampler, z, [0, 0, WORLD_SIZE, WORLD_SIZE])];
     expect(all.length).toBe(count);
   }
+});
+
+test("riverEdgeAt finds the edge drawn at a point, and -1 off every river", () => {
+  const course = riverCourse(sampler, 0, 3);
+  // Edge 0 is the largest, so it is found first wherever it is drawn
+  expect(riverEdgeAt(sampler, course[2], course[3], 3)).toBe(0);
+  expect(riverEdgeAt(sampler, 20, 20, 3)).toBe(-1);
 });

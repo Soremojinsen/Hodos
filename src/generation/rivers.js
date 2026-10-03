@@ -332,7 +332,7 @@ function findCourse(sampler, k, z) {
  * flow and their largest half width at that level (see maxHalfWidth), in world units.
  *
  * @param sampler {WorldSampler}
- * @returns {Iterable<{course: Number[], flow: Number, half: Number}>} course as in riverCourse
+ * @returns {Iterable<{course: Number[], flow: Number, half: Number, edge: Number}>} course as in riverCourse
  */
 export function* riverCourses(sampler, z, [minX, minY, maxX, maxY]) {
   const rivers = sampler.rivers;
@@ -347,7 +347,7 @@ export function* riverCourses(sampler, z, [minX, minY, maxX, maxY]) {
       bounds[4 * k + 3] >= minY &&
       bounds[4 * k + 1] <= maxY
     ) {
-      yield { course: riverCourse(sampler, k, z), flow: flow[k], half: halves[k] };
+      yield { course: riverCourse(sampler, k, z), flow: flow[k], half: halves[k], edge: k };
     }
   }
 }
@@ -463,24 +463,34 @@ export function buildRivers(sampler, z, area) {
 }
 
 /**
+ * The river edge drawn at (x, y) at level z, see riverAt, or -1 where none is. Where rivers
+ * meet, the largest is found first.
+ *
+ * @param sampler {WorldSampler}
+ */
+export function riverEdgeAt(sampler, x, y, z, { zoom = z, margin = 0 } = {}) {
+  // The courses that may pass within their width of the area, so within the margin of (x, y)
+  const area = [x - margin, y - margin, x + margin, y + margin];
+  for (const { course, flow, edge } of riverCourses(sampler, z, area)) {
+    const reach = riverWidth(flow, zoom) / 2 + margin;
+    for (let i = 0; i + 3 < course.length; i += 2) {
+      if (segmentDistance(x, y, course[i], course[i + 1], course[i + 2], course[i + 3]) <= reach) {
+        return edge;
+      }
+    }
+  }
+  return -1;
+}
+
+/**
  * Whether a river of level z, drawn at a zoom, passes within margin of (x, y), in world units:
  * the river's own width, plus margin on each side.
  *
  * @param sampler {WorldSampler}
  * @param options {{zoom: Number, margin: Number}} the zoom is the level's by default
  */
-export function riverAt(sampler, x, y, z, { zoom = z, margin = 0 } = {}) {
-  // The courses that may pass within their width of the area, so within the margin of (x, y)
-  const area = [x - margin, y - margin, x + margin, y + margin];
-  for (const { course, flow } of riverCourses(sampler, z, area)) {
-    const reach = riverWidth(flow, zoom) / 2 + margin;
-    for (let i = 0; i + 3 < course.length; i += 2) {
-      if (segmentDistance(x, y, course[i], course[i + 1], course[i + 2], course[i + 3]) <= reach) {
-        return true;
-      }
-    }
-  }
-  return false;
+export function riverAt(sampler, x, y, z, options = {}) {
+  return riverEdgeAt(sampler, x, y, z, options) >= 0;
 }
 
 /**

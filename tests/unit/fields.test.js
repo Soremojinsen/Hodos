@@ -233,3 +233,35 @@ describe("wetlands", () => {
     expect(checked).toBeGreaterThan(0);
   });
 });
+
+test("cellAt is the coarse cell sampleAt reads", () => {
+  const base = generateWorld("12345");
+  const sampler = new WorldSampler(base);
+  for (let k = 0; k < 200; k++) {
+    const [x, y] = [(k * 7919) % 10_000, (k * 104_729) % 10_000];
+    for (const level of [0, 3, 6]) {
+      expect(base.biomes[sampler.cellAt(x, y, level)]).toBe(sampler.sampleAt(x, y, level).biome);
+    }
+  }
+});
+
+test("waterPointAt is the nearest water mesh point, and -1 without water", () => {
+  const base = withWater(generateWorld("12345"));
+  const sampler = new WorldSampler(base);
+  const sites = base.waterSites;
+  for (const [x, y] of [
+    [10, 10],
+    [5000, 5000],
+    [1234.5, 8765.4],
+    [9990, 3],
+  ]) {
+    let nearest = -1;
+    let best = Infinity;
+    for (let i = 0; i < sites.length / 2; i++) {
+      const d = (sites[2 * i] - x) ** 2 + (sites[2 * i + 1] - y) ** 2;
+      if (d < best) [nearest, best] = [i, d];
+    }
+    expect(sampler.waterPointAt(x, y)).toBe(nearest);
+  }
+  expect(new WorldSampler(generateWorld("12345")).waterPointAt(5000, 5000)).toBe(-1);
+});

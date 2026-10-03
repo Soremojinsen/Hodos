@@ -573,9 +573,11 @@ function growDelta(seed, drainage, m, wetlands, reserved) {
  * @param sampler {WorldSampler} of a world without water
  * @returns {{waterSites: Float64Array, lakes: Uint8Array, wetlands: Uint8Array,
  *            deltaBiome: Uint8Array, deltaContinent: Uint16Array, riverFrom: Uint32Array,
- *            riverTo: Uint32Array, riverFlow: Float32Array, riverMouth: Uint8Array}}
+ *            riverTo: Uint32Array, riverFlow: Float32Array, riverMouth: Uint8Array,
+ *            waterLand: Uint8Array, waterHeight: Float32Array}}
  *          riverMouth is 1 for an edge that ends in the sea or a lake; the river edges include
- *          the deltas' channels
+ *          the deltas' channels. waterLand and waterHeight are each water point's land flag and
+ *          altitude at WATER_LEVEL (-Infinity at sea).
  */
 export function generateWater(sampler) {
   const drainage = computeDrainage(sampler);
@@ -606,6 +608,8 @@ export function generateWater(sampler) {
     riverTo: Uint32Array.from(edges, (e) => e.to),
     riverFlow: Float32Array.from(edges, (e) => e.flow),
     riverMouth: Uint8Array.from(edges, (e) => e.mouth),
+    waterLand: land,
+    waterHeight: Float32Array.from(drainage.height),
   };
 }
 

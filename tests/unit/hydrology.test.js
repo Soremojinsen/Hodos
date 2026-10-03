@@ -387,6 +387,11 @@ test("a delta that walls in the sea point its river ends in opens it and still g
   ).toBe(true);
 });
 
+test("the water gives each water point's land and height, for the mountain ranges", () => {
+  expect(water.waterLand).toEqual(drainage.land);
+  expect(water.waterHeight).toEqual(Float32Array.from(drainage.height));
+});
+
 test("every channel of a delta is drawn from the first level deltas are drawn at, or none", () => {
   let deltas = 0;
   for (const seed of ["12345", "1", "42", "abc"]) {
