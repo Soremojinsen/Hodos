@@ -7,13 +7,13 @@ import { worldToScreen, zoomOf } from "../map/view.js";
  */
 export const LABEL_STYLES = {
   ocean: {
-    size: 22,
+    size: 18,
     italic: true,
     caps: true,
-    tracking: 0.4,
+    tracking: 0.3,
     ink: "water",
-    zooms: [0, 3],
-    overflow: 1,
+    zooms: [1, 3],
+    overflow: 1.5,
   },
   continent: {
     size: 20,
@@ -22,7 +22,7 @@ export const LABEL_STYLES = {
     tracking: 0.3,
     ink: "land",
     zooms: [0, 4],
-    overflow: 1,
+    overflow: 1.5,
   },
   sea: {
     size: 15,
@@ -30,7 +30,7 @@ export const LABEL_STYLES = {
     caps: false,
     tracking: 0.15,
     ink: "water",
-    zooms: [1, 5],
+    zooms: [2, 5],
     overflow: 1,
   },
   range: {
@@ -52,7 +52,7 @@ export const LABEL_STYLES = {
     overflow: 2,
   },
   lake: {
-    size: 12,
+    size: 13,
     italic: true,
     caps: false,
     tracking: 0.05,
@@ -61,12 +61,12 @@ export const LABEL_STYLES = {
     overflow: 1.2,
   },
   river: {
-    size: 11,
+    size: 12,
     italic: true,
     caps: false,
     tracking: 0.05,
     ink: "water",
-    zooms: [2, 7],
+    zooms: [4, 7],
     overflow: 1,
   },
 };
@@ -190,8 +190,8 @@ export function placeLabels(view, labels, { text, measure, previous = new Set() 
  * at most MAX_RIVER_BEND in all, RIVER_OFFSET_PX above its course so the letters stay off the
  * water (rivers meander around their course up close).
  */
-export const RIVER_REPEAT_PX = 400;
-export const MAX_RIVER_BEND = Math.PI / 4;
+export const RIVER_REPEAT_PX = 300;
+export const MAX_RIVER_BEND = Math.PI / 3;
 export const RIVER_OFFSET_PX = 8;
 
 // The course on screen, and the length along it at each point

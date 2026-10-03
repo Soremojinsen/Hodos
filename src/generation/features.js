@@ -370,7 +370,7 @@ export function riverFeatures(base, sampler) {
  */
 export const SEA_REACH = 3;
 export const MIN_SEA_CELLS = 8;
-export const SEA_TARGET_CELLS = 40;
+export const SEA_TARGET_CELLS = 60;
 export const OCEAN_MARGIN = 0.1;
 
 /**
