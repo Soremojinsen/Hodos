@@ -1,3 +1,6 @@
+import { aleaPRNG } from "../../vendor/alea-prng.js";
+import { CULTURES } from "./cultures.js";
+
 /**
  * How long a root is, in letters.
  */
@@ -87,4 +90,122 @@ export function makeRoot(culture, random) {
       return text[0].toUpperCase() + text.slice(1);
     }
   }
+}
+
+/**
+ * A world has one culture per LAND_CELLS_PER_CULTURE coarse land cells (about 185 of 1000 are
+ * land), from 3 to every culture, their centres at least CULTURE_SPACING world units apart.
+ */
+export const LAND_CELLS_PER_CULTURE = 40;
+export const MIN_CULTURES = 3;
+export const CULTURE_SPACING = 1500;
+
+// Fisher-Yates, in place
+const shuffle = (array, random) => {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+};
+
+/**
+ * The centres of the world's cultures: land cells drawn at random, each far enough from those
+ * drawn before, each with a culture of its own. A crowded world may get fewer than wanted.
+ *
+ * @param landSites x0, y0, x1, y1, … of the coarse land cells
+ * @returns {{x: Number, y: Number, culture: Number}[]} culture is an index in CULTURES
+ */
+export function placeCultureCentres(seed, landSites) {
+  const random = aleaPRNG(`${seed}:names`);
+  const count = landSites.length / 2;
+  const wanted = Math.min(
+    Math.max(Math.round(count / LAND_CELLS_PER_CULTURE), MIN_CULTURES),
+    CULTURES.length,
+  );
+  const order = shuffle(
+    Array.from({ length: count }, (_, i) => i),
+    random,
+  );
+  const cultures = shuffle(
+    CULTURES.map((_, i) => i),
+    random,
+  );
+  const centres = [];
+  for (const i of order) {
+    if (centres.length === wanted) break;
+    const [x, y] = [landSites[2 * i], landSites[2 * i + 1]];
+    if (centres.every((c) => Math.hypot(c.x - x, c.y - y) >= CULTURE_SPACING)) {
+      centres.push({ x, y, culture: cultures[centres.length] });
+    }
+  }
+  return centres;
+}
+
+/**
+ * The culture of the centre nearest to (x, y), or 0 in a world without centres.
+ */
+export function cultureAt(centres, x, y) {
+  let culture = 0;
+  let best = Infinity;
+  for (const centre of centres) {
+    const distance = (centre.x - x) ** 2 + (centre.y - y) ** 2;
+    if (distance < best) [culture, best] = [centre.culture, distance];
+  }
+  return culture;
+}
+
+/**
+ * The adjectives of descriptive names, by the terrain of the feature they name. Their texts are
+ * the i18n keys adj.<adjective>.<gender>, see overlay/label-text.js.
+ */
+export const ADJECTIVES = {
+  water: ["grey", "blue", "silent", "misty", "stormy", "green"],
+  dry: ["red", "golden", "pale"],
+  wood: ["green", "black", "misty"],
+  cold: ["white", "grey", "cold", "pale"],
+  high: ["grey", "white", "black", "red", "misty"],
+  dark: ["black", "grey", "silent"],
+  plain: ["green", "golden", "silent", "pale"],
+};
+
+/**
+ * The share of features of DESCRIPTIVE_KINDS named by an adjective rather than a root.
+ */
+export const DESCRIPTIVE_CHANCE = 1 / 7;
+export const DESCRIPTIVE_KINDS = new Set(["island", "range", "lake", "sea", "river"]);
+
+const drawName = (random, { kind, terrain, culture }) => {
+  if (DESCRIPTIVE_KINDS.has(kind) && random() < DESCRIPTIVE_CHANCE) {
+    const choices = ADJECTIVES[terrain] ?? ADJECTIVES.plain;
+    return { adjective: choices[Math.floor(random() * choices.length)] };
+  }
+  return { root: makeRoot(CULTURES[culture], random) };
+};
+
+const nameKey = (kind, name) =>
+  name.root ? `root:${name.root.toLowerCase()}` : `${kind}:${name.adjective}`;
+
+/**
+ * Names features from their own random stream, seed + ":" + id, so a name depends on its seed
+ * and feature alone. A name another feature already has is drawn again, the lower id keeping it.
+ *
+ * @param features {{id: string, kind: string, terrain: string, culture: Number}[]}
+ * @returns {({root: string}|{adjective: string})[]} in the order of features
+ */
+export function nameFeatures(seed, features) {
+  const order = features
+    .map((_, i) => i)
+    .sort((a, b) => (features[a].id < features[b].id ? -1 : 1));
+  const used = new Set();
+  const names = new Array(features.length);
+  for (const i of order) {
+    const feature = features[i];
+    const random = aleaPRNG(`${seed}:${feature.id}`);
+    let name = drawName(random, feature);
+    while (used.has(nameKey(feature.kind, name))) name = drawName(random, feature);
+    used.add(nameKey(feature.kind, name));
+    names[i] = name;
+  }
+  return names;
 }
