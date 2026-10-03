@@ -33,6 +33,7 @@ export default {
   "grid.size": "Taille",
   "grid.opacity": "Opacité",
   "settings.hover": "Infos au survol",
+  "settings.labels": "Noms de lieux",
   "hover.biome": "Biome :",
   "hover.relief": "Relief :",
   "relief.sea": "Mer",

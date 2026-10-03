@@ -6,6 +6,7 @@ import { parseState } from "./state/url-state.js";
 import { setupControls } from "./ui/controls.js";
 import { setupExportDialog } from "./ui/export-dialog.js";
 import { setupGridControls } from "./ui/grid-controls.js";
+import { setupLabelControls } from "./ui/label-controls.js";
 import { setupHoverInfo } from "./ui/hover.js";
 import { initLanguage, setupLanguageSwitch } from "./ui/language.js";
 import { setupModals } from "./ui/modals.js";
@@ -38,8 +39,8 @@ const checkedMode = () => document.querySelector("#mode-form input:checked").val
  * While the map is still generating (data-map is not yet "ready"), the camera and rendering
  * mode the renderer exposes are still their construction defaults (zoom 0, mode "default"), not
  * what the link asked for: the initial state parsed from the URL is used instead, with the
- * map's actual seed (which is set synchronously, even for a random seed), and the mode and grid
- * of the settings, which may already have been changed.
+ * map's actual seed (which is set synchronously, even for a random seed), and the mode, grid and
+ * place names of the settings, which may already have been changed.
  */
 const currentState = () =>
   document.documentElement.dataset.map === "ready"
@@ -50,8 +51,15 @@ const currentState = () =>
         z: worldMap.camera.zoom,
         mode: worldMap.renderer.renderingMode,
         grid: overlay.settings,
+        labels: labelLayer.enabled,
       }
-    : { ...initialState, seed: worldMap.seed, mode: checkedMode(), grid: overlay.settings };
+    : {
+        ...initialState,
+        seed: worldMap.seed,
+        mode: checkedMode(),
+        grid: overlay.settings,
+        labels: labelLayer.enabled,
+      };
 const urlSync = startUrlSync(worldMap.renderer, currentState);
 // The link holds the whole state, so reloading it brings the same map back, rather than
 // rebuilding every WebGL object the lost context took with it
@@ -84,6 +92,7 @@ document
 setupNavigation(currentState, urlSync);
 setupViewButtons(worldMap);
 setupGridControls(overlay, initialState.grid);
+setupLabelControls(labelLayer, initialState.labels);
 setupHoverInfo(worldMap);
 const exportDialog = setupExportDialog(worldMap, overlay);
 // Browsers restore form fields on reload: the link decides the mode

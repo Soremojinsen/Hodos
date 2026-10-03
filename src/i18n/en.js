@@ -32,6 +32,7 @@ export default {
   "grid.size": "Size",
   "grid.opacity": "Opacity",
   "settings.hover": "Hover info",
+  "settings.labels": "Place names",
   "hover.biome": "Biome:",
   "hover.relief": "Relief:",
   "relief.sea": "Sea",

@@ -44,7 +44,7 @@ export const normalizeGrid = ({ type, size, opacity }) => ({
  * Reads the state from a URL query string. Invalid values fall back to their default.
  *
  * @param search {string} e.g. location.search
- * @returns {{seed: string|null, x: Number, y: Number, z: Number, mode: string, grid: Object}}
+ * @returns {{seed: string|null, x: Number, y: Number, z: Number, mode: string, grid: Object, labels: boolean}}
  */
 export function parseState(search) {
   const params = new URLSearchParams(search);
@@ -59,6 +59,7 @@ export function parseState(search) {
     y: Number.isFinite(y) ? clamp(y, -half, half) : DEFAULT_VIEW.y,
     z: Number.isFinite(z) ? clamp(z, MIN_ZOOM, MAX_ZOOM) : DEFAULT_VIEW.z,
     mode: MODES.includes(params.get("mode")) ? params.get("mode") : "default",
+    labels: params.get("labels") !== "off",
     grid: normalizeGrid({
       type: params.get("grid"),
       size: number(params.get("gs")),
@@ -83,6 +84,7 @@ export function serializeState(state) {
   if (y !== DEFAULT_VIEW.y) params.set("y", y);
   if (z !== DEFAULT_VIEW.z) params.set("z", z);
   if (state.mode !== "default") params.set("mode", state.mode);
+  if (state.labels === false) params.set("labels", "off");
   if (state.grid.type !== "none") {
     params.set("grid", state.grid.type);
     if (state.grid.size !== GRID_SIZE.default) params.set("gs", state.grid.size);

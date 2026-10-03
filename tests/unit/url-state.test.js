@@ -7,7 +7,7 @@ import {
   serializeState,
 } from "../../src/state/url-state.js";
 
-const DEFAULTS = { x: 0, y: 0, z: 1, mode: "default", grid: DEFAULT_GRID };
+const DEFAULTS = { x: 0, y: 0, z: 1, mode: "default", grid: DEFAULT_GRID, labels: true };
 
 test("a seed alone gives the default view, as links made before this version", () => {
   expect(parseState("?seed=12345")).toEqual({ seed: "12345", ...DEFAULTS });
@@ -32,6 +32,7 @@ test("the full state round-trips", () => {
     z: 3.25,
     mode: "biomes",
     grid: { type: "hex", size: 500, opacity: 80 },
+    labels: true,
   };
   const search = serializeState(state);
   expect(search).toBe("?seed=12345&x=-1200&y=350&z=3.25&mode=biomes&grid=hex&gs=500&go=80");
@@ -76,6 +77,7 @@ test("bad or out-of-range values are ignored or clamped", () => {
       z: 7,
       mode: "default",
       grid: { type: "none", size: 100, opacity: 100 },
+      labels: true,
     },
   );
   expect(parseState("?seed=s&x=&y=%20&z=-3").z).toBe(0);
@@ -91,4 +93,12 @@ test("grid sizes snap to steps of 50 within 100 to 1000", () => {
     size: 250,
     opacity: 40,
   });
+});
+
+test("place names are on unless the link says labels=off", () => {
+  expect(parseState("?seed=s").labels).toBe(true);
+  expect(parseState("?seed=s&labels=off").labels).toBe(false);
+  expect(parseState("?seed=s&labels=nonsense").labels).toBe(true);
+  expect(serializeState({ seed: "s", ...DEFAULTS })).not.toContain("labels");
+  expect(serializeState({ seed: "s", ...DEFAULTS, labels: false })).toContain("labels=off");
 });

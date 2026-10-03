@@ -42,3 +42,15 @@ test("debug mode has no place names", async ({ page }) => {
   await expect(page).toHaveURL(/mode=debug/);
   await expect.poll(async () => await placedTexts(page)).toEqual([]);
 });
+
+test("the setting and labels=off hide the place names", async ({ page }) => {
+  await openMap(page, "./?seed=12345&labels=off");
+  await page.waitForTimeout(500);
+  expect(await placedTexts(page)).toEqual([]);
+  await page.getByRole("button", { name: "Paramètres" }).click();
+  const toggle = page.getByLabel("Noms de lieux");
+  await expect(toggle).not.toBeChecked();
+  await toggle.check();
+  await expect.poll(async () => (await placedTexts(page)).length).toBeGreaterThan(0);
+  await expect.poll(() => page.url()).not.toContain("labels=off");
+});
