@@ -142,11 +142,12 @@ export function setupNamesPanel({ labelEdits, labelLayer, worldMap, currentState
   document.getElementById("language-select").addEventListener("change", refresh);
 
   // A click or tap on the map, not a drag, selects the name there: a label drawn there first (a
-  // river's name is beside the river), then the feature under it, then its land mass
+  // river's name is beside the river), then the feature under it, then its land mass. Only the
+  // main button's: a right click is for the browser's menu.
   const mapElement = document.getElementById("map");
   const presses = new Map();
   mapElement.addEventListener("pointerdown", (event) => {
-    if (!isOpen() || event.target.closest("button")) return;
+    if (!isOpen() || event.button !== 0 || event.target.closest("button")) return;
     presses.set(event.pointerId, { x: event.clientX, y: event.clientY });
     // A second finger is a pinch: no press is a tap any more
     if (presses.size > 1) presses.clear();

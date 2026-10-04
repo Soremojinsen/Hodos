@@ -280,6 +280,23 @@ test("a click on a name on the map selects it, and the hover panel shows the new
   await expect(page.locator("#hover-info")).toContainText("Océan Mirewater");
 });
 
+test("a right click on a name on the map does not select it", async ({ page }) => {
+  await openMap(page);
+  await expect.poll(() => placedTexts(page)).toContainEqual(expect.stringMatching(/^OCÉAN /));
+  const point = await page.evaluate(() => {
+    const ocean = window.hodosLabels.placed.find((p) => p.label.kind === "ocean");
+    const rect = window.hodos.renderer.canvas.getBoundingClientRect();
+    return { x: rect.left + ocean.center.x, y: rect.top + ocean.center.y };
+  });
+  await openPanel(page);
+  await page.mouse.click(point.x, point.y, { button: "right" });
+  await page.mouse.click(point.x, point.y, { button: "middle" });
+  await expect(page.locator("#names-editor")).toBeHidden();
+  // A left click there does
+  await page.mouse.click(point.x, point.y);
+  await expect(page.locator("#names-editor")).toBeVisible();
+});
+
 test("a drag on the map pans and does not select", async ({ page }) => {
   await openMap(page);
   await openPanel(page);
