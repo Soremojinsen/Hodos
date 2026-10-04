@@ -138,6 +138,42 @@ const pickFromList = async (page, id) => {
   await waitForTiles(page);
 };
 
+const openGroups = (page) =>
+  page.evaluate(() =>
+    [...document.querySelectorAll("#names-list details")]
+      .filter((details) => details.open)
+      .map((details) => details.querySelector("summary").textContent),
+  );
+
+// A label picked by its root in the search, the search then cleared
+const pickBySearch = async (page, label) => {
+  await page.locator("#names-search").fill(label.root);
+  await page.locator(`#names-list .names-entry[data-id="${label.id}"]`).click();
+  await page.locator("#names-search").fill("");
+};
+
+test("a group opened by the user stays open, one opened for the selection closes after it", async ({
+  page,
+}) => {
+  await openMap(page);
+  await openPanel(page);
+  const [lake, ocean] = await page.evaluate(() =>
+    ["lake", "ocean"].map((kind) => {
+      const label = window.hodosEdits.labels.find((l) => l.kind === kind && l.name.root);
+      return { id: label.id, root: label.name.root };
+    }),
+  );
+  await page.locator("#names-list summary", { hasText: /^Îles / }).click();
+  await pickBySearch(page, lake);
+  await expect
+    .poll(() => openGroups(page))
+    .toEqual([expect.stringMatching(/^Îles /), expect.stringMatching(/^Lacs /)]);
+  await pickBySearch(page, ocean);
+  await expect
+    .poll(() => openGroups(page))
+    .toEqual([expect.stringMatching(/^Océan /), expect.stringMatching(/^Îles /)]);
+});
+
 // Whether the selected label is drawn on the map, all its letters clear of the panel
 const selectedInSight = (page) =>
   page.evaluate(() => {

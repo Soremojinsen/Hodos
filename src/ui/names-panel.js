@@ -84,12 +84,14 @@ export function setupNamesPanel({ labelEdits, labelLayer, worldMap, currentState
       const details = document.createElement("details");
       details.open =
         searching || openKinds.has(kind) || entries.some((e) => e.label.id === labelLayer.selected);
-      details.addEventListener("toggle", () => {
-        if (searching) return;
-        if (details.open) openKinds.add(kind);
-        else openKinds.delete(kind);
-      });
       const summary = document.createElement("summary");
+      // The user's click, not "toggle", which opening the selection's group above fires too. A
+      // key on the summary clicks it as well. The group toggles after the click.
+      summary.addEventListener("click", () => {
+        if (searching) return;
+        if (details.open) openKinds.delete(kind);
+        else openKinds.add(kind);
+      });
       summary.textContent = t("names.group", { kind: t(`names.kind.${kind}`), n: entries.length });
       const items = document.createElement("ul");
       items.append(...entries.map(entryOf));
