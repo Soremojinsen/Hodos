@@ -48,7 +48,7 @@ test("the setting and labels=off hide the place names", async ({ page }) => {
   await page.waitForTimeout(500);
   expect(await placedTexts(page)).toEqual([]);
   await page.getByRole("button", { name: "Paramètres" }).click();
-  const toggle = page.getByLabel("Noms de lieux", { exact: true });
+  const toggle = page.getByRole("checkbox", { name: "Noms de lieux", exact: true });
   await expect(toggle).not.toBeChecked();
   await toggle.check();
   await expect.poll(async () => (await placedTexts(page)).length).toBeGreaterThan(0);

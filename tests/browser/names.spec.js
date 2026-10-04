@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
-import { openMap } from "./helpers.js";
+import { countDifferentPixels, openMap } from "./helpers.js";
 
 const placedTexts = (page) => page.evaluate(() => window.hodosLabels.placed.map((p) => p.text));
 
@@ -264,4 +264,25 @@ test("without browser storage, a file for another seed does not leave this map",
     .setInputFiles(namesFile("54321", { kinds: { river: false } }));
   await expect(page.locator("#notice")).toContainText("ne peut pas garder");
   expect(page.url()).toContain("seed=12345");
+});
+
+const exportView = async (page) => {
+  await page.locator("#screenshot").click();
+  await page.locator('input[name="export-area"][value="view"]').check();
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.locator("#export-download").click(),
+  ]);
+  await page.keyboard.press("Escape");
+  return readFile(await download.path());
+};
+
+test("an export shows the map's own names", async ({ page }) => {
+  await openMap(page);
+  await expect.poll(() => placedTexts(page)).toContainEqual(expect.stringMatching(/^OCÉAN /));
+  const before = await exportView(page);
+  await rename(page, await oceanId(page), { full: "La Grande Bleue" });
+  await expect.poll(() => placedTexts(page)).toContain("LA GRANDE BLEUE");
+  const after = await exportView(page);
+  expect(await countDifferentPixels(page, before, after)).toBeGreaterThan(50);
 });
