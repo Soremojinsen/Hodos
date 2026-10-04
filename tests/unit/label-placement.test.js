@@ -3,6 +3,8 @@ import { zoomOf } from "../../src/map/view.js";
 import {
   LABEL_STYLES,
   RIVER_OFFSET_PX,
+  drawLabels,
+  fontOf,
   labelScale,
   layoutAndDraw,
   placeLabels,
@@ -168,20 +170,51 @@ test("a river's name sits beside a sharp bend, not across it", () => {
   for (const angle of angles) expect(angle).toBeCloseTo(angles[0]);
 });
 
-test("exports lay labels out as the screen would, then scale them up", () => {
-  expect(labelScale(800, 600)).toBe(1);
-  expect(labelScale(4096, 2048)).toBe(4);
+// A 2D context that records its calls, with a scale and translation and canvas letterSpacing
+// (or none, without it), measuring as measure does
+const recorder = ({ letterSpacing = true } = {}) => {
   const calls = [];
+  const state = { font: "10px serif", m: [1, 0, 0, 1, 0, 0], saved: [] };
+  const methods = {
+    save: () => state.saved.push([...state.m]),
+    restore: () => (state.m = state.saved.pop()),
+    scale: (x, y) => (state.m = [state.m[0] * x, 0, 0, state.m[3] * y, state.m[4], state.m[5]]),
+    translate: (x, y) =>
+      (state.m = [
+        ...state.m.slice(0, 4),
+        state.m[4] + x * state.m[0],
+        state.m[5] + y * state.m[3],
+      ]),
+    getTransform: () => {
+      const [a, b, c, d, e, f] = state.m;
+      return { a, b, c, d, e, f };
+    },
+    measureText: (text) => ({ width: measure(text, state.font), alphabeticBaseline: -3.5 }),
+  };
   const context = new Proxy(
     {},
     {
+      has: (_, name) => name !== "letterSpacing" || letterSpacing,
       get: (_, name) =>
-        name === "font" || name === "fillStyle" || name === "strokeStyle"
-          ? ""
-          : (...args) => calls.push([name, ...args]),
-      set: () => true,
+        name in state
+          ? state[name]
+          : (...args) => {
+              calls.push([name, ...args]);
+              return methods[name]?.(...args);
+            },
+      set: (_, name, value) => {
+        if (name === "font") state.font = value;
+        return true;
+      },
     },
   );
+  return { calls, context };
+};
+
+test("exports lay labels out as the screen would, then scale them up", () => {
+  expect(labelScale(800, 600)).toBe(1);
+  expect(labelScale(4096, 2048)).toBe(4);
+  const { calls, context } = recorder();
   const view = viewAt(1);
   const big = { ...view, width: 4000, height: 2800, pixelsPerUnit: view.pixelsPerUnit * 4 };
   const onScreen = placeLabels(view, [label()], { text, measure });
@@ -194,5 +227,53 @@ test("exports lay labels out as the screen would, then scale them up", () => {
   });
   expect(exported.map((p) => p.glyphs)).toEqual(onScreen.map((p) => p.glyphs));
   expect(calls).toContainEqual(["scale", 4, 4]);
-  expect(calls.filter(([name]) => name === "fillText")).toHaveLength("VELORN".length);
+  expect(calls.filter(([name]) => name === "fillText").map(([, text]) => text)).toEqual(["VELORN"]);
+});
+
+test("a straight label is drawn whole, over its halo, on whole pixels", () => {
+  // Centred at (500.3, 350.6) on screen, leaning a little or not at all
+  const view = { ...viewAt(1), centerX: 5000 - 0.3 / viewAt(1).pixelsPerUnit };
+  view.centerY = 5000 + 0.6 / view.pixelsPerUnit;
+  for (const angle of [0, 0.3]) {
+    const placed = placeLabels(view, [label({ angle })], { text, measure });
+    expect(placed).toHaveLength(1);
+    const { calls, context } = recorder();
+    drawLabels(context, placed, "biomes");
+    const strokes = calls.filter(([name]) => name === "strokeText");
+    const fills = calls.filter(([name]) => name === "fillText");
+    expect(strokes.map((call) => call.slice(1))).toEqual(fills.map((call) => call.slice(1)));
+    expect(fills).toHaveLength(1);
+    const [, drawn, x, y] = fills[0];
+    expect(drawn).toBe("VELORN");
+    expect(Number.isInteger(x) && Number.isInteger(y)).toBe(true);
+    // From its left end, 6 letters 10 px wide and 5 gaps of 6 px: 90 px
+    if (angle === 0) expect([x, y]).toEqual([Math.round(500.3 - 45), Math.round(350.6 + 3.5)]);
+    else {
+      expect(calls).toContainEqual(["translate", 500, 351]);
+      expect(calls).toContainEqual(["rotate", -0.3]);
+      expect([x, y]).toEqual([-45, 4]);
+    }
+  }
+});
+
+test("a river's name is drawn letter by letter, as is every label without letterSpacing", () => {
+  const placed = placeLabels(viewAt(4), [river(4000, 6000)], { text, measure });
+  const { calls, context } = recorder();
+  drawLabels(context, placed, "default");
+  expect(calls.filter(([name]) => name === "fillText").map(([, char]) => char)).toEqual(
+    placed.flatMap((p) => p.glyphs.map((g) => g.char)),
+  );
+  const old = recorder({ letterSpacing: false });
+  drawLabels(old.context, placeLabels(viewAt(1), [label()], { text, measure }), "default");
+  expect(old.calls.filter(([name]) => name === "fillText")).toHaveLength("VELORN".length);
+});
+
+test("rivers, lakes and islands are named in Alegreya, larger names in IM Fell", () => {
+  for (const kind of ["river", "lake", "island"]) {
+    expect(fontOf(LABEL_STYLES[kind])).toMatch(/px "Alegreya", serif$/);
+  }
+  for (const kind of ["continent", "ocean", "sea", "range"]) {
+    expect(fontOf(LABEL_STYLES[kind])).toMatch(/px "IM Fell Double Pica", serif$/);
+  }
+  expect(fontOf(LABEL_STYLES.river)).toBe(`italic ${LABEL_STYLES.river.size}px "Alegreya", serif`);
 });

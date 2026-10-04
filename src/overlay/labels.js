@@ -1,12 +1,21 @@
 import { worldToScreen, zoomOf } from "../map/view.js";
 
 /**
- * How each kind of label is drawn: its font size in CSS pixels, italic or not, in capitals or
- * not, the space between letters as a share of the size, its ink, the zooms it shows at, and how
- * much wider than its feature it may be (an island's name may reach over the water around it).
+ * The typefaces of labels: IM Fell Double Pica, an old face, for the large capitals of continents,
+ * oceans, seas and ranges, and Alegreya, plainer and clearer at small sizes, for the names of
+ * rivers, lakes and islands.
+ */
+export const LABEL_FACES = { fell: "IM Fell Double Pica", alegreya: "Alegreya" };
+
+/**
+ * How each kind of label is drawn: its face (see LABEL_FACES), its font size in CSS pixels,
+ * italic or not, in capitals or not, the space between letters as a share of the size, its ink,
+ * the zooms it shows at, and how much wider than its feature it may be (an island's name may
+ * reach over the water around it).
  */
 export const LABEL_STYLES = {
   ocean: {
+    face: "fell",
     size: 18,
     italic: true,
     caps: true,
@@ -16,6 +25,7 @@ export const LABEL_STYLES = {
     overflow: 1.5,
   },
   continent: {
+    face: "fell",
     size: 20,
     italic: false,
     caps: true,
@@ -25,6 +35,7 @@ export const LABEL_STYLES = {
     overflow: 1.5,
   },
   sea: {
+    face: "fell",
     size: 15,
     italic: true,
     caps: false,
@@ -34,6 +45,7 @@ export const LABEL_STYLES = {
     overflow: 1,
   },
   range: {
+    face: "fell",
     size: 13,
     italic: false,
     caps: true,
@@ -43,7 +55,8 @@ export const LABEL_STYLES = {
     overflow: 1,
   },
   island: {
-    size: 13,
+    face: "alegreya",
+    size: 14,
     italic: false,
     caps: false,
     tracking: 0.05,
@@ -52,7 +65,8 @@ export const LABEL_STYLES = {
     overflow: 2,
   },
   lake: {
-    size: 13,
+    face: "alegreya",
+    size: 15,
     italic: true,
     caps: false,
     tracking: 0.05,
@@ -61,10 +75,11 @@ export const LABEL_STYLES = {
     overflow: 1.2,
   },
   river: {
-    size: 12,
+    face: "alegreya",
+    size: 14,
     italic: true,
     caps: false,
-    tracking: 0.05,
+    tracking: 0.08,
     ink: "water",
     zooms: [4, 7],
     overflow: 1,
@@ -89,7 +104,7 @@ export const PREVIOUS_BONUS = 500;
 export const BOX_PADDING = 2;
 
 export const fontOf = (style) =>
-  `${style.italic ? "italic " : ""}${style.size}px "IM Fell Double Pica", serif`;
+  `${style.italic ? "italic " : ""}${style.size}px "${LABEL_FACES[style.face]}", serif`;
 
 // The letters of a straight label centred on p, along a screen angle
 const straightGlyphs = (p, angle, widths, gap, total) => {
@@ -110,11 +125,14 @@ function areaLayouts(view, label, style, width) {
   if (width > spanPx * style.overflow) return [];
   if (spanPx > MAX_SPAN_VIEWPORTS * Math.max(view.width, view.height)) return [];
   // World angles go counter-clockwise with y up, screen angles clockwise with y down
-  return label.anchors.map(([x, y], index) => ({
-    key: `${label.id}#${index}`,
-    glyphs: (widths, gap) =>
-      straightGlyphs(worldToScreen(view, x, y), -label.angle, widths, gap, width),
-  }));
+  return label.anchors.map(([x, y], index) => {
+    const p = worldToScreen(view, x, y);
+    return {
+      key: `${label.id}#${index}`,
+      center: { x: p.x, y: p.y, angle: -label.angle },
+      glyphs: (widths, gap) => straightGlyphs(p, -label.angle, widths, gap, width),
+    };
+  });
 }
 
 // The box a letter covers, half the gap either side, turned by its angle
@@ -138,7 +156,9 @@ const overlaps = (a, b) => a.minX < b.maxX && b.minX < a.maxX && a.minY < b.maxY
  *                previous: Set<string>}} measure gives a text's width in a CSS font; previous
  *                holds the keys placed last frame
  * @returns {{key: string, label: Object, style: Object, text: string,
- *            glyphs: {char: string, x: Number, y: Number, angle: Number}[]}[]}
+ *            glyphs: {char: string, x: Number, y: Number, angle: Number}[],
+ *            center?: {x: Number, y: Number, angle: Number}}[]} center is a straight label's
+ *            middle and screen angle
  */
 export function placeLabels(view, labels, { text, measure, previous = new Set() }) {
   const zoom = zoomOf(view);
@@ -180,6 +200,7 @@ export function placeLabels(view, labels, { text, measure, previous = new Set() 
       style,
       text: content,
       glyphs: glyphs.map((glyph, i) => ({ ...glyph, char: chars[i] })),
+      ...(layout.center && { center: layout.center }),
     });
   }
   return placed;
@@ -397,10 +418,65 @@ export const INKS = {
   default: { land: "rgb(52, 38, 26)", water: "rgb(54, 76, 98)", halo: "rgba(240, 228, 200, 0.85)" },
   biomes: { land: "rgb(20, 20, 20)", water: "rgb(20, 40, 90)", halo: "rgba(255, 255, 255, 0.85)" },
 };
-export const HALO_WIDTH = 3;
+export const HALO_WIDTH = 4;
+
+// A point moved onto the nearest whole device pixel, under a context's scale and translation
+const snapped = (context, x, y) => {
+  const m = context.getTransform?.();
+  if (!m || m.b !== 0 || m.c !== 0 || m.a === 0 || m.d === 0) return [Math.round(x), Math.round(y)];
+  return [(Math.round(x * m.a + m.e) - m.e) / m.a, (Math.round(y * m.d + m.f) - m.f) / m.d];
+};
+
+// A straight label as one string over its halo: the font's kerning holds, and its baseline and
+// left end sit on whole pixels, so the letters are not smeared across two
+const drawWhole = (context, { text, center, style }) => {
+  const gap = style.tracking * style.size;
+  context.save();
+  context.letterSpacing = "0px";
+  context.textAlign = "left";
+  context.textBaseline = "middle";
+  const metrics = context.measureText(text);
+  // letterSpacing adds the gap after every letter, the last one too: drawn from the left end,
+  // the text spans its letters and the gaps between them, as placeLabels laid it out
+  const width = metrics.width + gap * ([...text].length - 1);
+  // How far below the label's middle its baseline is: drawn from the baseline, on a whole pixel
+  let down = 0;
+  if (typeof metrics.alphabeticBaseline === "number") {
+    down = -metrics.alphabeticBaseline;
+    context.textBaseline = "alphabetic";
+  }
+  context.letterSpacing = `${gap}px`;
+  let [x, y] = [center.x - width / 2, center.y + down];
+  if (center.angle !== 0) {
+    context.translate(...snapped(context, center.x, center.y));
+    context.rotate(center.angle);
+    [x, y] = [-width / 2, down];
+  }
+  [x, y] = snapped(context, x, y);
+  context.strokeText(text, x, y);
+  context.fillText(text, x, y);
+  context.restore();
+};
+
+// A label letter by letter, each turned as its stretch of the line (letterSpacing, if any, left
+// at 0 by drawWhole)
+const drawGlyphs = (context, glyphs) => {
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  for (const glyph of glyphs) {
+    context.save();
+    context.translate(glyph.x, glyph.y);
+    context.rotate(glyph.angle);
+    context.strokeText(glyph.char, 0, 0);
+    context.fillText(glyph.char, 0, 0);
+    context.restore();
+  }
+};
 
 /**
- * Draws placed labels, letter by letter, each over its halo.
+ * Draws placed labels, each over its halo: a straight label as one string on whole pixels, a
+ * river's letter by letter along its course (and every label so, where canvas text has no
+ * letterSpacing).
  *
  * @param placed see placeLabels
  * @param mode   "default", "biomes" or "debug" (draws nothing)
@@ -408,23 +484,16 @@ export const HALO_WIDTH = 3;
 export function drawLabels(context, placed, mode) {
   const inks = INKS[mode];
   if (!inks) return;
+  const whole = "letterSpacing" in context;
   context.save();
-  context.textAlign = "center";
-  context.textBaseline = "middle";
   context.lineJoin = "round";
   context.lineWidth = HALO_WIDTH;
   context.strokeStyle = inks.halo;
-  for (const { style, glyphs } of placed) {
-    context.font = fontOf(style);
-    context.fillStyle = inks[style.ink];
-    for (const glyph of glyphs) {
-      context.save();
-      context.translate(glyph.x, glyph.y);
-      context.rotate(glyph.angle);
-      context.strokeText(glyph.char, 0, 0);
-      context.fillText(glyph.char, 0, 0);
-      context.restore();
-    }
+  for (const label of placed) {
+    context.font = fontOf(label.style);
+    context.fillStyle = inks[label.style.ink];
+    if (whole && label.center) drawWhole(context, label);
+    else drawGlyphs(context, label.glyphs);
   }
   context.restore();
 }

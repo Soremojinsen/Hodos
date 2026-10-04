@@ -1,8 +1,9 @@
 import { labelText } from "./label-text.js";
-import { labelScale, layoutAndDraw } from "./labels.js";
+import { LABEL_FACES, labelScale, layoutAndDraw } from "./labels.js";
 
 /**
- * How long labels wait for the IM Fell faces, in milliseconds, before using the fallback serif.
+ * How long labels wait for their faces (see labels.js LABEL_FACES), in milliseconds, before
+ * using the fallback serif.
  */
 export const FONT_TIMEOUT = 3000;
 
@@ -19,7 +20,9 @@ export class LabelLayer {
   constructor(worldMap) {
     this.#worldMap = worldMap;
     const faces = Promise.all(
-      ["16px", "italic 16px"].map((font) => document.fonts.load(`${font} "IM Fell Double Pica"`)),
+      Object.values(LABEL_FACES).flatMap((family) =>
+        ["16px", "italic 16px"].map((font) => document.fonts.load(`${font} "${family}"`)),
+      ),
     );
     const timeout = new Promise((resolve) => setTimeout(resolve, FONT_TIMEOUT));
     Promise.race([faces, timeout])
