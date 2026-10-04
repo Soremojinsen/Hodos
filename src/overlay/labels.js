@@ -129,7 +129,7 @@ function areaLayouts(view, label, style, width) {
     const p = worldToScreen(view, x, y);
     return {
       key: `${label.id}#${index}`,
-      center: { x: p.x, y: p.y, angle: -label.angle },
+      center: { x: p.x, y: p.y, angle: -label.angle, width },
       glyphs: (widths, gap) => straightGlyphs(p, -label.angle, widths, gap, width),
     };
   });
@@ -157,8 +157,8 @@ const overlaps = (a, b) => a.minX < b.maxX && b.minX < a.maxX && a.minY < b.maxY
  *                holds the keys placed last frame
  * @returns {{key: string, label: Object, style: Object, text: string,
  *            glyphs: {char: string, x: Number, y: Number, angle: Number}[],
- *            center?: {x: Number, y: Number, angle: Number}}[]} center is a straight label's
- *            middle and screen angle
+ *            center?: {x: Number, y: Number, angle: Number, width: Number}}[]} center is a
+ *            straight label's middle, screen angle and width as laid out
  */
 export function placeLabels(view, labels, { text, measure, previous = new Set() }) {
   const zoom = zoomOf(view);
@@ -166,7 +166,8 @@ export function placeLabels(view, labels, { text, measure, previous = new Set() 
   for (const label of labels) {
     const style = LABEL_STYLES[label.kind];
     if (zoom < style.zooms[0] || zoom > style.zooms[1]) continue;
-    const content = style.caps ? text(label).toLocaleUpperCase() : text(label);
+    // Composed, so that each letter with its accents is one character
+    const content = (style.caps ? text(label).toLocaleUpperCase() : text(label)).normalize("NFC");
     const chars = [...content];
     const font = fontOf(style);
     const widths = chars.map((char) => measure(char, font));
@@ -428,17 +429,17 @@ const snapped = (context, x, y) => {
 };
 
 // A straight label as one string over its halo: the font's kerning holds, and its baseline and
-// left end sit on whole pixels, so the letters are not smeared across two
+// left end sit on whole pixels, so the letters are not smeared across two. It starts where
+// placeLabels laid its first letter out: kerning only makes the whole string narrower than its
+// letters' widths summed, so it stays within the boxes they were placed by.
 const drawWhole = (context, { text, center, style }) => {
   const gap = style.tracking * style.size;
+  const { width } = center;
   context.save();
   context.letterSpacing = "0px";
   context.textAlign = "left";
   context.textBaseline = "middle";
   const metrics = context.measureText(text);
-  // letterSpacing adds the gap after every letter, the last one too: drawn from the left end,
-  // the text spans its letters and the gaps between them, as placeLabels laid it out
-  const width = metrics.width + gap * ([...text].length - 1);
   // How far below the label's middle its baseline is: drawn from the baseline, on a whole pixel
   let down = 0;
   if (typeof metrics.alphabeticBaseline === "number") {
@@ -458,9 +459,9 @@ const drawWhole = (context, { text, center, style }) => {
   context.restore();
 };
 
-// A label letter by letter, each turned as its stretch of the line (letterSpacing, if any, left
-// at 0 by drawWhole)
+// A label letter by letter, each turned as its stretch of the line
 const drawGlyphs = (context, glyphs) => {
+  if ("letterSpacing" in context) context.letterSpacing = "0px";
   context.textAlign = "center";
   context.textBaseline = "middle";
   for (const glyph of glyphs) {

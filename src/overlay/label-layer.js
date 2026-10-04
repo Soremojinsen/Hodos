@@ -24,6 +24,11 @@ export class LabelLayer {
         ["16px", "italic 16px"].map((font) => document.fonts.load(`${font} "${family}"`)),
       ),
     );
+    // A face that arrives late, after the timeout, changes the widths measured meanwhile
+    document.fonts.addEventListener("loadingdone", () => {
+      this.#widths.clear();
+      worldMap.renderer.requestRender();
+    });
     const timeout = new Promise((resolve) => setTimeout(resolve, FONT_TIMEOUT));
     Promise.race([faces, timeout])
       .catch(() => {})

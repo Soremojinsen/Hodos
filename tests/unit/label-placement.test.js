@@ -172,7 +172,7 @@ test("a river's name sits beside a sharp bend, not across it", () => {
 
 // A 2D context that records its calls, with a scale and translation and canvas letterSpacing
 // (or none, without it), measuring as measure does
-const recorder = ({ letterSpacing = true } = {}) => {
+const recorder = ({ letterSpacing = true, measureWith = measure } = {}) => {
   const calls = [];
   const state = { font: "10px serif", m: [1, 0, 0, 1, 0, 0], saved: [] };
   const methods = {
@@ -189,7 +189,7 @@ const recorder = ({ letterSpacing = true } = {}) => {
       const [a, b, c, d, e, f] = state.m;
       return { a, b, c, d, e, f };
     },
-    measureText: (text) => ({ width: measure(text, state.font), alphabeticBaseline: -3.5 }),
+    measureText: (text) => ({ width: measureWith(text, state.font), alphabeticBaseline: -3.5 }),
   };
   const context = new Proxy(
     {},
@@ -276,4 +276,24 @@ test("rivers, lakes and islands are named in Alegreya, larger names in IM Fell",
     expect(fontOf(LABEL_STYLES[kind])).toMatch(/px "IM Fell Double Pica", serif$/);
   }
   expect(fontOf(LABEL_STYLES.river)).toBe(`italic ${LABEL_STYLES.river.size}px "Alegreya", serif`);
+});
+
+test("a straight label starts where its first letter was laid out, kerning or not", () => {
+  // Kerned, a string is 4 px narrower than its letters' widths summed
+  const kerned = (string, font) => measure(string, font) - (string.length > 1 ? 4 : 0);
+  const view = { ...viewAt(1), centerX: 5000 - 0.3 / viewAt(1).pixelsPerUnit };
+  const placed = placeLabels(view, [label()], { text, measure: kerned });
+  const { calls, context } = recorder({ measureWith: kerned });
+  drawLabels(context, placed, "default");
+  // 6 letters 10 px wide and 5 gaps of 6 px, centred at 500.3: from 455.3
+  expect(placed[0].center.width).toBe(90);
+  expect(placed[0].glyphs[0].x - 5).toBeCloseTo(455.3);
+  const [, , x] = calls.find(([name]) => name === "fillText");
+  expect(x).toBe(455);
+});
+
+test("a name's letters are composed with their accents", () => {
+  const [placed] = placeLabels(viewAt(1), [label({ text: "Ve\u0301lorn" })], { text, measure });
+  expect(placed.text).toBe("V\u00c9LORN");
+  expect(placed.glyphs).toHaveLength(6);
 });
