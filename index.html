@@ -129,7 +129,32 @@
           <legend data-i18n="names.shown">Sur la carte :</legend>
         </fieldset>
         <div id="names-list" class="names-list"></div>
-        <section id="names-editor" class="names-editor" hidden></section>
+        <section id="names-editor" class="names-editor" hidden>
+          <p id="names-generated" class="names-generated"></p>
+          <div class="names-field">
+            <span id="names-before"></span>
+            <input
+              type="text"
+              id="names-input"
+              maxlength="60"
+              autocomplete="off"
+              aria-label="Nom"
+              data-i18n-aria-label="names.field"
+            />
+            <span id="names-after"></span>
+          </div>
+          <label
+            ><input type="checkbox" id="names-full" />
+            <span data-i18n="names.fullName">Nom complet</span></label
+          >
+          <label
+            ><input type="checkbox" id="names-hide" />
+            <span data-i18n="names.hide">Masquer ce nom</span></label
+          >
+          <button type="button" id="names-reset" data-i18n="names.reset">
+            Revenir au nom généré
+          </button>
+        </section>
         <p id="names-pick" class="names-pick" data-i18n="names.pick">
           Cliquez sur la carte ou dans la liste pour choisir un nom.
         </p>

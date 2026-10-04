@@ -6,7 +6,7 @@ import { applyTranslations } from "./language.js";
 /**
  * How far a finger may move, in pixels, for a touch to count as a tap.
  */
-const TAP_DISTANCE = 6;
+export const TAP_DISTANCE = 6;
 
 /**
  * Shows what is under the pointer (or a tap) in a corner panel, when the setting is on.

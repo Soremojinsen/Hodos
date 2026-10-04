@@ -1,6 +1,10 @@
 import { LABEL_KINDS, isEmpty, withKindShown } from "../state/edits.js";
 import { labelText } from "../overlay/label-text.js";
 import { t } from "../i18n/i18n.js";
+import { screenToWorld } from "../map/view.js";
+import { focusView } from "../overlay/labels.js";
+import { TAP_DISTANCE } from "./hover.js";
+import { setupNamesEditor } from "./names-editor.js";
 import { KIND_ORDER, groupLabels } from "./names-list.js";
 
 /**
@@ -10,15 +14,17 @@ import { KIND_ORDER, groupLabels } from "./names-list.js";
  *
  * @param labelEdits {LabelEdits} see state/label-edits-store.js
  * @param labelLayer {LabelLayer}
+ * @param worldMap {WorldMap}
  * @returns {{select: function(string|null), refresh: function}}
  */
-export function setupNamesPanel({ labelEdits, labelLayer }) {
+export function setupNamesPanel({ labelEdits, labelLayer, worldMap }) {
   const panel = document.getElementById("names-panel");
   const button = document.getElementById("names-button");
   const search = document.getElementById("names-search");
   const kinds = document.getElementById("names-kinds");
   const list = document.getElementById("names-list");
   const unfiled = document.getElementById("names-unfiled");
+  const editor = setupNamesEditor(labelEdits);
   // The groups the user opened, kept across rebuilds of the list
   const openKinds = new Set();
 
@@ -89,6 +95,7 @@ export function setupNamesPanel({ labelEdits, labelLayer }) {
     });
     list.replaceChildren(...nodes);
     unfiled.hidden = labelEdits.filed || isEmpty(labelEdits.edits);
+    editor.show(labelLayer.selected);
   };
 
   const setOpen = (open) => {
@@ -100,11 +107,19 @@ export function setupNamesPanel({ labelEdits, labelLayer }) {
 
   const panelApi = {
     /**
-     * Selects a label by id, or none. Completed in Task 8 with the editor and the flight to it.
+     * Selects a label by id, or none, and shows it in the editor. With focus, the map flies to
+     * it, at the first zoom where it shows.
      */
-    select(id) {
+    select(id, { focus = false } = {}) {
       labelLayer.selected = id;
+      editor.show(id);
       refresh();
+      const label = id && labelEdits.labels.find((l) => l.id === id);
+      if (label && focus) {
+        const { x, y, zoom } = focusView(label, labelLayer.textWidth(label));
+        worldMap.controller.setView(x, y, zoom);
+      }
+      list.querySelector('[aria-current="true"]')?.scrollIntoView({ block: "nearest" });
     },
     refresh,
     isOpen,
@@ -120,6 +135,34 @@ export function setupNamesPanel({ labelEdits, labelLayer }) {
   labelEdits.addListener(refresh);
   // After the language switch of language.js, registered before: the list's texts change
   document.getElementById("language-select").addEventListener("change", refresh);
+
+  // A click or tap on the map, not a drag, selects the name there: a label drawn there first (a
+  // river's name is beside the river), then the feature under it, then its land mass
+  const mapElement = document.getElementById("map");
+  const presses = new Map();
+  mapElement.addEventListener("pointerdown", (event) => {
+    if (!isOpen() || event.target.closest("button")) return;
+    presses.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    // A second finger is a pinch: no press is a tap any more
+    if (presses.size > 1) presses.clear();
+  });
+  mapElement.addEventListener("pointercancel", (event) => presses.delete(event.pointerId));
+  document.addEventListener("pointerup", (event) => {
+    const start = presses.get(event.pointerId);
+    presses.delete(event.pointerId);
+    if (!start || !isOpen() || worldMap.sampler === undefined) return;
+    if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > TAP_DISTANCE) return;
+    const rect = worldMap.renderer.canvas.getBoundingClientRect();
+    const [x, y] = [event.clientX - rect.left, event.clientY - rect.top];
+    const drawn = labelLayer.labelAt(x, y);
+    if (drawn) {
+      panelApi.select(drawn.id);
+      return;
+    }
+    const point = screenToWorld(worldMap.camera.view, x, y);
+    const { feature, landmass } = worldMap.namesAt(point.x, point.y);
+    panelApi.select((feature ?? landmass)?.id ?? null);
+  });
 
   return panelApi;
 }
