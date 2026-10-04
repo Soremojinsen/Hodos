@@ -263,9 +263,26 @@ const pathLength = (path) => {
   return length;
 };
 
+// The point halfway along a course, in world units
+const pathMiddle = (path) => {
+  let left = pathLength(path) / 2;
+  for (let i = 2; i < path.length; i += 2) {
+    const length = Math.hypot(path[i] - path[i - 2], path[i + 1] - path[i - 1]);
+    if (left <= length && length > 0) {
+      const t = left / length;
+      return [
+        path[i - 2] + (path[i] - path[i - 2]) * t,
+        path[i - 1] + (path[i + 1] - path[i - 1]) * t,
+      ];
+    }
+    left -= length;
+  }
+  return [path[0], path[1]];
+};
+
 /**
- * Where the names list brings a label into view: the camera on its first anchor (a river's is the
- * middle of its course), at the lowest zoom of its kind's window, in quarter levels, where a text
+ * Where the names list brings a label into view: the camera on its first anchor (a river's: the
+ * middle of its course, as its first anchor is the course's start), at the lowest zoom of its kind's window, in quarter levels, where a text
  * width pixels wide fits its feature.
  *
  * @returns {{x: Number, y: Number, zoom: Number}} as MapController.setView takes them
@@ -279,7 +296,7 @@ export function focusView(label, width) {
   const fit =
     room > 0 ? Math.log2((width / room) * (WORLD_SIZE / TILE_PIXEL_SIZE)) : style.zooms[0];
   const zoom = Math.min(Math.max(Math.ceil(fit * 4) / 4, style.zooms[0]), style.zooms[1]);
-  const [x, y] = label.anchors[0];
+  const [x, y] = label.kind === "river" ? pathMiddle(label.path) : label.anchors[0];
   return { x: x - WORLD_SIZE / 2, y: y - WORLD_SIZE / 2, zoom };
 }
 

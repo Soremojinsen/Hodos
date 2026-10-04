@@ -374,3 +374,17 @@ test("a selected label is drawn over the accent halo, and faded when hidden", ()
   drawLabels(context, placed, "default");
   expect(calls[0]).toEqual({ halo: SELECTED_HALO, alpha: HIDDEN_ALPHA });
 });
+
+test("focusView centres a river on the middle of its course, not its start", () => {
+  // An L of 3000 then 1000 units: half of 4000 is 2000, on the first leg
+  const river = label({
+    id: "river:9",
+    kind: "river",
+    path: [1000, 1000, 4000, 1000, 4000, 2000],
+    anchors: [[1000, 1000]],
+  });
+  const { x, y, zoom } = focusView(river, labelLayout(river, text, measure).width);
+  expect([x, y]).toEqual([3000 - WORLD_SIZE / 2, 1000 - WORLD_SIZE / 2]);
+  expect(zoom).toBeGreaterThanOrEqual(LABEL_STYLES.river.zooms[0]);
+  expect(zoom).toBeLessThanOrEqual(LABEL_STYLES.river.zooms[1]);
+});
