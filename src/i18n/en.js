@@ -13,6 +13,7 @@ export default {
   "footer.project": "Project",
   "footer.newMap": "New map",
   "footer.copyLink": "Copy link",
+  "footer.share": "Share",
   "footer.names": "Names",
   "names.title": "Place names",
   "names.close": "Close",
@@ -56,6 +57,8 @@ export default {
     "Link copied! It shows the generated names, not yours. To share yours, send the names file too.",
   "notice.copyThisGenerated":
     "Copy this link. It shows the generated names, not yours. To share yours, send the names file too.",
+  "notice.sharedGenerated":
+    "The link shows the generated names, not yours. To share yours, send the names file too.",
   "names.notStored": "This browser can't keep your names. Save them to a file to keep them.",
   "notice.link": "Map link",
   "settings.title": "Settings",

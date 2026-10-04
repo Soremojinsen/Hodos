@@ -14,6 +14,7 @@ export default {
   "footer.project": "Projet",
   "footer.newMap": "Nouvelle carte",
   "footer.copyLink": "Copier le lien",
+  "footer.share": "Partager",
   "footer.names": "Noms",
   "names.title": "Noms de lieux",
   "names.close": "Fermer",
@@ -59,6 +60,8 @@ export default {
     "Lien copié ! Il montre les noms générés, pas les vôtres. Pour les partager, envoyez aussi le fichier des noms.",
   "notice.copyThisGenerated":
     "Copiez ce lien. Il montre les noms générés, pas les vôtres. Pour les partager, envoyez aussi le fichier des noms.",
+  "notice.sharedGenerated":
+    "Le lien montre les noms générés, pas les vôtres. Pour les partager, envoyez aussi le fichier des noms.",
   "names.notStored":
     "Ce navigateur ne peut pas garder vos noms. Enregistrez-les dans un fichier pour les garder.",
   "notice.link": "Lien de la carte",
