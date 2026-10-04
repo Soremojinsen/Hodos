@@ -15,18 +15,25 @@ export const searchKey = (text) =>
 
 /**
  * The labels the names list shows for a search, by kind in KIND_ORDER, each kind's largest first.
- * Kinds without a match are left out.
+ * A search matches the name shown or, for a renamed place, its generated name. Kinds without a
+ * match are left out.
  *
- * @param labels see label-edits.js applyEdits
- * @param text   {function(Object): string} a label's text, see overlay/label-text.js
- * @param query  {string} the search, empty for all
+ * @param labels   see label-edits.js applyEdits
+ * @param text     {function(Object): string} a label's text, see overlay/label-text.js
+ * @param query    {string} the search, empty for all
+ * @param selected {string|null} the id of a label listed whatever the search: the one being
+ *                 edited, which a new name must not take out of the list
  */
-export function groupLabels(labels, text, query) {
+export function groupLabels(labels, text, query, selected = null) {
   const wanted = searchKey(query.trim());
+  const matches = (label, shown) =>
+    searchKey(shown).includes(wanted) ||
+    (label.generated !== undefined &&
+      searchKey(text({ kind: label.kind, name: label.generated })).includes(wanted));
   const groups = new Map(KIND_ORDER.map((kind) => [kind, []]));
   for (const label of labels) {
     const shown = text(label);
-    if (wanted && !searchKey(shown).includes(wanted)) continue;
+    if (wanted && label.id !== selected && !matches(label, shown)) continue;
     groups.get(label.kind)?.push({ label, text: shown });
   }
   return [...groups]

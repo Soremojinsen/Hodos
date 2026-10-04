@@ -28,3 +28,30 @@ test("a search keeps the matching names and their groups", () => {
   ).toEqual([["sea:2"]]);
   expect(groupLabels(labels, text, "dragon")).toEqual([]);
 });
+
+test("a search finds a renamed place by its generated name too", () => {
+  const renamed = [
+    ...labels,
+    {
+      id: "lake:1",
+      kind: "lake",
+      priority: 2100,
+      text: "Lac Mirewater",
+      generated: { text: "Lac Velorn" },
+    },
+  ];
+  // The generated name's text, as text gives it for {kind, name}
+  const textOf = (label) => label.text ?? label.name.text;
+  const ids = (query) =>
+    groupLabels(renamed, textOf, query).flatMap((g) => g.entries.map((e) => e.label.id));
+  expect(ids("velorn")).toEqual(["lake:1"]);
+  expect(ids("mirewater")).toEqual(["lake:1"]);
+  // The entry shows the name it has now
+  expect(groupLabels(renamed, textOf, "velorn")[0].entries[0].text).toBe("Lac Mirewater");
+});
+
+test("a search keeps the selected name, so it stays in the list while being edited", () => {
+  expect(
+    groupLabels(labels, text, "eleni", "river:1").map((g) => g.entries.map((e) => e.label.id)),
+  ).toEqual([["sea:2"], ["river:1"]]);
+});

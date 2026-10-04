@@ -118,6 +118,11 @@ test("picking a name in the list flies to it and edits it as you type", async ({
   await expect(field).toHaveValue("Mirewater");
   await expect.poll(() => placedTexts(page)).toContain("OCÉAN MIREWATER");
   await expect(page.locator("#names-before")).toHaveText("Océan ");
+  // The name being edited stays listed whatever the search
+  await page.locator("#names-search").fill("dragon");
+  await expect(page.locator('#names-list .names-entry[aria-current="true"]')).toContainText(
+    "Océan Mirewater",
+  );
 });
 
 // Picks a label from the list by id, in its kind's group, and waits for the map to settle
@@ -196,8 +201,9 @@ test("a full name replaces the kind's word, and hiding keeps it faded while sele
   await page.locator("#names-close").click();
   await expect.poll(() => placedTexts(page)).not.toContain("LA GRANDE BLEUE");
   await openPanel(page);
-  // The search still holds the generated root, which the full name no longer matches
-  await page.locator("#names-search").fill("");
+  // The search still holds the generated root, which finds the renamed ocean
+  await expect(page.locator("#names-list .names-entry")).toHaveCount(1);
+  await expect(page.locator("#names-list")).toContainText("La Grande Bleue");
   await expect(page.locator("#names-list")).toContainText("⊘");
 });
 

@@ -79,7 +79,7 @@ export function setupNamesPanel({ labelEdits, labelLayer, worldMap, currentState
     if (!isOpen()) return;
     for (const [kind, box] of kindBoxes) box.checked = labelEdits.edits.kinds[kind] !== false;
     const searching = search.value.trim() !== "";
-    const groups = groupLabels(labelEdits.labels, labelText, search.value);
+    const groups = groupLabels(labelEdits.labels, labelText, search.value, labelLayer.selected);
     const nodes = groups.map(({ kind, entries }) => {
       const details = document.createElement("details");
       details.open =
