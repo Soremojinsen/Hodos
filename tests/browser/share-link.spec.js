@@ -106,7 +106,7 @@ test.describe("on a phone", () => {
     await page.getByRole("button", { name: "Partager" }).click();
     await expect.poll(() => shared(page)).toEqual([{ url: page.url() }]);
     expect(page.url()).toContain("x=195");
-    await expect(page.locator("#notice")).toBeHidden();
+    expect(await page.locator("#notice").isHidden()).toBe(true);
   });
 
   test("sharing a renamed map says the link shows the generated names", async ({ page }) => {
@@ -128,7 +128,7 @@ test.describe("on a phone", () => {
     await openMap(page);
     await page.getByRole("button", { name: "Partager" }).click();
     await expect.poll(async () => (await shared(page)).length).toBe(1);
-    await expect(page.locator("#notice")).toBeHidden();
+    expect(await page.locator("#notice").isHidden()).toBe(true);
     expect(await page.evaluate(() => window.copied)).toEqual([]);
   });
 
@@ -150,8 +150,13 @@ test.describe("on a phone", () => {
   });
 });
 
-test("a computer that can share still copies", async ({ page }) => {
+test("a computer that can share still copies", async ({ page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await fakeShare(page);
   await openMap(page);
   await expect(page.locator("#copy-link-button")).toHaveText("Copier le lien");
+  await page.getByRole("button", { name: "Copier le lien" }).click();
+  await expect(page.locator("#notice")).toContainText("Lien copié !");
+  expect(await shared(page)).toEqual([]);
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(page.url());
 });

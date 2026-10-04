@@ -35,7 +35,7 @@ async function share(link, generated) {
   try {
     await navigator.share({ url: link });
   } catch (error) {
-    if (error.name !== "AbortError") await copy(link, generated);
+    if (error?.name !== "AbortError") await copy(link, generated);
     return;
   }
   // The sheet confirms the share itself: only the names it leaves out are worth a notice
