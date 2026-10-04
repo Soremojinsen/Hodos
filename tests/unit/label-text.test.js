@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "vitest";
 import { ADJECTIVES } from "../../src/generation/names/names.js";
 import { setLanguage } from "../../src/i18n/i18n.js";
-import { labelText } from "../../src/overlay/label-text.js";
+import { labelText, rootFrame } from "../../src/overlay/label-text.js";
 
 afterEach(() => setLanguage("fr"));
 
@@ -60,4 +60,25 @@ test("every adjective has a text for every gender in both languages", () => {
       }
     }
   }
+});
+
+test("a full name is shown as written in both languages", () => {
+  expect(text("fr", "sea", { full: "The Sundering Sea" })).toBe("The Sundering Sea");
+  expect(text("en", "lake", { full: "Lac Noir" })).toBe("Lac Noir");
+});
+
+test("a typed root takes the kind's words, elided in French", () => {
+  expect(text("fr", "sea", { root: "Ombrelune" })).toBe("Mer d’Ombrelune");
+  expect(text("fr", "range", { root: "Mirewater" })).toBe("Monts Mirewater");
+});
+
+test("rootFrame gives the kind's words around a root", () => {
+  setLanguage("fr");
+  expect(rootFrame("sea", undefined, "Ombre")).toEqual({ before: "Mer d’", after: "" });
+  expect(rootFrame("sea", undefined, "Korr")).toEqual({ before: "Mer de ", after: "" });
+  expect(rootFrame("river", "riviere", "Zahir")).toEqual({ before: "Rivière ", after: "" });
+  setLanguage("en");
+  expect(rootFrame("lake", undefined, "Velorn")).toEqual({ before: "Lake ", after: "" });
+  expect(rootFrame("range", undefined, "Krodh")).toEqual({ before: "", after: " Mountains" });
+  expect(rootFrame("continent", undefined, "Valcoria")).toEqual({ before: "", after: "" });
 });
