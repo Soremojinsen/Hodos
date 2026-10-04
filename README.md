@@ -21,7 +21,7 @@ Hodos creates maps for your imagination to thrive.
 
 - **Keep a map:** the address bar always holds the seed and the view, so a bookmark or a refresh brings the same map back.
 - **Find a map:** _Nouvelle carte_ rolls a new seed, and the browser's Back button returns to the previous map. Any word or number can be a seed.
-- **Share a map:** _Copier le lien_ copies a link to the map as you see it: seed, view, mode and grid.
+- **Share a map:** _Copier le lien_ copies a link to the map as you see it: seed, view, mode and grid. On a phone or a tablet the button reads _Partager_ and opens the share sheet.
 - **Explore:** recenter and full-screen buttons; _Infos au survol_ shows the biome, relief, land mass and place name under the pointer.
 - **Rivers and lakes:** rivers run downhill to the sea or into lakes, and zooming in reveals smaller tributaries.
 - **Relief and forests:** hills are shaded by a light from the north-west, and forests, jungles, taiga and swamps are drawn with small marks, in stands and clearings that thin out at their edges and line the rivers of dry lands.
