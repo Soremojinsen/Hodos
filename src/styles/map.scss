@@ -746,11 +746,15 @@ html[data-translating] :is([data-i18n], [data-i18n-html]) {
 
     button {
       flex: 1;
-      font: inherit;
-      background: transparent;
-      border: 1px solid #040403;
-      cursor: pointer;
     }
+  }
+
+  .names-file button,
+  .names-editor button {
+    font: inherit;
+    background: transparent;
+    border: 1px solid #040403;
+    cursor: pointer;
   }
 
   .names-kinds {

@@ -258,6 +258,14 @@ test("back to the generated name forgets the edits of a name", async ({ page }) 
     kinds: {},
   });
   await expect(page.locator("#names-input")).toHaveValue("");
+  // In the panel's own font, as its other buttons
+  const fonts = await page.evaluate(() =>
+    ["names-panel", "names-reset", "names-save"].map(
+      (id) => getComputedStyle(document.getElementById(id)).font,
+    ),
+  );
+  expect(fonts[1]).toBe(fonts[0]);
+  expect(fonts[2]).toBe(fonts[0]);
 });
 
 test("a click on a name on the map selects it, and the hover panel shows the new name", async ({
