@@ -26,6 +26,7 @@ export class WorldMap {
   #workers;
   #sampler;
   #atlas = EMPTY_ATLAS;
+  #labels = null;
   #renderer;
   #controller;
 
@@ -123,9 +124,17 @@ export class WorldMap {
    */
   namesAt(x, y, info = this.inspect(x, y)) {
     if (!this.#sampler) return { landmass: null, feature: null };
-    return namesAt(this.#sampler, this.#atlas, info, x, y, this.camera.zoom, {
-      rivers: this.#renderer.renderingMode !== "debug",
-    });
+    return namesAt(
+      this.#sampler,
+      { ...this.#atlas, labels: this.labels },
+      info,
+      x,
+      y,
+      this.camera.zoom,
+      {
+        rivers: this.#renderer.renderingMode !== "debug",
+      },
+    );
   }
 
   get seed() {
@@ -144,6 +153,19 @@ export class WorldMap {
    */
   get atlas() {
     return this.#atlas;
+  }
+
+  /**
+   * The labels the map shows: the atlas's with the user's edits applied (see
+   * state/label-edits-store.js), as many and in the same order, or the atlas's until set.
+   */
+  get labels() {
+    return this.#labels ?? this.#atlas.labels;
+  }
+
+  set labels(labels) {
+    this.#labels = labels;
+    this.#renderer.requestRender();
   }
 
   get camera() {

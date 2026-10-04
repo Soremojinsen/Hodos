@@ -16,6 +16,12 @@ export default {
   "footer.copyLink": "Copier le lien",
   "notice.copied": "Lien copié !",
   "notice.copyThis": "Copiez ce lien :",
+  "notice.copiedGenerated":
+    "Lien copié ! Il porte les noms générés, envoyez le fichier des noms pour partager les vôtres.",
+  "notice.copyThisGenerated":
+    "Copiez ce lien. Il porte les noms générés, envoyez le fichier des noms pour partager les vôtres.",
+  "names.notStored":
+    "Ce navigateur ne peut pas garder vos noms. Enregistrez-les dans un fichier pour les garder.",
   "notice.link": "Lien de la carte",
   "settings.title": "Paramètres",
   "settings.parchment": "Parchemin :",

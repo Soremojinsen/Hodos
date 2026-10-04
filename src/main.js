@@ -2,6 +2,8 @@ import { getRandomSeed } from "./generation/util.js";
 import { WorldMap } from "./map/map.js";
 import { LabelLayer } from "./overlay/label-layer.js";
 import { GridOverlay } from "./overlay/overlay.js";
+import { isEmpty } from "./state/edits.js";
+import { LabelEdits } from "./state/label-edits-store.js";
 import { parseState } from "./state/url-state.js";
 import { setupControls } from "./ui/controls.js";
 import { setupExportDialog } from "./ui/export-dialog.js";
@@ -11,6 +13,7 @@ import { setupHoverInfo } from "./ui/hover.js";
 import { initLanguage, setupLanguageSwitch } from "./ui/language.js";
 import { setupModals } from "./ui/modals.js";
 import { setupNavigation } from "./ui/navigation.js";
+import { showNotice } from "./ui/notice.js";
 import { startUrlSync } from "./ui/url-sync.js";
 import { setupViewButtons } from "./ui/view-buttons.js";
 
@@ -26,6 +29,18 @@ const labelLayer = new LabelLayer(worldMap);
 overlay.labels = labelLayer;
 // Debug handle, for the browser tests
 window.hodosLabels = labelLayer;
+const labelEdits = new LabelEdits(worldMap.seed, {
+  onUnsaved: () => showNotice("names.notStored"),
+});
+labelEdits.addListener(() => {
+  worldMap.labels = labelEdits.labels;
+});
+// Debug handle, for the browser tests
+window.hodosEdits = labelEdits;
+// Another tab of the same map changed its names: this one follows, rather than overwrite them
+window.addEventListener("storage", (event) => {
+  if (event.key === labelEdits.key) labelEdits.reload();
+});
 
 /**
  * The mode of the settings form: the link's, until one is chosen, even while the map is
@@ -89,7 +104,7 @@ setupLanguageSwitch();
 document
   .getElementById("language-select")
   .addEventListener("change", () => worldMap.renderer.requestRender());
-setupNavigation(currentState, urlSync);
+setupNavigation(currentState, urlSync, () => !isEmpty(labelEdits.edits));
 setupViewButtons(worldMap);
 setupGridControls(overlay, initialState.grid);
 setupLabelControls(labelLayer, initialState.labels);
@@ -108,6 +123,7 @@ worldMap
     worldMap.renderer.setRenderingMode(checkedMode());
     worldMap.controller.setView(initialState.x, initialState.y, initialState.z);
     worldMap.startRender();
+    labelEdits.setAtlasLabels(worldMap.atlas.labels);
     for (const element of document.getElementsByClassName("seed-placeholder")) {
       element.value = worldMap.seed;
     }

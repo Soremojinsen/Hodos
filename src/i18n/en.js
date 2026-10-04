@@ -15,6 +15,11 @@ export default {
   "footer.copyLink": "Copy link",
   "notice.copied": "Link copied!",
   "notice.copyThis": "Copy this link:",
+  "notice.copiedGenerated":
+    "Link copied! It carries the generated names. Send the names file to share yours.",
+  "notice.copyThisGenerated":
+    "Copy this link. It carries the generated names. Send the names file to share yours.",
+  "names.notStored": "This browser can't keep your names. Save them to a file to keep them.",
   "notice.link": "Map link",
   "settings.title": "Settings",
   "settings.parchment": "Parchment:",

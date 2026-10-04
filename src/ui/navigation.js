@@ -22,8 +22,9 @@ export function navigateToSeed(seed, currentState, urlSync) {
  *
  * @param currentState  {function} returns the current state, see url-state.js
  * @param urlSync       {{syncNow: function}} see url-sync.js
+ * @param hasEdits      {function} whether the map has edited place names, which a link does not carry
  */
-export function setupNavigation(currentState, urlSync) {
+export function setupNavigation(currentState, urlSync, hasEdits = () => false) {
   document.getElementById("new-map-button").addEventListener("click", () => {
     navigateToSeed(getRandomSeed(), currentState, urlSync);
   });
@@ -48,12 +49,13 @@ export function setupNavigation(currentState, urlSync) {
     // The address bar lags the map by a moment, see url-sync.js
     urlSync.syncNow();
     const link = window.location.href;
+    const generated = hasEdits();
     try {
       await navigator.clipboard.writeText(link);
-      showNotice("notice.copied");
+      showNotice(generated ? "notice.copiedGenerated" : "notice.copied");
     } catch {
       // No clipboard access (insecure page, refused permission, old browser)
-      showNotice("notice.copyThis", { link });
+      showNotice(generated ? "notice.copyThisGenerated" : "notice.copyThis", { link });
     }
   });
 }

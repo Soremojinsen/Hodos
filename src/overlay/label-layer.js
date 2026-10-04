@@ -1,5 +1,5 @@
 import { labelText } from "./label-text.js";
-import { LABEL_FACES, labelScale, layoutAndDraw } from "./labels.js";
+import { LABEL_FACES, labelAt, labelLayout, labelScale, layoutAndDraw } from "./labels.js";
 
 /**
  * How long labels wait for their faces (see labels.js LABEL_FACES), in milliseconds, before
@@ -16,6 +16,8 @@ export class LabelLayer {
   #ready = false;
   #placed = [];
   #widths = new Map();
+  #selected = null;
+  #scratch = null;
 
   constructor(worldMap) {
     this.#worldMap = worldMap;
@@ -50,6 +52,35 @@ export class LabelLayer {
   }
 
   /**
+   * The id of the label selected in the names panel, placed first and over an accent, or null.
+   * Never in exports.
+   */
+  get selected() {
+    return this.#selected;
+  }
+
+  set selected(id) {
+    this.#selected = id;
+    this.#worldMap.renderer.requestRender();
+  }
+
+  /**
+   * A label's width in CSS pixels, as placeLabels lays it out.
+   */
+  textWidth(label) {
+    this.#scratch ??= document.createElement("canvas").getContext("2d");
+    const measure = (text, font) => this.#measure(this.#scratch, text, font);
+    return labelLayout(label, labelText, measure).width;
+  }
+
+  /**
+   * The label drawn at a point of the map, in CSS pixels, or null.
+   */
+  labelAt(x, y) {
+    return labelAt(this.#placed, x, y);
+  }
+
+  /**
    * The labels placed on the last frame, see labels.js placeLabels.
    */
   get placed() {
@@ -68,8 +99,9 @@ export class LabelLayer {
     return width;
   }
 
-  #options(context, mode, previous, scale) {
+  #options(context, mode, previous, scale, selected = null) {
     return {
+      selected,
       mode,
       text: labelText,
       measure: (text, font) => this.#measure(context, text, font),
@@ -82,14 +114,19 @@ export class LabelLayer {
    * Draws the labels of the screen's view, keeping those of the last frame in place.
    */
   draw(context, view) {
-    const labels = this.#worldMap.atlas.labels;
+    const labels = this.#worldMap.labels;
     const mode = this.#worldMap.renderer.renderingMode;
     if (!this.#enabled || !this.#ready || labels.length === 0 || mode === "debug") {
       this.#placed = [];
       return;
     }
     const previous = new Set(this.#placed.map((p) => p.key));
-    this.#placed = layoutAndDraw(context, view, labels, this.#options(context, mode, previous, 1));
+    this.#placed = layoutAndDraw(
+      context,
+      view,
+      labels,
+      this.#options(context, mode, previous, 1, this.#selected),
+    );
   }
 
   /**
@@ -102,7 +139,7 @@ export class LabelLayer {
    *                screen, so the labels match the screen's, sharper. Defaults to labelScale.
    */
   drawExport(context, view, mode, scale = labelScale(view.width, view.height)) {
-    const labels = this.#worldMap.atlas.labels;
+    const labels = this.#worldMap.labels;
     if (labels.length === 0 || mode === "debug") return;
     layoutAndDraw(context, view, labels, this.#options(context, mode, new Set(), scale));
   }
