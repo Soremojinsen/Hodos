@@ -689,6 +689,116 @@ html[data-translating] :is([data-i18n], [data-i18n-html]) {
   }
 }
 
+.names-panel {
+  position: fixed;
+  top: 1rem;
+  // Left of the zoom and full-screen buttons, which stay usable
+  right: 6rem;
+  bottom: calc(var(--footer-height, 5rem) + 1rem);
+  z-index: 2;
+  width: min(22rem, calc(100vw - 2rem));
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.8rem 1rem;
+  font-family: "IM Fell Double Pica", serif;
+  font-size: 1.05rem;
+  background: url(../assets/img/popin-bg.jpg);
+  border: 1px solid #040403;
+
+  &[hidden],
+  [hidden] {
+    display: none;
+  }
+
+  .names-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    h2 {
+      margin: 0;
+      font-size: 1.3rem;
+      font-weight: normal;
+    }
+
+    button {
+      font: inherit;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+  }
+
+  input[type="search"],
+  input[type="text"] {
+    font: inherit;
+    background: transparent;
+    border: 1px solid #040403;
+    padding: 2px 5px;
+  }
+
+  .names-kinds {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.2rem 0.8rem;
+    margin: 0;
+    padding: 0.3rem 0.5rem;
+    border: 1px solid rgba(0, 0, 0, 0.3);
+  }
+
+  .names-list {
+    flex: 1;
+    min-height: 4rem;
+    overflow-y: auto;
+
+    summary {
+      cursor: pointer;
+    }
+
+    ul {
+      list-style: none;
+      margin: 0;
+      padding-left: 1rem;
+    }
+  }
+
+  .names-entry {
+    font: inherit;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 0.1rem 0.2rem;
+    cursor: pointer;
+
+    &[aria-current="true"] {
+      background: rgba(255, 196, 92, 0.5);
+    }
+
+    .names-mark {
+      margin-left: 0.4rem;
+      opacity: 0.7;
+    }
+  }
+
+  .names-unfiled {
+    margin: 0;
+    font-size: 0.95rem;
+    font-style: italic;
+  }
+}
+
+@media (max-width: 700px) {
+  .names-panel {
+    top: auto;
+    left: 0;
+    right: 0;
+    width: auto;
+    max-height: 50vh;
+  }
+}
+
 .export-status {
   min-height: 1.2em;
   text-align: center;

@@ -13,6 +13,7 @@ import { setupHoverInfo } from "./ui/hover.js";
 import { initLanguage, setupLanguageSwitch } from "./ui/language.js";
 import { setupModals } from "./ui/modals.js";
 import { setupNavigation } from "./ui/navigation.js";
+import { setupNamesPanel } from "./ui/names-panel.js";
 import { showNotice } from "./ui/notice.js";
 import { startUrlSync } from "./ui/url-sync.js";
 import { setupViewButtons } from "./ui/view-buttons.js";
@@ -109,6 +110,7 @@ setupViewButtons(worldMap);
 setupGridControls(overlay, initialState.grid);
 setupLabelControls(labelLayer, initialState.labels);
 setupHoverInfo(worldMap);
+setupNamesPanel({ labelEdits, labelLayer });
 const exportDialog = setupExportDialog(worldMap, overlay, labelLayer);
 // Browsers restore form fields on reload: the link decides the mode
 document.querySelector(`#mode-form input[value="${initialState.mode}"]`).checked = true;

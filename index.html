@@ -105,6 +105,37 @@
           </button>
         </div>
       </div>
+      <aside id="names-panel" class="names-panel" aria-labelledby="names-title" hidden>
+        <div class="names-head">
+          <h2 id="names-title" data-i18n="names.title">Noms de lieux</h2>
+          <button
+            type="button"
+            id="names-close"
+            aria-label="Fermer"
+            data-i18n-aria-label="names.close"
+          >
+            ✕
+          </button>
+        </div>
+        <input
+          type="search"
+          id="names-search"
+          placeholder="Rechercher…"
+          aria-label="Rechercher un nom"
+          data-i18n-placeholder="names.search"
+          data-i18n-aria-label="names.searchLabel"
+        />
+        <fieldset id="names-kinds" class="names-kinds">
+          <legend data-i18n="names.shown">Sur la carte :</legend>
+        </fieldset>
+        <div id="names-list" class="names-list"></div>
+        <section id="names-editor" class="names-editor" hidden></section>
+        <p id="names-pick" class="names-pick" data-i18n="names.pick">
+          Cliquez sur la carte ou dans la liste pour choisir un nom.
+        </p>
+        <p id="names-unfiled" class="names-unfiled" data-i18n="names.unfiled" hidden></p>
+        <div class="names-file"></div>
+      </aside>
       <div class="borders-container">
         <div class="border-top"></div>
         <div class="border-left"></div>
@@ -127,6 +158,16 @@
           data-i18n="footer.copyLink"
         >
           Copier le lien
+        </button>
+        <button
+          type="button"
+          class="setting-container"
+          id="names-button"
+          aria-controls="names-panel"
+          aria-expanded="false"
+          data-i18n="footer.names"
+        >
+          Noms
         </button>
         <button
           type="button"

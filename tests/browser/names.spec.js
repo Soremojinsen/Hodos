@@ -56,3 +56,42 @@ test("copying the link of a renamed map says the link carries the generated name
   await page.getByRole("button", { name: "Copier le lien" }).click();
   await expect(page.locator("#notice")).toContainText("noms générés");
 });
+
+const openPanel = async (page) => {
+  await page.getByRole("button", { name: "Noms", exact: true }).click();
+  await expect(page.locator("#names-panel")).toBeVisible();
+};
+
+test("the names panel lists the names by kind and finds them without accents", async ({ page }) => {
+  const errors = await openMap(page);
+  await openPanel(page);
+  await expect(page.locator("#names-list")).toContainText("Océan (1)");
+  const root = await page.evaluate(
+    () => window.hodosEdits.labels.find((l) => l.kind === "ocean").name.root,
+  );
+  await page.locator("#names-search").fill(root.toLowerCase());
+  await expect(page.locator("#names-list .names-entry")).toHaveCount(1);
+  await expect(page.locator("#names-list .names-entry")).toContainText(root);
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#names-panel")).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test("the panel's kind checkboxes turn kinds off on the map", async ({ page }) => {
+  await openMap(page);
+  await expect.poll(() => placedTexts(page)).toContainEqual(expect.stringMatching(/^OCÉAN /));
+  await openPanel(page);
+  await page.locator("#names-kinds").getByLabel("Océan").uncheck();
+  await expect
+    .poll(async () => (await placedTexts(page)).some((t) => t.startsWith("OCÉAN ")))
+    .toBe(false);
+  expect(await page.evaluate(() => window.hodosEdits.edits.kinds)).toEqual({ ocean: false });
+});
+
+test("the panel leaves the map usable", async ({ page }) => {
+  await openMap(page);
+  await openPanel(page);
+  const before = await page.evaluate(() => window.hodos.camera.zoom);
+  await page.getByRole("button", { name: "Zoom avant" }).click();
+  await expect.poll(() => page.evaluate(() => window.hodos.camera.zoom)).toBeGreaterThan(before);
+});
