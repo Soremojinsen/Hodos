@@ -13,6 +13,7 @@ import { setupHoverInfo } from "./ui/hover.js";
 import { initLanguage, setupLanguageSwitch } from "./ui/language.js";
 import { setupModals } from "./ui/modals.js";
 import { setupNavigation } from "./ui/navigation.js";
+import { setupLinkButton } from "./ui/share-link.js";
 import { setupNamesPanel } from "./ui/names-panel.js";
 import { showNotice } from "./ui/notice.js";
 import { startUrlSync } from "./ui/url-sync.js";
@@ -105,7 +106,8 @@ setupLanguageSwitch();
 document
   .getElementById("language-select")
   .addEventListener("change", () => worldMap.renderer.requestRender());
-setupNavigation(currentState, urlSync, () => !isEmpty(labelEdits.edits));
+setupNavigation(currentState, urlSync);
+setupLinkButton(urlSync, () => !isEmpty(labelEdits.edits));
 setupViewButtons(worldMap);
 setupGridControls(overlay, initialState.grid);
 setupLabelControls(labelLayer, initialState.labels);

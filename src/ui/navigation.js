@@ -2,7 +2,6 @@ import { DEFAULT_VIEW } from "../constants.js";
 import { getRandomSeed } from "../generation/util.js";
 import { t } from "../i18n/i18n.js";
 import { MAX_SEED_LENGTH, serializeState } from "../state/url-state.js";
-import { showNotice } from "./notice.js";
 
 /**
  * Opens the map of a seed, with the current mode and grid and the default view.
@@ -18,13 +17,12 @@ export function navigateToSeed(seed, currentState, urlSync) {
 }
 
 /**
- * Connects the "Nouvelle carte" and "Copier le lien" buttons and the seed form.
+ * Connects the "Nouvelle carte" button and the seed form.
  *
  * @param currentState  {function} returns the current state, see url-state.js
  * @param urlSync       {{syncNow: function}} see url-sync.js
- * @param hasEdits      {function} whether the map has edited place names, which a link does not carry
  */
-export function setupNavigation(currentState, urlSync, hasEdits = () => false) {
+export function setupNavigation(currentState, urlSync) {
   document.getElementById("new-map-button").addEventListener("click", () => {
     navigateToSeed(getRandomSeed(), currentState, urlSync);
   });
@@ -43,19 +41,5 @@ export function setupNavigation(currentState, urlSync, hasEdits = () => false) {
       return;
     }
     navigateToSeed(seed === "" ? getRandomSeed() : seed, currentState, urlSync);
-  });
-
-  document.getElementById("copy-link-button").addEventListener("click", async () => {
-    // The address bar lags the map by a moment, see url-sync.js
-    urlSync.syncNow();
-    const link = window.location.href;
-    const generated = hasEdits();
-    try {
-      await navigator.clipboard.writeText(link);
-      showNotice(generated ? "notice.copiedGenerated" : "notice.copied", { long: generated });
-    } catch {
-      // No clipboard access (insecure page, refused permission, old browser)
-      showNotice(generated ? "notice.copyThisGenerated" : "notice.copyThis", { link });
-    }
   });
 }
