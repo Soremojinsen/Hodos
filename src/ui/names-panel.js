@@ -1,8 +1,7 @@
 import { LABEL_KINDS, isEmpty, withKindShown } from "../state/edits.js";
 import { labelText } from "../overlay/label-text.js";
 import { t } from "../i18n/i18n.js";
-import { screenToWorld } from "../map/view.js";
-import { focusView } from "../overlay/labels.js";
+import { openArea, screenToWorld } from "../map/view.js";
 import { TAP_DISTANCE } from "./hover.js";
 import { setupNamesFile } from "./names-file.js";
 import { setupNamesEditor } from "./names-editor.js";
@@ -112,7 +111,7 @@ export function setupNamesPanel({ labelEdits, labelLayer, worldMap, currentState
   const panelApi = {
     /**
      * Selects a label by id, or none, and shows it in the editor. With focus, the map flies to
-     * it, at the first zoom where it shows.
+     * it, at the first zoom where it shows, in the part of the map the panel leaves open.
      */
     select(id, { focus = false } = {}) {
       labelLayer.selected = id;
@@ -120,7 +119,9 @@ export function setupNamesPanel({ labelEdits, labelLayer, worldMap, currentState
       refresh();
       const label = id && labelEdits.labels.find((l) => l.id === id);
       if (label && focus) {
-        const { x, y, zoom } = focusView(label, labelLayer.textWidth(label));
+        const canvas = worldMap.renderer.canvas.getBoundingClientRect();
+        const open = openArea(canvas, panel.getBoundingClientRect());
+        const { x, y, zoom } = labelLayer.focus(label, open);
         worldMap.controller.setView(x, y, zoom);
       }
       list.querySelector('[aria-current="true"]')?.scrollIntoView({ block: "nearest" });

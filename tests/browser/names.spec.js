@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
-import { countDifferentPixels, openMap } from "./helpers.js";
+import { countDifferentPixels, openMap, waitForTiles } from "./helpers.js";
 
 const placedTexts = (page) => page.evaluate(() => window.hodosLabels.placed.map((p) => p.text));
 
@@ -119,6 +119,68 @@ test("picking a name in the list flies to it and edits it as you type", async ({
   await expect.poll(() => placedTexts(page)).toContain("OCÉAN MIREWATER");
   await expect(page.locator("#names-before")).toHaveText("Océan ");
 });
+
+// Picks a label from the list by id, in its kind's group, and waits for the map to settle
+const pickFromList = async (page, id) => {
+  await page.locator("#names-search").fill("");
+  const selector = `.names-entry[data-id="${id}"]`;
+  const entry = page.locator(`#names-list ${selector}`);
+  if (!(await entry.isVisible())) {
+    const group = page.locator("#names-list details", { has: page.locator(selector) });
+    await group.locator("summary").click();
+  }
+  await entry.click();
+  await waitForTiles(page);
+};
+
+// Whether the selected label is drawn on the map, all its letters clear of the panel
+const selectedInSight = (page) =>
+  page.evaluate(() => {
+    const canvas = window.hodos.renderer.canvas.getBoundingClientRect();
+    const panel = document.getElementById("names-panel").getBoundingClientRect();
+    const selected = window.hodosLabels.placed.filter((p) => p.selected);
+    return selected.some(({ boxes }) =>
+      boxes.every(
+        (b) =>
+          b.minX + canvas.left >= 0 &&
+          b.minY + canvas.top >= 0 &&
+          b.maxX + canvas.left <= canvas.right &&
+          b.maxY + canvas.top <= canvas.bottom &&
+          (b.maxX + canvas.left <= panel.left ||
+            b.minX + canvas.left >= panel.right ||
+            b.maxY + canvas.top <= panel.top ||
+            b.minY + canvas.top >= panel.bottom),
+      ),
+    );
+  });
+
+for (const viewport of [
+  { width: 1000, height: 700 },
+  { width: 400, height: 800 },
+]) {
+  test(`picking rivers and the ocean in the list shows their names clear of the panel at ${viewport.width}×${viewport.height}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    const errors = await openMap(page);
+    await openPanel(page);
+    const ids = await page.evaluate(() => {
+      const labels = window.hodosEdits.labels;
+      const rivers = labels.filter((l) => l.kind === "river");
+      // The ocean, and the atlas's first and last rivers
+      return [
+        labels.find((l) => l.kind === "ocean").id,
+        ...rivers.slice(0, 3).map((l) => l.id),
+        ...rivers.slice(-3).map((l) => l.id),
+      ];
+    });
+    for (const id of ids) {
+      await pickFromList(page, id);
+      await expect.poll(() => selectedInSight(page), { message: id }).toBe(true);
+    }
+    expect(errors).toEqual([]);
+  });
+}
 
 test("a full name replaces the kind's word, and hiding keeps it faded while selected", async ({
   page,

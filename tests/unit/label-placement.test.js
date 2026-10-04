@@ -11,7 +11,6 @@ import {
   focusView,
   fontOf,
   labelAt,
-  labelLayout,
   labelScale,
   layoutAndDraw,
   placeLabels,
@@ -346,7 +345,7 @@ test("labelAt finds the label under a point by its letters' boxes", () => {
 test("focusView picks the first zoom where the label shows", () => {
   for (const kind of ["continent", "lake", "sea"]) {
     const small = label({ id: `${kind}:9`, kind, span: 300, anchors: [[6000, 4000]] });
-    const { x, y, zoom } = focusView(small, labelLayout(small, text, measure).width);
+    const { x, y, zoom } = focusView(small, { text, measure, width: 1000, height: 700 });
     expect([x, y]).toEqual([6000 - WORLD_SIZE / 2, 4000 - WORLD_SIZE / 2]);
     expect(zoom).toBeGreaterThanOrEqual(LABEL_STYLES[kind].zooms[0]);
     expect(zoom).toBeLessThanOrEqual(LABEL_STYLES[kind].zooms[1]);
@@ -383,8 +382,18 @@ test("focusView centres a river on the middle of its course, not its start", () 
     path: [1000, 1000, 4000, 1000, 4000, 2000],
     anchors: [[1000, 1000]],
   });
-  const { x, y, zoom } = focusView(river, labelLayout(river, text, measure).width);
+  const { x, y, zoom } = focusView(river, { text, measure, width: 1000, height: 700 });
   expect([x, y]).toEqual([3000 - WORLD_SIZE / 2, 1000 - WORLD_SIZE / 2]);
   expect(zoom).toBeGreaterThanOrEqual(LABEL_STYLES.river.zooms[0]);
   expect(zoom).toBeLessThanOrEqual(LABEL_STYLES.river.zooms[1]);
+});
+
+test("focusView puts the label in the middle of the part of the screen the panel leaves open", () => {
+  const small = label({ id: "lake:9", kind: "lake", span: 300, anchors: [[6000, 4000]] });
+  const open = { x: 0, y: 0, width: 500, height: 700 };
+  const { x, y, zoom } = focusView(small, { text, measure, width: 1000, height: 700, open });
+  const view = viewAt(zoom, x + WORLD_SIZE / 2, y + WORLD_SIZE / 2);
+  const [placed] = placeLabels(view, [small], { text, measure, selected: "lake:9" });
+  expect(placed.center.x).toBeCloseTo(250);
+  expect(placed.center.y).toBeCloseTo(350);
 });

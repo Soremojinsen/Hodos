@@ -3,6 +3,7 @@ import { TILE_PIXEL_SIZE, WORLD_SIZE } from "../../src/constants.js";
 import {
   cameraView,
   screenToWorld,
+  openArea,
   subView,
   viewBounds,
   viewMatrix,
@@ -81,4 +82,29 @@ test("a sub view shows its part of the view at the same scale", () => {
   expect(topLeft.maxY).toBeCloseTo(whole.maxY, 9);
   expect(topLeft.maxX).toBeCloseTo(5000, 9);
   expect(topLeft.minY).toBeCloseTo(5000, 9);
+});
+
+test("the open part of a screen is its largest strip beside what covers it", () => {
+  const screen = { left: 0, top: 0, width: 1000, height: 700 };
+  // A panel docked on the right
+  expect(openArea(screen, { left: 550, top: 16, right: 904, bottom: 600 })).toEqual({
+    x: 0,
+    y: 0,
+    width: 550,
+    height: 700,
+  });
+  // A bottom sheet on a phone, the screen starting lower on the page
+  expect(
+    openArea(
+      { left: 0, top: 10, width: 400, height: 800 },
+      { left: 0, top: 260, right: 400, bottom: 720 },
+    ),
+  ).toEqual({ x: 0, y: 0, width: 400, height: 250 });
+  // Nothing over the screen
+  expect(openArea(screen, { left: 0, top: 0, right: 0, bottom: 0 })).toEqual({
+    x: 0,
+    y: 0,
+    width: 1000,
+    height: 700,
+  });
 });

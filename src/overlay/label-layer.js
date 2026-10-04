@@ -1,5 +1,5 @@
 import { labelText } from "./label-text.js";
-import { LABEL_FACES, labelAt, labelLayout, labelScale, layoutAndDraw } from "./labels.js";
+import { LABEL_FACES, focusView, labelAt, labelScale, layoutAndDraw } from "./labels.js";
 
 /**
  * How long labels wait for their faces (see labels.js LABEL_FACES), in milliseconds, before
@@ -65,12 +65,17 @@ export class LabelLayer {
   }
 
   /**
-   * A label's width in CSS pixels, as placeLabels lays it out.
+   * Where the names list brings a label into view, with the screen's real widths: see labels.js
+   * focusView.
+   *
+   * @param open {{x: Number, y: Number, width: Number, height: Number}} the part of the screen
+   *             the names panel leaves open, in CSS pixels
    */
-  textWidth(label) {
+  focus(label, open) {
     this.#scratch ??= document.createElement("canvas").getContext("2d");
+    const { width, height } = this.#worldMap.camera.view;
     const measure = (text, font) => this.#measure(this.#scratch, text, font);
-    return labelLayout(label, labelText, measure).width;
+    return focusView(label, { text: labelText, measure, width, height, open });
   }
 
   /**

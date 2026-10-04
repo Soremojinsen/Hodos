@@ -85,3 +85,30 @@ export const subView = (view, rect) => {
     height: rect.height,
   };
 };
+
+/**
+ * The part of a screen left open by something over it, as the names panel is over the map: the
+ * largest of the strips left, right, above and below it, or the whole screen if it covers none.
+ *
+ * @param screen {{left: Number, top: Number, width: Number, height: Number}} on the page
+ * @param cover  {{left: Number, top: Number, right: Number, bottom: Number}} on the page
+ * @returns {{x: Number, y: Number, width: Number, height: Number}} in pixels of the screen
+ */
+export const openArea = (screen, cover) => {
+  const [left, top] = [cover.left - screen.left, cover.top - screen.top];
+  const [right, bottom] = [cover.right - screen.left, cover.bottom - screen.top];
+  const whole = { x: 0, y: 0, width: screen.width, height: screen.height };
+  if (left >= screen.width || top >= screen.height || right <= 0 || bottom <= 0) return whole;
+  if (right <= left || bottom <= top) return whole;
+  const strips = [
+    { x: 0, y: 0, width: left, height: screen.height },
+    { x: right, y: 0, width: screen.width - right, height: screen.height },
+    { x: 0, y: 0, width: screen.width, height: top },
+    { x: 0, y: bottom, width: screen.width, height: screen.height - bottom },
+  ].filter((strip) => strip.width > 0 && strip.height > 0);
+  return strips.reduce((a, b) => (b.width * b.height > a.width * a.height ? b : a), {
+    ...whole,
+    width: 0,
+    height: 0,
+  });
+};

@@ -1,5 +1,5 @@
 import { TILE_PIXEL_SIZE, WORLD_SIZE } from "../constants.js";
-import { worldToScreen, zoomOf } from "../map/view.js";
+import { screenToWorld, worldToScreen, zoomOf } from "../map/view.js";
 
 /**
  * The typefaces of labels: IM Fell Double Pica, an old face, for the large capitals of continents,
@@ -170,7 +170,8 @@ export function labelLayout(label, text, measure) {
 /**
  * The labels that show in a view, and where each letter goes. Labels whose kind shows at the
  * view's zoom and that fit their feature are placed by rank (priority, plus PREVIOUS_BONUS for
- * those placed last frame, and SELECTED_BONUS for the selected label), each left out if a letter would overlap a letter placed before.
+ * those placed last frame, and SELECTED_BONUS for the selected label), each left out if a letter
+ * would overlap a letter placed before.
  *
  * @param view    see map/view.js, in CSS pixels
  * @param labels  see generation/labels.js buildAtlas
@@ -248,12 +249,6 @@ export function labelAt(placed, x, y) {
   return hit?.label ?? null;
 }
 
-/**
- * A river's name needs a straight enough stretch of its course: the course is at least
- * RIVER_FOCUS_SHARE times as long as the name where the names list brings it into view.
- */
-export const RIVER_FOCUS_SHARE = 3;
-
 // A course's length in world units
 const pathLength = (path) => {
   let length = 0;
@@ -280,24 +275,85 @@ const pathMiddle = (path) => {
   return [path[0], path[1]];
 };
 
+// The middle of the boxes a label's letters cover
+const boxesMiddle = (boxes) => {
+  const [minX, maxX] = [
+    Math.min(...boxes.map((b) => b.minX)),
+    Math.max(...boxes.map((b) => b.maxX)),
+  ];
+  const [minY, maxY] = [
+    Math.min(...boxes.map((b) => b.minY)),
+    Math.max(...boxes.map((b) => b.maxY)),
+  ];
+  return [(minX + maxX) / 2, (minY + maxY) / 2];
+};
+
+// Whether a box lies within an area of the screen
+const inside = (box, area) =>
+  box.minX >= area.x &&
+  box.minY >= area.y &&
+  box.maxX <= area.x + area.width &&
+  box.maxY <= area.y + area.height;
+
 /**
- * Where the names list brings a label into view: the camera on its first anchor (a river's: the
- * middle of its course, as its first anchor is the course's start), at the lowest zoom of its kind's window, in quarter levels, where a text
- * width pixels wide fits its feature.
+ * Where the names list brings a label into view: its first anchor (a river's: the middle of its
+ * course, as its first anchor is the course's start) in the middle of the open part of the
+ * screen, at the lowest zoom of its kind's window, in quarter levels, where placeLabels places it
+ * there, all its letters in the open part. The search starts at the zoom where its text first
+ * fits its whole feature, below which it cannot show. A river whose name never sits whole in the
+ * open part that way, as its stretches straight enough lie away from its middle, is then centred
+ * on one of them instead, at the lowest zoom where one is placed.
  *
+ * @param options {{text: function, measure: function, width: Number, height: Number,
+ *                open?: {x: Number, y: Number, width: Number, height: Number}}} text and
+ *                measure as placeLabels takes them, the screen's size and its part the names
+ *                panel leaves open, in CSS pixels (the whole screen by default)
  * @returns {{x: Number, y: Number, zoom: Number}} as MapController.setView takes them
  */
-export function focusView(label, width) {
+export function focusView(label, { text, measure, width, height, open }) {
+  const area = open ?? { x: 0, y: 0, width, height };
   const style = LABEL_STYLES[label.kind];
-  const room =
-    label.kind === "river"
-      ? pathLength(label.path) / RIVER_FOCUS_SHARE
-      : label.span * style.overflow;
-  const fit =
-    room > 0 ? Math.log2((width / room) * (WORLD_SIZE / TILE_PIXEL_SIZE)) : style.zooms[0];
-  const zoom = Math.min(Math.max(Math.ceil(fit * 4) / 4, style.zooms[0]), style.zooms[1]);
-  const [x, y] = label.kind === "river" ? pathMiddle(label.path) : label.anchors[0];
-  return { x: x - WORLD_SIZE / 2, y: y - WORLD_SIZE / 2, zoom };
+  const [low, high] = style.zooms;
+  const room = label.kind === "river" ? pathLength(label.path) : label.span * style.overflow;
+  const textWidth = labelLayout(label, text, measure).width;
+  const fit = room > 0 ? Math.log2((textWidth / room) * (WORLD_SIZE / TILE_PIXEL_SIZE)) : low;
+  const first = Math.min(Math.max(Math.ceil(fit * 4) / 4, low), high);
+  const zooms = [];
+  for (let zoom = first; zoom <= high; zoom += 0.25) zooms.push(zoom);
+  // The view that puts a world point in the open part's middle, kept within the world as
+  // MapController.setView keeps the camera
+  const viewAt = (zoom, [x, y]) => {
+    const pixelsPerUnit = (TILE_PIXEL_SIZE * 2 ** zoom) / WORLD_SIZE;
+    const clamp = (v) => Math.min(Math.max(v, 0), WORLD_SIZE);
+    return {
+      centerX: clamp(x - (area.x + area.width / 2 - width / 2) / pixelsPerUnit),
+      centerY: clamp(y + (area.y + area.height / 2 - height / 2) / pixelsPerUnit),
+      pixelsPerUnit,
+      width,
+      height,
+    };
+  };
+  const place = (view) => placeLabels(view, [label], { text, measure, selected: label.id });
+  const inSight = (placed) => placed.some(({ boxes }) => boxes.every((box) => inside(box, area)));
+  const cameraOf = (view, zoom) => ({
+    x: view.centerX - WORLD_SIZE / 2,
+    y: view.centerY - WORLD_SIZE / 2,
+    zoom,
+  });
+  const point = label.kind === "river" ? pathMiddle(label.path) : label.anchors[0];
+  for (const zoom of zooms) {
+    const view = viewAt(zoom, point);
+    if (inSight(place(view))) return cameraOf(view, zoom);
+  }
+  for (const zoom of zooms) {
+    const view = viewAt(zoom, point);
+    for (const { boxes } of place(view)) {
+      const middle = screenToWorld(view, ...boxesMiddle(boxes));
+      const moved = viewAt(zoom, [middle.x, middle.y]);
+      if (inSight(place(moved))) return cameraOf(moved, zoom);
+    }
+  }
+  return cameraOf(viewAt(first, point), first);
 }
 
 /**
