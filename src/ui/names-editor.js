@@ -22,6 +22,9 @@ export function setupNamesEditor(labelEdits) {
   let id = null;
   // Whether the field holds a full name: the user's choice while the name is still empty
   let full = false;
+  // The last text of the field as a root and as a full name, so Full name switches back and forth
+  // without losing either
+  let kept = { root: "", full: "" };
 
   const label = () => labelEdits.labels.find((l) => l.id === id) ?? null;
   const generatedOf = (shown) => shown.generated ?? shown.name;
@@ -37,11 +40,15 @@ export function setupNamesEditor(labelEdits) {
     after.textContent = rest;
   };
 
+  // A full name that reads as the generated one is no edit: the label still follows the language
   const save = () => {
     const value = input.value;
-    labelEdits.update((edits) =>
-      withName(edits, id, value.trim() ? (full ? { full: value } : { root: value }) : null),
-    );
+    const shown = label();
+    const generated = labelText({ kind: shown.kind, name: generatedOf(shown) });
+    let name = null;
+    if (value.trim() && !full) name = { root: value };
+    else if (value.trim() && value.trim() !== generated) name = { full: value };
+    labelEdits.update((edits) => withName(edits, id, name));
   };
 
   /**
@@ -59,6 +66,7 @@ export function setupNamesEditor(labelEdits) {
     const edit = labelEdits.edits.names[id];
     if (edit) full = edit.full !== undefined;
     else if (changed) full = false;
+    if (changed) kept = { root: edit?.root ?? "", full: edit?.full ?? "" };
     generatedLine.textContent = t("names.generated", {
       kind: t(`names.kindOne.${shown.kind}`),
       name: labelText({ kind: shown.kind, name: generated }),
@@ -75,15 +83,17 @@ export function setupNamesEditor(labelEdits) {
   };
 
   input.addEventListener("input", () => {
+    kept[full ? "full" : "root"] = input.value;
     save();
     frame();
   });
   fullBox.addEventListener("change", () => {
     const shown = label();
+    kept[full ? "full" : "root"] = input.value;
     full = fullBox.checked;
-    // The field keeps the name as it reads: the whole text, or the root it had
-    const edit = labelEdits.edits.names[id];
-    input.value = full ? labelText(shown) : (edit?.root ?? "");
+    // The field takes back the last text typed in it as a full name or as a root. A renamed label
+    // that had no full name yet starts from its whole text, so the map does not change.
+    input.value = full ? kept.full || (shown.edited ? labelText(shown) : "") : kept.root;
     save();
     show(id);
   });
@@ -92,6 +102,7 @@ export function setupNamesEditor(labelEdits) {
   });
   document.getElementById("names-reset").addEventListener("click", () => {
     full = false;
+    kept = { root: "", full: "" };
     input.value = "";
     labelEdits.update((edits) => withHidden(withName(edits, id, null), id, false));
     show(id);

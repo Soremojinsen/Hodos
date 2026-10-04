@@ -207,6 +207,45 @@ test("a full name replaces the kind's word, and hiding keeps it faded while sele
   await expect(page.locator("#names-list")).toContainText("⊘");
 });
 
+test("the full name typed comes back when Full name is checked again", async ({ page }) => {
+  await openMap(page);
+  await pickOcean(page);
+  const fullName = page.getByLabel("Nom complet");
+  await fullName.check();
+  await page.locator("#names-input").fill("La Grande Bleue");
+  await fullName.uncheck();
+  await expect(page.locator("#names-input")).toHaveValue("");
+  await expect.poll(() => page.evaluate(() => window.hodosEdits.edits.names)).toEqual({});
+  await fullName.check();
+  await expect(page.locator("#names-input")).toHaveValue("La Grande Bleue");
+  expect(await page.evaluate(() => window.hodosEdits.edits.names)).toEqual({
+    ocean: { full: "La Grande Bleue" },
+  });
+});
+
+test("Full name on a name left as generated changes nothing, and keeps a new root", async ({
+  page,
+}) => {
+  await openMap(page);
+  await pickOcean(page);
+  const fullName = page.getByLabel("Nom complet");
+  await fullName.check();
+  expect(await page.evaluate(() => window.hodosEdits.edits)).toEqual({
+    names: {},
+    hidden: [],
+    kinds: {},
+  });
+  await fullName.uncheck();
+  await page.locator("#names-input").fill("Mirewater");
+  await fullName.check();
+  await expect(page.locator("#names-input")).toHaveValue("Océan Mirewater");
+  await fullName.uncheck();
+  await expect(page.locator("#names-input")).toHaveValue("Mirewater");
+  expect(await page.evaluate(() => window.hodosEdits.edits.names)).toEqual({
+    ocean: { root: "Mirewater" },
+  });
+});
+
 test("back to the generated name forgets the edits of a name", async ({ page }) => {
   await openMap(page);
   await pickOcean(page);
