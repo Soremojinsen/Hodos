@@ -1,11 +1,17 @@
 import { expect, test } from "vitest";
+import { WORLD_SIZE } from "../../src/constants.js";
 import { zoomOf } from "../../src/map/view.js";
 import {
   LABEL_STYLES,
   HALO_WIDTHS,
+  HIDDEN_ALPHA,
+  SELECTED_HALO,
   RIVER_OFFSET_PX,
   drawLabels,
+  focusView,
   fontOf,
+  labelAt,
+  labelLayout,
   labelScale,
   layoutAndDraw,
   placeLabels,
@@ -310,4 +316,61 @@ test("water labels have a thinner halo than land labels", () => {
   drawLabels(context, placed, "default");
   const widths = calls.filter(([name]) => name === "lineWidth").map(([, width]) => width);
   expect(widths).toEqual(placed.map((p) => HALO_WIDTHS[p.style.ink]));
+});
+
+test("hidden labels are left out, unless selected, and the selected label is placed first", () => {
+  const big = label({ id: "continent:1", priority: 6900 });
+  const small = label({ id: "continent:2", priority: 6100 });
+  // Both at the same place: only one can show
+  expect(placeLabels(viewAt(3), [big, small], { text, measure }).map((p) => p.key)).toEqual([
+    "continent:1#0",
+  ]);
+  const placed = placeLabels(viewAt(3), [big, small], { text, measure, selected: "continent:2" });
+  expect(placed.map((p) => p.key)).toEqual(["continent:2#0"]);
+  expect(placed[0].selected).toBe(true);
+  const hidden = { ...big, hidden: true };
+  expect(placeLabels(viewAt(3), [hidden], { text, measure })).toEqual([]);
+  expect(
+    placeLabels(viewAt(3), [hidden], { text, measure, selected: "continent:1" }).map((p) => p.key),
+  ).toEqual(["continent:1#0"]);
+});
+
+test("labelAt finds the label under a point by its letters' boxes", () => {
+  const placed = placeLabels(viewAt(3), [label()], { text, measure });
+  const { x, y } = placed[0].glyphs[0];
+  expect(labelAt(placed, x, y).id).toBe("continent:1");
+  expect(labelAt(placed, x, y + 200)).toBeNull();
+  expect(labelAt([], x, y)).toBeNull();
+});
+
+test("focusView picks the first zoom where the label shows", () => {
+  for (const kind of ["continent", "lake", "sea"]) {
+    const small = label({ id: `${kind}:9`, kind, span: 300, anchors: [[6000, 4000]] });
+    const { x, y, zoom } = focusView(small, labelLayout(small, text, measure).width);
+    expect([x, y]).toEqual([6000 - WORLD_SIZE / 2, 4000 - WORLD_SIZE / 2]);
+    expect(zoom).toBeGreaterThanOrEqual(LABEL_STYLES[kind].zooms[0]);
+    expect(zoom).toBeLessThanOrEqual(LABEL_STYLES[kind].zooms[1]);
+    expect(placeLabels(viewAt(zoom, 6000, 4000), [small], { text, measure })).toHaveLength(1);
+  }
+});
+
+test("a selected label is drawn over the accent halo, and faded when hidden", () => {
+  const calls = [];
+  const context = {
+    save() {},
+    restore() {},
+    translate() {},
+    rotate() {},
+    strokeText() {
+      calls.push({ halo: this.strokeStyle, alpha: this.globalAlpha });
+    },
+    fillText() {},
+  };
+  const placed = placeLabels(viewAt(3), [{ ...label(), hidden: true }], {
+    text,
+    measure,
+    selected: "continent:1",
+  });
+  drawLabels(context, placed, "default");
+  expect(calls[0]).toEqual({ halo: SELECTED_HALO, alpha: HIDDEN_ALPHA });
 });

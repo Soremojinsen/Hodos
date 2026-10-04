@@ -1,3 +1,4 @@
+import { TILE_PIXEL_SIZE, WORLD_SIZE } from "../constants.js";
 import { worldToScreen, zoomOf } from "../map/view.js";
 
 /**
@@ -99,6 +100,12 @@ export const MAX_SPAN_VIEWPORTS = 1.5;
 export const PREVIOUS_BONUS = 500;
 
 /**
+ * The label selected in the names panel ranks SELECTED_BONUS higher, above any other, so what is
+ * being edited is in sight.
+ */
+export const SELECTED_BONUS = 100_000;
+
+/**
  * The room kept around each letter, in pixels.
  */
 export const BOX_PADDING = 2;
@@ -146,39 +153,59 @@ const glyphBox = (glyph, width, gap, size) => {
 const overlaps = (a, b) => a.minX < b.maxX && b.minX < a.maxX && a.minY < b.maxY && b.minY < a.maxY;
 
 /**
+ * A label's text as drawn (in capitals for some kinds, composed so each letter with its accents is
+ * one character), its letters' widths, the gap between letters and its whole width, in CSS pixels.
+ */
+export function labelLayout(label, text, measure) {
+  const style = LABEL_STYLES[label.kind];
+  const content = (style.caps ? text(label).toLocaleUpperCase() : text(label)).normalize("NFC");
+  const chars = [...content];
+  const font = fontOf(style);
+  const widths = chars.map((char) => measure(char, font));
+  const gap = style.tracking * style.size;
+  const width = widths.reduce((sum, w) => sum + w, 0) + gap * (chars.length - 1);
+  return { style, content, chars, widths, gap, width };
+}
+
+/**
  * The labels that show in a view, and where each letter goes. Labels whose kind shows at the
  * view's zoom and that fit their feature are placed by rank (priority, plus PREVIOUS_BONUS for
- * those placed last frame), each left out if a letter would overlap a letter placed before.
+ * those placed last frame, and SELECTED_BONUS for the selected label), each left out if a letter would overlap a letter placed before.
  *
  * @param view    see map/view.js, in CSS pixels
  * @param labels  see generation/labels.js buildAtlas
  * @param options {{text: function(label): string, measure: function(string, string): Number,
  *                previous: Set<string>}} measure gives a text's width in a CSS font; previous
- *                holds the keys placed last frame
+ *                holds the keys placed last frame, selected the id of the label selected in the
+ *                names panel, placed first even when hidden (hidden labels are left out otherwise)
  * @returns {{key: string, label: Object, style: Object, text: string,
  *            glyphs: {char: string, x: Number, y: Number, angle: Number}[],
- *            center?: {x: Number, y: Number, angle: Number, width: Number}}[]} center is a
- *            straight label's middle, screen angle and width as laid out
+ *            boxes: {minX: Number, minY: Number, maxX: Number, maxY: Number}[],
+ *            center?: {x: Number, y: Number, angle: Number, width: Number},
+ *            selected?: true}[]} boxes are the letters' boxes, center is a straight label's
+ *            middle, screen angle and width as laid out, selected marks the selected label
  */
-export function placeLabels(view, labels, { text, measure, previous = new Set() }) {
+export function placeLabels(
+  view,
+  labels,
+  { text, measure, previous = new Set(), selected = null },
+) {
   const zoom = zoomOf(view);
   const candidates = [];
   for (const label of labels) {
-    const style = LABEL_STYLES[label.kind];
-    if (zoom < style.zooms[0] || zoom > style.zooms[1]) continue;
-    // Composed, so that each letter with its accents is one character
-    const content = (style.caps ? text(label).toLocaleUpperCase() : text(label)).normalize("NFC");
-    const chars = [...content];
-    const font = fontOf(style);
-    const widths = chars.map((char) => measure(char, font));
-    const gap = style.tracking * style.size;
-    const width = widths.reduce((sum, w) => sum + w, 0) + gap * (chars.length - 1);
+    if (label.hidden && label.id !== selected) continue;
+    const [low, high] = LABEL_STYLES[label.kind].zooms;
+    if (zoom < low || zoom > high) continue;
+    const { style, content, chars, widths, gap, width } = labelLayout(label, text, measure);
     const layouts =
       label.kind === "river"
         ? riverLayouts(view, label, width)
         : areaLayouts(view, label, style, width);
     for (const layout of layouts) {
-      const rank = label.priority + (previous.has(layout.key) ? PREVIOUS_BONUS : 0);
+      const rank =
+        label.priority +
+        (previous.has(layout.key) ? PREVIOUS_BONUS : 0) +
+        (label.id === selected ? SELECTED_BONUS : 0);
       candidates.push({ layout, label, style, content, chars, widths, gap, rank });
     }
   }
@@ -201,10 +228,59 @@ export function placeLabels(view, labels, { text, measure, previous = new Set() 
       style,
       text: content,
       glyphs: glyphs.map((glyph, i) => ({ ...glyph, char: chars[i] })),
+      boxes: own,
       ...(layout.center && { center: layout.center }),
+      ...(label.id === selected && { selected: true }),
     });
   }
   return placed;
+}
+
+/**
+ * The label whose letters cover a point of the view, among placed labels, or null.
+ *
+ * @param placed see placeLabels
+ */
+export function labelAt(placed, x, y) {
+  const hit = placed.find(({ boxes }) =>
+    boxes.some((box) => x >= box.minX && x <= box.maxX && y >= box.minY && y <= box.maxY),
+  );
+  return hit?.label ?? null;
+}
+
+/**
+ * A river's name needs a straight enough stretch of its course: the course is at least
+ * RIVER_FOCUS_SHARE times as long as the name where the names list brings it into view.
+ */
+export const RIVER_FOCUS_SHARE = 3;
+
+// A course's length in world units
+const pathLength = (path) => {
+  let length = 0;
+  for (let i = 2; i < path.length; i += 2) {
+    length += Math.hypot(path[i] - path[i - 2], path[i + 1] - path[i - 1]);
+  }
+  return length;
+};
+
+/**
+ * Where the names list brings a label into view: the camera on its first anchor (a river's is the
+ * middle of its course), at the lowest zoom of its kind's window, in quarter levels, where a text
+ * width pixels wide fits its feature.
+ *
+ * @returns {{x: Number, y: Number, zoom: Number}} as MapController.setView takes them
+ */
+export function focusView(label, width) {
+  const style = LABEL_STYLES[label.kind];
+  const room =
+    label.kind === "river"
+      ? pathLength(label.path) / RIVER_FOCUS_SHARE
+      : label.span * style.overflow;
+  const fit =
+    room > 0 ? Math.log2((width / room) * (WORLD_SIZE / TILE_PIXEL_SIZE)) : style.zooms[0];
+  const zoom = Math.min(Math.max(Math.ceil(fit * 4) / 4, style.zooms[0]), style.zooms[1]);
+  const [x, y] = label.anchors[0];
+  return { x: x - WORLD_SIZE / 2, y: y - WORLD_SIZE / 2, zoom };
 }
 
 /**
@@ -480,6 +556,14 @@ const drawGlyphs = (context, glyphs) => {
 };
 
 /**
+ * The selected label's halo, wider by SELECTED_HALO_EXTRA pixels: a warm accent over both modes.
+ * A hidden label, shown only while selected, is drawn at HIDDEN_ALPHA.
+ */
+export const SELECTED_HALO = "rgba(255, 196, 92, 0.95)";
+export const SELECTED_HALO_EXTRA = 2;
+export const HIDDEN_ALPHA = 0.45;
+
+/**
  * Draws placed labels, each over its halo: a straight label as one string on whole pixels, a
  * river's letter by letter along its course (and every label so, where canvas text has no
  * letterSpacing).
@@ -493,11 +577,12 @@ export function drawLabels(context, placed, mode) {
   const whole = "letterSpacing" in context;
   context.save();
   context.lineJoin = "round";
-  context.strokeStyle = inks.halo;
   for (const label of placed) {
     context.font = fontOf(label.style);
     context.fillStyle = inks[label.style.ink];
-    context.lineWidth = HALO_WIDTHS[label.style.ink];
+    context.strokeStyle = label.selected ? SELECTED_HALO : inks.halo;
+    context.lineWidth = HALO_WIDTHS[label.style.ink] + (label.selected ? SELECTED_HALO_EXTRA : 0);
+    context.globalAlpha = label.label.hidden ? HIDDEN_ALPHA : 1;
     if (whole && label.center) drawWhole(context, label);
     else drawGlyphs(context, label.glyphs);
   }
@@ -516,14 +601,19 @@ export const labelScale = (width, height) => Math.max(1, Math.max(width, height)
  *
  * @returns see placeLabels, in the smaller view's pixels
  */
-export function layoutAndDraw(context, view, labels, { mode, text, measure, previous, scale = 1 }) {
+export function layoutAndDraw(
+  context,
+  view,
+  labels,
+  { mode, text, measure, previous, scale = 1, selected = null },
+) {
   const layoutView = {
     ...view,
     width: view.width / scale,
     height: view.height / scale,
     pixelsPerUnit: view.pixelsPerUnit / scale,
   };
-  const placed = placeLabels(layoutView, labels, { text, measure, previous });
+  const placed = placeLabels(layoutView, labels, { text, measure, previous, selected });
   context.save();
   context.scale(scale, scale);
   drawLabels(context, placed, mode);
