@@ -53,9 +53,9 @@ export default {
   "notice.copied": "Link copied!",
   "notice.copyThis": "Copy this link:",
   "notice.copiedGenerated":
-    "Link copied! It carries the generated names. Send the names file to share yours.",
+    "Link copied! It shows the generated names, not yours. To share yours, send the names file too.",
   "notice.copyThisGenerated":
-    "Copy this link. It carries the generated names. Send the names file to share yours.",
+    "Copy this link. It shows the generated names, not yours. To share yours, send the names file too.",
   "names.notStored": "This browser can't keep your names. Save them to a file to keep them.",
   "notice.link": "Map link",
   "settings.title": "Settings",

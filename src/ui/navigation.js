@@ -52,7 +52,7 @@ export function setupNavigation(currentState, urlSync, hasEdits = () => false) {
     const generated = hasEdits();
     try {
       await navigator.clipboard.writeText(link);
-      showNotice(generated ? "notice.copiedGenerated" : "notice.copied");
+      showNotice(generated ? "notice.copiedGenerated" : "notice.copied", { long: generated });
     } catch {
       // No clipboard access (insecure page, refused permission, old browser)
       showNotice(generated ? "notice.copyThisGenerated" : "notice.copyThis", { link });

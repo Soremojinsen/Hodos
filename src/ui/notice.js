@@ -1,6 +1,7 @@
 import { applyTranslations } from "./language.js";
 
 const SHORT_DELAY = 2000;
+const LONG_DELAY = 6000;
 const LINK_DELAY = 10000;
 
 let timer = null;
@@ -8,10 +9,11 @@ let timer = null;
 /**
  * Shows a short message over the map.
  *
- * @param key         {string} the translation key of the message
+ * @param key          {string} the translation key of the message
  * @param options.link {string} a link to show in a selected field, to copy by hand
+ * @param options.long {boolean} whether the message is long and stays longer to be read
  */
-export function showNotice(key, { link } = {}) {
+export function showNotice(key, { link, long = false } = {}) {
   const notice = document.getElementById("notice");
   const text = notice.querySelector(".notice-text");
   const field = notice.querySelector(".notice-link");
@@ -25,5 +27,8 @@ export function showNotice(key, { link } = {}) {
     field.select();
   }
   clearTimeout(timer);
-  timer = setTimeout(() => (notice.hidden = true), link ? LINK_DELAY : SHORT_DELAY);
+  timer = setTimeout(
+    () => (notice.hidden = true),
+    link ? LINK_DELAY : long ? LONG_DELAY : SHORT_DELAY,
+  );
 }

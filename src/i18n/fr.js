@@ -56,9 +56,9 @@ export default {
   "notice.copied": "Lien copié !",
   "notice.copyThis": "Copiez ce lien :",
   "notice.copiedGenerated":
-    "Lien copié ! Il porte les noms générés, envoyez le fichier des noms pour partager les vôtres.",
+    "Lien copié ! Il montre les noms générés, pas les vôtres. Pour les partager, envoyez aussi le fichier des noms.",
   "notice.copyThisGenerated":
-    "Copiez ce lien. Il porte les noms générés, envoyez le fichier des noms pour partager les vôtres.",
+    "Copiez ce lien. Il montre les noms générés, pas les vôtres. Pour les partager, envoyez aussi le fichier des noms.",
   "names.notStored":
     "Ce navigateur ne peut pas garder vos noms. Enregistrez-les dans un fichier pour les garder.",
   "notice.link": "Lien de la carte",

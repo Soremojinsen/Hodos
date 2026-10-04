@@ -49,13 +49,20 @@ test("an edit in another tab reaches this one", async ({ page, context }) => {
   await expect.poll(() => placedTexts(page)).toContain("LA GRANDE BLEUE");
 });
 
-test("copying the link of a renamed map says the link carries the generated names", async ({
+test("copying the link of a renamed map says the link shows the generated names, long enough to read", async ({
   page,
+  context,
 }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await openMap(page);
   await rename(page, await oceanId(page), { root: "Mirewater" });
   await page.getByRole("button", { name: "Copier le lien" }).click();
-  await expect(page.locator("#notice")).toContainText("noms générés");
+  await expect(page.locator("#notice")).toContainText(
+    "Lien copié ! Il montre les noms générés, pas les vôtres. Pour les partager, envoyez aussi le fichier des noms.",
+  );
+  // Past the 2 s of a short notice
+  await page.waitForTimeout(3000);
+  await expect(page.locator("#notice")).toBeVisible();
 });
 
 const openPanel = async (page) => {
