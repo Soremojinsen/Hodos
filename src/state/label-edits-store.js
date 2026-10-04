@@ -95,7 +95,7 @@ export class LabelEdits {
   }
 
   /**
-   * The atlas's labels with the edits applied, see overlay/label-edits.js; none before the atlas.
+   * The atlas's labels with the edits applied (see overlay/label-edits.js), or none before the atlas.
    */
   get labels() {
     return this.#labels;
