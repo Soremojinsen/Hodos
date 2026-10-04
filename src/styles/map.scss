@@ -768,7 +768,8 @@ html[data-translating] :is([data-i18n], [data-i18n-html]) {
 
   .names-list {
     flex: 1;
-    min-height: 4rem;
+    // Some names to choose from: below this, the whole panel scrolls instead
+    min-height: 6.5rem;
     overflow-y: auto;
 
     summary {
@@ -833,13 +834,69 @@ html[data-translating] :is([data-i18n], [data-i18n-html]) {
   }
 }
 
-@media (max-width: 700px) {
+// A phone held upright: a sheet across the screen, below the map's buttons, which stay usable
+// (names-panel.js sets --controls-bottom)
+@media (max-width: 700px) and (min-height: 501px), (max-width: 500px) {
   .names-panel {
-    top: auto;
+    top: max(calc(var(--controls-bottom, 12rem) + 0.5rem), 35vh);
     left: 0;
     right: 0;
     width: auto;
-    max-height: 60vh;
+  }
+}
+
+// A phone held sideways: beside the map's buttons, leaving the map room on the left
+@media (max-height: 500px) and (min-width: 501px) {
+  .names-panel {
+    top: 0.5rem;
+    right: 4.75rem;
+    bottom: calc(var(--footer-height, 3rem) + 0.5rem);
+    width: min(22rem, 50vw);
+  }
+}
+
+// A phone: less room, and fingers rather than a mouse
+@media (max-width: 700px), (max-height: 500px) {
+  .names-panel {
+    padding: 0.5rem 0.8rem;
+
+    .names-head button {
+      min-width: 2.75rem;
+      min-height: 2.75rem;
+      margin: -0.5rem -0.6rem -0.5rem 0;
+    }
+
+    // The kinds on one line, scrolled sideways, so the list keeps the room
+    .names-kinds {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      // As wide as the panel, not as its kinds, and never squeezed by the list
+      min-inline-size: 0;
+      flex-shrink: 0;
+
+      label {
+        white-space: nowrap;
+        padding: 0.2rem 0;
+      }
+    }
+
+    .names-entry {
+      padding: 0.35rem 0.2rem;
+    }
+
+    .names-editor label {
+      padding: 0.2rem 0;
+    }
+
+    .names-file button,
+    .names-editor button {
+      padding: 0.3rem 0.4rem;
+    }
+
+    // Each file button as wide as its text, so neither wraps
+    .names-file button {
+      flex: 1 1 auto;
+    }
   }
 }
 

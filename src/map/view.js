@@ -87,26 +87,35 @@ export const subView = (view, rect) => {
 };
 
 /**
- * The part of a screen left open by something over it, as the names panel is over the map: the
- * largest of the strips left, right, above and below it, or the whole screen if it covers none.
+ * The part of a screen left open by what is over it, as the names panel, the footer and the logo
+ * are over the map: the largest of the areas beside each of them, or the whole screen if they
+ * cover none of it.
  *
  * @param screen {{left: Number, top: Number, width: Number, height: Number}} on the page
- * @param cover  {{left: Number, top: Number, right: Number, bottom: Number}} on the page
+ * @param covers {{left: Number, top: Number, right: Number, bottom: Number}[]} on the page
  * @returns {{x: Number, y: Number, width: Number, height: Number}} in pixels of the screen
  */
-export const openArea = (screen, cover) => {
-  const [left, top] = [cover.left - screen.left, cover.top - screen.top];
-  const [right, bottom] = [cover.right - screen.left, cover.bottom - screen.top];
+export const openArea = (screen, covers) => {
   const whole = { x: 0, y: 0, width: screen.width, height: screen.height };
-  if (left >= screen.width || top >= screen.height || right <= 0 || bottom <= 0) return whole;
-  if (right <= left || bottom <= top) return whole;
-  const strips = [
-    { x: 0, y: 0, width: left, height: screen.height },
-    { x: right, y: 0, width: screen.width - right, height: screen.height },
-    { x: 0, y: 0, width: screen.width, height: top },
-    { x: 0, y: bottom, width: screen.width, height: screen.height - bottom },
-  ].filter((strip) => strip.width > 0 && strip.height > 0);
-  return strips.reduce((a, b) => (b.width * b.height > a.width * a.height ? b : a), {
+  let areas = [whole];
+  for (const cover of covers) {
+    const [left, top] = [cover.left - screen.left, cover.top - screen.top];
+    const [right, bottom] = [cover.right - screen.left, cover.bottom - screen.top];
+    if (right <= left || bottom <= top) continue;
+    // Each open area the cover reaches gives way to its strips left, right, above and below it
+    areas = areas.flatMap((area) => {
+      const [areaRight, areaBottom] = [area.x + area.width, area.y + area.height];
+      if (left >= areaRight || right <= area.x || top >= areaBottom || bottom <= area.y)
+        return [area];
+      return [
+        { x: area.x, y: area.y, width: left - area.x, height: area.height },
+        { x: right, y: area.y, width: areaRight - right, height: area.height },
+        { x: area.x, y: area.y, width: area.width, height: top - area.y },
+        { x: area.x, y: bottom, width: area.width, height: areaBottom - bottom },
+      ].filter((strip) => strip.width > 0 && strip.height > 0);
+    });
+  }
+  return areas.reduce((a, b) => (b.width * b.height > a.width * a.height ? b : a), {
     ...whole,
     width: 0,
     height: 0,

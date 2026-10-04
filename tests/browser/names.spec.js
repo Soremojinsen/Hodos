@@ -174,11 +174,14 @@ test("a group opened by the user stays open, one opened for the selection closes
     .toEqual([expect.stringMatching(/^Océan /), expect.stringMatching(/^Îles /)]);
 });
 
-// Whether the selected label is drawn on the map, all its letters clear of the panel
+// Whether the selected label is drawn on the map, all its letters clear of the panel and of what
+// else is over the map: the footer, the logo and the map's buttons
 const selectedInSight = (page) =>
   page.evaluate(() => {
     const canvas = window.hodos.renderer.canvas.getBoundingClientRect();
-    const panel = document.getElementById("names-panel").getBoundingClientRect();
+    const covers = ["#names-panel", ".map-settings", ".logo img", ".map-controls"].map((s) =>
+      document.querySelector(s).getBoundingClientRect(),
+    );
     const selected = window.hodosLabels.placed.filter((p) => p.selected);
     return selected.some(({ boxes }) =>
       boxes.every(
@@ -187,19 +190,28 @@ const selectedInSight = (page) =>
           b.minY + canvas.top >= 0 &&
           b.maxX + canvas.left <= canvas.right &&
           b.maxY + canvas.top <= canvas.bottom &&
-          (b.maxX + canvas.left <= panel.left ||
-            b.minX + canvas.left >= panel.right ||
-            b.maxY + canvas.top <= panel.top ||
-            b.minY + canvas.top >= panel.bottom),
+          covers.every(
+            (c) =>
+              b.maxX + canvas.left <= c.left ||
+              b.minX + canvas.left >= c.right ||
+              b.maxY + canvas.top <= c.top ||
+              b.minY + canvas.top >= c.bottom,
+          ),
       ),
     );
   });
 
-for (const viewport of [
+// A desktop, phones held upright, and phones held sideways
+const VIEWPORTS = [
   { width: 1000, height: 700 },
   { width: 400, height: 800 },
-]) {
-  test(`picking rivers and the ocean in the list shows their names clear of the panel at ${viewport.width}×${viewport.height}`, async ({
+  { width: 320, height: 568 },
+  { width: 568, height: 320 },
+  { width: 667, height: 375 },
+];
+
+for (const viewport of VIEWPORTS) {
+  test(`picking rivers, lakes and the ocean in the list shows their names in sight at ${viewport.width}×${viewport.height}`, async ({
     page,
   }) => {
     await page.setViewportSize(viewport);
@@ -208,9 +220,13 @@ for (const viewport of [
     const ids = await page.evaluate(() => {
       const labels = window.hodosEdits.labels;
       const rivers = labels.filter((l) => l.kind === "river");
-      // The ocean, and the atlas's first and last rivers
+      // The ocean, two lakes, and the atlas's first and last rivers
       return [
         labels.find((l) => l.kind === "ocean").id,
+        ...labels
+          .filter((l) => l.kind === "lake")
+          .slice(0, 2)
+          .map((l) => l.id),
         ...rivers.slice(0, 3).map((l) => l.id),
         ...rivers.slice(-3).map((l) => l.id),
       ];
@@ -220,6 +236,48 @@ for (const viewport of [
       await expect.poll(() => selectedInSight(page), { message: id }).toBe(true);
     }
     expect(errors).toEqual([]);
+  });
+}
+
+// Whether an element shows whole within the part of the panel scrolled into view
+const inPanelView = (page, selector) =>
+  page.evaluate((selector) => {
+    const panel = document.getElementById("names-panel").getBoundingClientRect();
+    const box = document.querySelector(selector).getBoundingClientRect();
+    return box.top >= panel.top && box.bottom <= panel.bottom;
+  }, selector);
+
+const overlaps = (a, b) =>
+  a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+
+for (const viewport of VIEWPORTS.slice(1)) {
+  test(`on a phone, the panel leaves the map's buttons clear and shows the picked name's editor at ${viewport.width}×${viewport.height}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await openMap(page);
+    await openPanel(page);
+    const panel = await page.locator("#names-panel").boundingBox();
+    for (const button of await page.locator(".map-controls button:visible").all())
+      expect(overlaps(panel, await button.boundingBox())).toBe(false);
+    // The kinds within the panel, scrolled sideways rather than wider
+    const kinds = await page.locator("#names-kinds").boundingBox();
+    expect(kinds.x + kinds.width).toBeLessThanOrEqual(panel.x + panel.width);
+    // Enough of the list to choose from
+    expect((await page.locator("#names-list").boundingBox()).height).toBeGreaterThanOrEqual(100);
+    // A name picked in the list, then on the map
+    await pickFromList(page, await oceanId(page));
+    await expect.poll(() => inPanelView(page, "#names-input")).toBe(true);
+    await expect.poll(() => inPanelView(page, "#names-reset")).toBe(true);
+    // Big enough for a finger, and the file buttons each on one line
+    const close = await page.locator("#names-close").boundingBox();
+    expect(close.width).toBeGreaterThanOrEqual(40);
+    expect(close.height).toBeGreaterThanOrEqual(40);
+    const save = await page.locator("#names-save").boundingBox();
+    const open = await page.locator("#names-open").boundingBox();
+    expect(save.height).toBe(open.height);
+    expect(save.y).toBe(open.y);
+    expect(save.height).toBeLessThan(40);
   });
 }
 

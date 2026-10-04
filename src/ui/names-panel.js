@@ -26,6 +26,18 @@ export function setupNamesPanel({ labelEdits, labelLayer, worldMap, currentState
   const kinds = document.getElementById("names-kinds");
   const list = document.getElementById("names-list");
   const unfiled = document.getElementById("names-unfiled");
+  // What else is over the map, which a name flown to must stay clear of too
+  const overMap = [".map-settings", ".logo img", ".map-controls"].map((s) =>
+    document.querySelector(s),
+  );
+  // On a phone held upright the panel starts below the map's buttons: the stylesheet reads
+  // where they end from --controls-bottom
+  const controls = document.querySelector(".map-controls");
+  new ResizeObserver(() => {
+    const bottom = controls.getBoundingClientRect().bottom;
+    document.documentElement.style.setProperty("--controls-bottom", `${bottom}px`);
+  }).observe(controls);
+  const editorSection = document.getElementById("names-editor");
   const editor = setupNamesEditor(labelEdits);
   setupNamesFile({ labelEdits, currentState, urlSync });
   // The groups the user opened, kept across rebuilds of the list
@@ -113,7 +125,8 @@ export function setupNamesPanel({ labelEdits, labelLayer, worldMap, currentState
   const panelApi = {
     /**
      * Selects a label by id, or none, and shows it in the editor. With focus, the map flies to
-     * it, at the first zoom where it shows, in the part of the map the panel leaves open.
+     * it, at the first zoom where it shows, in the part of the map the panel, the footer, the logo
+     * and the map's buttons leave open.
      */
     select(id, { focus = false } = {}) {
       labelLayer.selected = id;
@@ -122,11 +135,14 @@ export function setupNamesPanel({ labelEdits, labelLayer, worldMap, currentState
       const label = id && labelEdits.labels.find((l) => l.id === id);
       if (label && focus) {
         const canvas = worldMap.renderer.canvas.getBoundingClientRect();
-        const open = openArea(canvas, panel.getBoundingClientRect());
+        const covers = [panel, ...overMap].map((element) => element.getBoundingClientRect());
+        const open = openArea(canvas, covers);
         const { x, y, zoom } = labelLayer.focus(label, open);
         worldMap.controller.setView(x, y, zoom);
       }
       list.querySelector('[aria-current="true"]')?.scrollIntoView({ block: "nearest" });
+      // On a short screen the whole panel scrolls: the picked name's editor comes into view
+      if (label) editorSection.scrollIntoView({ block: "nearest" });
     },
     refresh,
     isOpen,

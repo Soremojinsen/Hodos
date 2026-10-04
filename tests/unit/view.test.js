@@ -87,7 +87,7 @@ test("a sub view shows its part of the view at the same scale", () => {
 test("the open part of a screen is its largest strip beside what covers it", () => {
   const screen = { left: 0, top: 0, width: 1000, height: 700 };
   // A panel docked on the right
-  expect(openArea(screen, { left: 550, top: 16, right: 904, bottom: 600 })).toEqual({
+  expect(openArea(screen, [{ left: 550, top: 16, right: 904, bottom: 600 }])).toEqual({
     x: 0,
     y: 0,
     width: 550,
@@ -95,16 +95,34 @@ test("the open part of a screen is its largest strip beside what covers it", () 
   });
   // A bottom sheet on a phone, the screen starting lower on the page
   expect(
-    openArea(
-      { left: 0, top: 10, width: 400, height: 800 },
+    openArea({ left: 0, top: 10, width: 400, height: 800 }, [
       { left: 0, top: 260, right: 400, bottom: 720 },
-    ),
+    ]),
   ).toEqual({ x: 0, y: 0, width: 400, height: 250 });
   // Nothing over the screen
-  expect(openArea(screen, { left: 0, top: 0, right: 0, bottom: 0 })).toEqual({
+  expect(openArea(screen, [{ left: 0, top: 0, right: 0, bottom: 0 }])).toEqual({
     x: 0,
     y: 0,
     width: 1000,
     height: 700,
   });
+  expect(openArea(screen, [])).toEqual({ x: 0, y: 0, width: 1000, height: 700 });
+});
+
+test("the open part of a screen is clear of everything over it, not only the largest", () => {
+  // A phone held sideways: the strip under the panel is the footer's, the one above it the logo's
+  const screen = { left: 0, top: 0, width: 568, height: 320 };
+  const panel = { left: 0, top: 60, right: 568, bottom: 252 };
+  const footer = { left: 0, top: 268, right: 568, bottom: 320 };
+  const logo = { left: 250, top: 16, right: 325, bottom: 48 };
+  expect(openArea(screen, [panel, footer, logo])).toEqual({ x: 0, y: 0, width: 250, height: 60 });
+  // A panel on the right, buttons beside it and the footer below
+  const wide = { left: 0, top: 0, width: 1000, height: 700 };
+  expect(
+    openArea(wide, [
+      { left: 550, top: 16, right: 904, bottom: 600 },
+      { left: 930, top: 16, right: 970, bottom: 200 },
+      { left: 0, top: 630, right: 1000, bottom: 700 },
+    ]),
+  ).toEqual({ x: 0, y: 0, width: 550, height: 630 });
 });
