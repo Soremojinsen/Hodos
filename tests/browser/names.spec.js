@@ -270,18 +270,59 @@ test("saving names downloads them and quiets the reminder", async ({ page }) => 
   await expect(page.locator("#names-unfiled")).toBeHidden();
 });
 
+// Answers the next dialog, and tells whether one was shown
+const answerDialog = (page, accept) => {
+  const shown = { value: false };
+  page.once("dialog", (dialog) => {
+    shown.value = true;
+    return accept ? dialog.accept() : dialog.dismiss();
+  });
+  return shown;
+};
+
 test("opening a file for this map asks before replacing other names", async ({ page }) => {
   await openMap(page);
   await rename(page, await oceanId(page), { root: "Mirewater" });
   await openPanel(page);
-  page.once("dialog", (dialog) => dialog.accept());
+  const asked = answerDialog(page, true);
   await page
     .locator("#names-file-input")
     .setInputFiles(namesFile("12345", { names: { ocean: { full: "Grand Bleu" } } }));
   await expect
     .poll(() => page.evaluate(() => window.hodosEdits.edits.names.ocean))
     .toEqual({ full: "Grand Bleu" });
+  expect(asked.value).toBe(true);
   await expect(page.locator("#names-unfiled")).toBeHidden();
+});
+
+test("declining to replace this map's names keeps them", async ({ page }) => {
+  await openMap(page);
+  await rename(page, await oceanId(page), { root: "Mirewater" });
+  await openPanel(page);
+  const asked = answerDialog(page, false);
+  await page
+    .locator("#names-file-input")
+    .setInputFiles(namesFile("12345", { names: { ocean: { full: "Grand Bleu" } } }));
+  await expect.poll(() => asked.value).toBe(true);
+  expect(await page.evaluate(() => window.hodosEdits.edits)).toEqual({
+    names: { ocean: { root: "Mirewater" } },
+    hidden: [],
+    kinds: {},
+  });
+});
+
+test("declining to replace another map's names stays on this map", async ({ page }) => {
+  await openMap(page);
+  const kept = JSON.stringify({ edits: { names: {}, hidden: [], kinds: { lake: false } } });
+  await page.evaluate((kept) => localStorage.setItem("hodos.edits.54321", kept), kept);
+  await openPanel(page);
+  const asked = answerDialog(page, false);
+  await page
+    .locator("#names-file-input")
+    .setInputFiles(namesFile("54321", { kinds: { river: false } }));
+  await expect.poll(() => asked.value).toBe(true);
+  expect(page.url()).toContain("seed=12345");
+  expect(await page.evaluate(() => localStorage.getItem("hodos.edits.54321"))).toBe(kept);
 });
 
 test("opening a file for another seed opens that map with its names", async ({ page }) => {
