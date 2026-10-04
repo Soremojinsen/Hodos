@@ -159,7 +159,13 @@
           Cliquez sur la carte ou dans la liste pour choisir un nom.
         </p>
         <p id="names-unfiled" class="names-unfiled" data-i18n="names.unfiled" hidden></p>
-        <div class="names-file"></div>
+        <div class="names-file">
+          <button type="button" id="names-save" data-i18n="names.save">
+            Enregistrer les noms…
+          </button>
+          <button type="button" id="names-open" data-i18n="names.open">Ouvrir…</button>
+          <input type="file" id="names-file-input" accept=".json,application/json" hidden />
+        </div>
       </aside>
       <div class="borders-container">
         <div class="border-top"></div>

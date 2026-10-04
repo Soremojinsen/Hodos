@@ -45,6 +45,14 @@ export default {
   "names.pick": "Cliquez sur la carte ou dans la liste pour choisir un nom.",
   "names.unfiled":
     "Gardés dans ce navigateur seulement. Enregistrez un fichier pour les garder en sûreté.",
+  "names.save": "Enregistrer les noms…",
+  "names.open": "Ouvrir…",
+  "names.opened": "Noms ouverts.",
+  "names.fileInvalid": "Ce fichier n’est pas un fichier de noms Hodos.",
+  "names.fileNewer": "Ce fichier vient d’une version plus récente de Hodos.",
+  "names.replaceConfirm": "Remplacer les noms gardés dans ce navigateur pour cette carte ?",
+  "names.needsStorage":
+    "Ce navigateur ne peut pas garder de noms, ce fichier ne peut donc pas ouvrir une autre carte.",
   "notice.copied": "Lien copié !",
   "notice.copyThis": "Copiez ce lien :",
   "notice.copiedGenerated":

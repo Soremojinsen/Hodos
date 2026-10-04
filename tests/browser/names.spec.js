@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 import { openMap } from "./helpers.js";
 
@@ -180,4 +181,87 @@ test("a drag on the map pans and does not select", async ({ page }) => {
   await page.mouse.move(300, 300, { steps: 5 });
   await page.mouse.up();
   await expect(page.locator("#names-editor")).toBeHidden();
+});
+
+const namesFile = (seed, edits) => ({
+  name: `hodos-${seed}.json`,
+  mimeType: "application/json",
+  buffer: Buffer.from(JSON.stringify({ hodos: 1, seed, edits })),
+});
+
+test("saving names downloads them and quiets the reminder", async ({ page }) => {
+  await openMap(page);
+  await rename(page, await oceanId(page), { root: "Mirewater" });
+  await openPanel(page);
+  await expect(page.locator("#names-unfiled")).toBeVisible();
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Enregistrer les noms…" }).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe("hodos-12345.json");
+  const saved = JSON.parse(await readFile(await download.path(), "utf8"));
+  expect(saved).toMatchObject({
+    hodos: 1,
+    seed: "12345",
+    edits: { names: { ocean: { root: "Mirewater" } } },
+  });
+  await expect(page.locator("#names-unfiled")).toBeHidden();
+});
+
+test("opening a file for this map asks before replacing other names", async ({ page }) => {
+  await openMap(page);
+  await rename(page, await oceanId(page), { root: "Mirewater" });
+  await openPanel(page);
+  page.once("dialog", (dialog) => dialog.accept());
+  await page
+    .locator("#names-file-input")
+    .setInputFiles(namesFile("12345", { names: { ocean: { full: "Grand Bleu" } } }));
+  await expect
+    .poll(() => page.evaluate(() => window.hodosEdits.edits.names.ocean))
+    .toEqual({ full: "Grand Bleu" });
+  await expect(page.locator("#names-unfiled")).toBeHidden();
+});
+
+test("opening a file for another seed opens that map with its names", async ({ page }) => {
+  await openMap(page);
+  await openPanel(page);
+  await page
+    .locator("#names-file-input")
+    .setInputFiles(namesFile("54321", { kinds: { river: false } }));
+  await expect(page).toHaveURL(/seed=54321/);
+  await expect(page.locator("html")).toHaveAttribute("data-map", "ready", { timeout: 30_000 });
+  expect(await page.evaluate(() => window.hodosEdits.edits.kinds)).toEqual({ river: false });
+});
+
+test("a file that is not a names file changes nothing", async ({ page }) => {
+  await openMap(page);
+  await openPanel(page);
+  await page.locator("#names-file-input").setInputFiles({
+    name: "package.json",
+    mimeType: "application/json",
+    buffer: Buffer.from('{"name": "x"}'),
+  });
+  await expect(page.locator("#notice")).toContainText("n’est pas un fichier de noms");
+  expect(await page.evaluate(() => window.hodosEdits.edits)).toEqual({
+    names: {},
+    hidden: [],
+    kinds: {},
+  });
+});
+
+test("without browser storage, a file for another seed does not leave this map", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Storage.prototype.setItem = () => {
+      throw new Error("QuotaExceededError");
+    };
+  });
+  await openMap(page);
+  await openPanel(page);
+  await page
+    .locator("#names-file-input")
+    .setInputFiles(namesFile("54321", { kinds: { river: false } }));
+  await expect(page.locator("#notice")).toContainText("ne peut pas garder");
+  expect(page.url()).toContain("seed=12345");
 });

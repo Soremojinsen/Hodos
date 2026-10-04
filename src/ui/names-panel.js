@@ -4,6 +4,7 @@ import { t } from "../i18n/i18n.js";
 import { screenToWorld } from "../map/view.js";
 import { focusView } from "../overlay/labels.js";
 import { TAP_DISTANCE } from "./hover.js";
+import { setupNamesFile } from "./names-file.js";
 import { setupNamesEditor } from "./names-editor.js";
 import { KIND_ORDER, groupLabels } from "./names-list.js";
 
@@ -15,9 +16,11 @@ import { KIND_ORDER, groupLabels } from "./names-list.js";
  * @param labelEdits {LabelEdits} see state/label-edits-store.js
  * @param labelLayer {LabelLayer}
  * @param worldMap {WorldMap}
+ * @param currentState {function} see url-state.js
+ * @param urlSync {{syncNow: function}} see url-sync.js
  * @returns {{select: function(string|null), refresh: function}}
  */
-export function setupNamesPanel({ labelEdits, labelLayer, worldMap }) {
+export function setupNamesPanel({ labelEdits, labelLayer, worldMap, currentState, urlSync }) {
   const panel = document.getElementById("names-panel");
   const button = document.getElementById("names-button");
   const search = document.getElementById("names-search");
@@ -25,6 +28,7 @@ export function setupNamesPanel({ labelEdits, labelLayer, worldMap }) {
   const list = document.getElementById("names-list");
   const unfiled = document.getElementById("names-unfiled");
   const editor = setupNamesEditor(labelEdits);
+  setupNamesFile({ labelEdits, currentState, urlSync });
   // The groups the user opened, kept across rebuilds of the list
   const openKinds = new Set();
 

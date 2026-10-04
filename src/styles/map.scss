@@ -738,6 +738,19 @@ html[data-translating] :is([data-i18n], [data-i18n-html]) {
     padding: 2px 5px;
   }
 
+  .names-file {
+    display: flex;
+    gap: 0.5rem;
+
+    button {
+      flex: 1;
+      font: inherit;
+      background: transparent;
+      border: 1px solid #040403;
+      cursor: pointer;
+    }
+  }
+
   .names-kinds {
     display: flex;
     flex-wrap: wrap;

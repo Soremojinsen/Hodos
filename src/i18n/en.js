@@ -43,6 +43,13 @@ export default {
   "names.kindOne.river": "River",
   "names.pick": "Click the map or the list to pick a name.",
   "names.unfiled": "Kept in this browser only. Save a file to keep them safe.",
+  "names.save": "Save names…",
+  "names.open": "Open…",
+  "names.opened": "Names opened.",
+  "names.fileInvalid": "This file is not a Hodos names file.",
+  "names.fileNewer": "This file comes from a newer version of Hodos.",
+  "names.replaceConfirm": "Replace the names kept in this browser for this map?",
+  "names.needsStorage": "This browser can't keep names, so this file can't open another map.",
   "notice.copied": "Link copied!",
   "notice.copyThis": "Copy this link:",
   "notice.copiedGenerated":
