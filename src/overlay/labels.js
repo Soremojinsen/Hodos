@@ -17,7 +17,7 @@ export const LABEL_STYLES = {
   ocean: {
     face: "fell",
     size: 18,
-    italic: true,
+    italic: false,
     caps: true,
     tracking: 0.3,
     ink: "water",
@@ -35,11 +35,11 @@ export const LABEL_STYLES = {
     overflow: 1.5,
   },
   sea: {
-    face: "fell",
+    face: "alegreya",
     size: 15,
     italic: true,
     caps: false,
-    tracking: 0.15,
+    tracking: 0.1,
     ink: "water",
     zooms: [2, 5],
     overflow: 1,
@@ -416,10 +416,15 @@ function riverLayouts(view, label, width) {
  * over the map. Debug mode has no labels.
  */
 export const INKS = {
-  default: { land: "rgb(52, 38, 26)", water: "rgb(54, 76, 98)", halo: "rgba(240, 228, 200, 0.85)" },
-  biomes: { land: "rgb(20, 20, 20)", water: "rgb(20, 40, 90)", halo: "rgba(255, 255, 255, 0.85)" },
+  default: { land: "rgb(52, 38, 26)", water: "rgb(38, 58, 82)", halo: "rgba(240, 228, 200, 0.85)" },
+  biomes: { land: "rgb(20, 20, 20)", water: "rgb(12, 30, 75)", halo: "rgba(255, 255, 255, 0.85)" },
 };
-export const HALO_WIDTH = 4;
+
+/**
+ * The width of the halo under each ink's labels, in pixels: thinner on the water, whose dark ink
+ * reads on the flat sea without it.
+ */
+export const HALO_WIDTHS = { land: 4, water: 3 };
 
 // A point moved onto the nearest whole device pixel, under a context's scale and translation
 const snapped = (context, x, y) => {
@@ -488,11 +493,11 @@ export function drawLabels(context, placed, mode) {
   const whole = "letterSpacing" in context;
   context.save();
   context.lineJoin = "round";
-  context.lineWidth = HALO_WIDTH;
   context.strokeStyle = inks.halo;
   for (const label of placed) {
     context.font = fontOf(label.style);
     context.fillStyle = inks[label.style.ink];
+    context.lineWidth = HALO_WIDTHS[label.style.ink];
     if (whole && label.center) drawWhole(context, label);
     else drawGlyphs(context, label.glyphs);
   }

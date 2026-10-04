@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 import { zoomOf } from "../../src/map/view.js";
 import {
   LABEL_STYLES,
+  HALO_WIDTHS,
   RIVER_OFFSET_PX,
   drawLabels,
   fontOf,
@@ -204,6 +205,7 @@ const recorder = ({ letterSpacing = true, measureWith = measure } = {}) => {
             },
       set: (_, name, value) => {
         if (name === "font") state.font = value;
+        if (name === "lineWidth") calls.push(["lineWidth", value]);
         return true;
       },
     },
@@ -268,11 +270,11 @@ test("a river's name is drawn letter by letter, as is every label without letter
   expect(old.calls.filter(([name]) => name === "fillText")).toHaveLength("VELORN".length);
 });
 
-test("rivers, lakes and islands are named in Alegreya, larger names in IM Fell", () => {
-  for (const kind of ["river", "lake", "island"]) {
+test("rivers, lakes, islands and seas are named in Alegreya, larger names in IM Fell", () => {
+  for (const kind of ["river", "lake", "island", "sea"]) {
     expect(fontOf(LABEL_STYLES[kind])).toMatch(/px "Alegreya", serif$/);
   }
-  for (const kind of ["continent", "ocean", "sea", "range"]) {
+  for (const kind of ["continent", "ocean", "range"]) {
     expect(fontOf(LABEL_STYLES[kind])).toMatch(/px "IM Fell Double Pica", serif$/);
   }
   expect(fontOf(LABEL_STYLES.river)).toBe(`italic ${LABEL_STYLES.river.size}px "Alegreya", serif`);
@@ -296,4 +298,16 @@ test("a name's letters are composed with their accents", () => {
   const [placed] = placeLabels(viewAt(1), [label({ text: "Ve\u0301lorn" })], { text, measure });
   expect(placed.text).toBe("V\u00c9LORN");
   expect(placed.glyphs).toHaveLength(6);
+});
+
+test("water labels have a thinner halo than land labels", () => {
+  expect(HALO_WIDTHS.water).toBeLessThan(HALO_WIDTHS.land);
+  const sea = label({ id: "sea:1", kind: "sea", text: "Mer", priority: 5500, span: 1000 });
+  const land = label({ anchors: [[5000, 4000]] });
+  const placed = placeLabels(viewAt(2.5), [sea, land], { text, measure });
+  expect(placed.map((p) => p.label.kind).sort()).toEqual(["continent", "sea"]);
+  const { calls, context } = recorder();
+  drawLabels(context, placed, "default");
+  const widths = calls.filter(([name]) => name === "lineWidth").map(([, width]) => width);
+  expect(widths).toEqual(placed.map((p) => HALO_WIDTHS[p.style.ink]));
 });
