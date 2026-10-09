@@ -14,7 +14,9 @@ import {
   labelScale,
   layoutAndDraw,
   placeLabels,
+  SYMBOL_GAP,
 } from "../../src/overlay/labels.js";
+import { SYMBOL_BOXES } from "../../src/overlay/settlement-symbols.js";
 
 // Letters half as wide as the font size
 const measure = (text, font) => text.length * 0.5 * Number(font.match(/(\d+)px/)[1]);
@@ -396,4 +398,101 @@ test("focusView puts the label in the middle of the part of the screen the panel
   const [placed] = placeLabels(view, [small], { text, measure, selected: "lake:9" });
   expect(placed.center.x).toBeCloseTo(250);
   expect(placed.center.y).toBeCloseTo(350);
+});
+
+const town = (overrides) =>
+  label({
+    id: "settlement:1",
+    kind: "town",
+    text: "Duvara",
+    priority: 4500,
+    span: 0,
+    ...overrides,
+  });
+
+test("a settlement shows from its kind's zoom, its symbol on its point and its name to the right", () => {
+  expect(LABEL_STYLES.town.zooms[0]).toBe(4);
+  expect(placeLabels(viewAt(3.5), [town()], { text, measure })).toHaveLength(0);
+  const placed = placeLabels(viewAt(4.5), [town()], { text, measure });
+  expect(placed).toHaveLength(1);
+  const [{ symbol, boxes, glyphs }] = placed;
+  expect(symbol.x).toBeCloseTo(500);
+  expect(symbol.y).toBeCloseTo(350);
+  expect(boxes[0].maxX).toBeCloseTo(500 + SYMBOL_BOXES.town.maxX);
+  expect(glyphs.map((g) => g.char).join("")).toBe("Duvara");
+  for (const glyph of glyphs)
+    expect(glyph.x).toBeGreaterThan(500 + SYMBOL_BOXES.town.maxX + SYMBOL_GAP);
+});
+
+// A lake label placed before the town, its middle at (dx, 0) pixels from the screen's middle
+const lakeAt = (zoom, dx) =>
+  label({
+    id: "lake:9",
+    kind: "lake",
+    text: "Velorn",
+    priority: 9000,
+    span: 2000,
+    anchors: [[5000 + dx / viewAt(zoom).pixelsPerUnit, 5000]],
+  });
+
+test("a settlement's name moves to the left when the right is taken", () => {
+  const placed = placeLabels(viewAt(4.5), [town(), lakeAt(4.5, 70)], { text, measure });
+  const settlement = placed.find((p) => p.label.kind === "town");
+  expect(settlement).toBeDefined();
+  for (const glyph of settlement.glyphs) expect(glyph.x).toBeLessThan(500);
+});
+
+test("a settlement is left out whole when its symbol is covered", () => {
+  const placed = placeLabels(viewAt(4.5), [town(), lakeAt(4.5, 0)], { text, measure });
+  expect(placed.map((p) => p.label.kind)).toEqual(["lake"]);
+});
+
+test("with names off, only settlements are placed, as symbols", () => {
+  const placed = placeLabels(viewAt(4.5), [town(), lakeAt(4.5, 200)], {
+    text,
+    measure,
+    names: false,
+  });
+  expect(placed).toHaveLength(1);
+  expect(placed[0]).toMatchObject({ text: "", glyphs: [], symbol: { x: 500, y: 350 } });
+  expect(placed[0].boxes).toHaveLength(1);
+});
+
+test("a hidden settlement is placed only when selected", () => {
+  const hidden = town({ hidden: true });
+  expect(placeLabels(viewAt(4.5), [hidden], { text, measure })).toHaveLength(0);
+  const placed = placeLabels(viewAt(4.5), [hidden], { text, measure, selected: "settlement:1" });
+  expect(placed).toHaveLength(1);
+  expect(placed[0].selected).toBe(true);
+});
+
+test("a settlement's symbol is drawn under its name, faded when hidden and selected", () => {
+  const placed = placeLabels(viewAt(4.5), [town({ hidden: true })], {
+    text,
+    measure,
+    selected: "settlement:1",
+  });
+  const { calls, context } = recorder();
+  drawLabels(context, placed, "default");
+  const translate = calls.findIndex(
+    ([name, x, y]) => name === "translate" && x === 500 && y === 350,
+  );
+  const fillText = calls.findIndex(([name]) => name === "fillText");
+  expect(translate).toBeGreaterThanOrEqual(0);
+  expect(fillText).toBeGreaterThan(translate);
+});
+
+test("a symbol alone is drawn without text", () => {
+  const placed = placeLabels(viewAt(4.5), [town()], { text, measure, names: false });
+  const { calls, context } = recorder();
+  drawLabels(context, placed, "default");
+  expect(calls.some(([name]) => name === "fill")).toBe(true);
+  expect(calls.some(([name]) => name === "fillText" || name === "strokeText")).toBe(false);
+});
+
+test("the names list flies to a settlement at the first zoom of its kind", () => {
+  const view = focusView(town(), { text, measure, width: 1000, height: 700 });
+  expect(view.zoom).toBe(LABEL_STYLES.town.zooms[0]);
+  expect(view.x).toBeCloseTo(0);
+  expect(view.y).toBeCloseTo(0);
 });

@@ -1,4 +1,5 @@
 import { TILE_PIXEL_SIZE, WORLD_SIZE } from "../constants.js";
+import { SYMBOL_BOXES, SYMBOL_HALO, drawSymbol, isSettlement } from "./settlement-symbols.js";
 import { screenToWorld, worldToScreen, zoomOf } from "../map/view.js";
 
 /**
@@ -12,7 +13,8 @@ export const LABEL_FACES = { fell: "IM Fell Double Pica", alegreya: "Alegreya" }
  * How each kind of label is drawn: its face (see LABEL_FACES), its font size in CSS pixels,
  * italic or not, in capitals or not, the space between letters as a share of the size, its ink,
  * the zooms it shows at, and how much wider than its feature it may be (an island's name may
- * reach over the water around it).
+ * reach over the water around it). A settlement's name is not bound by its feature: its overflow
+ * is unused.
  */
 export const LABEL_STYLES = {
   ocean: {
@@ -85,6 +87,46 @@ export const LABEL_STYLES = {
     zooms: [4, 7],
     overflow: 1,
   },
+  capital: {
+    face: "fell",
+    size: 16,
+    italic: false,
+    caps: true,
+    tracking: 0.12,
+    ink: "land",
+    zooms: [1, 7],
+    overflow: 0,
+  },
+  city: {
+    face: "fell",
+    size: 14,
+    italic: false,
+    caps: true,
+    tracking: 0.08,
+    ink: "land",
+    zooms: [2, 7],
+    overflow: 0,
+  },
+  town: {
+    face: "alegreya",
+    size: 13,
+    italic: false,
+    caps: false,
+    tracking: 0.03,
+    ink: "land",
+    zooms: [4, 7],
+    overflow: 0,
+  },
+  village: {
+    face: "alegreya",
+    size: 12,
+    italic: true,
+    caps: false,
+    tracking: 0.03,
+    ink: "land",
+    zooms: [5, 7],
+    overflow: 0,
+  },
 };
 
 /**
@@ -142,6 +184,41 @@ function areaLayouts(view, label, style, width) {
   });
 }
 
+/**
+ * The room between a settlement's symbol and its name, in pixels.
+ */
+export const SYMBOL_GAP = 4;
+
+// Where a settlement goes: its symbol on its point, and its name to the right, left, above or
+// below it, tried in that order, or nowhere with names off
+function settlementLayout(view, label, style, width, names) {
+  const p = worldToScreen(view, ...label.anchors[0]);
+  const own = SYMBOL_BOXES[label.kind];
+  const box = {
+    minX: p.x + own.minX,
+    minY: p.y + own.minY,
+    maxX: p.x + own.maxX,
+    maxY: p.y + own.maxY,
+  };
+  const half = style.size * 0.6 + BOX_PADDING;
+  const middles = [
+    { x: box.maxX + SYMBOL_GAP + width / 2, y: p.y },
+    { x: box.minX - SYMBOL_GAP - width / 2, y: p.y },
+    { x: p.x, y: box.minY - SYMBOL_GAP - half },
+    { x: p.x, y: box.maxY + SYMBOL_GAP + half },
+  ];
+  return {
+    key: `${label.id}#0`,
+    symbol: { x: p.x, y: p.y, box },
+    sides: names
+      ? middles.map((m) => ({
+          center: { x: m.x, y: m.y, angle: 0, width },
+          glyphs: (widths, gap) => straightGlyphs(m, 0, widths, gap, width),
+        }))
+      : [],
+  };
+}
+
 // The box a letter covers, half the gap either side, turned by its angle
 const glyphBox = (glyph, width, gap, size) => {
   const [hw, hh] = [(width + gap) / 2 + BOX_PADDING, size * 0.6 + BOX_PADDING];
@@ -178,28 +255,34 @@ export function labelLayout(label, text, measure) {
  * @param options {{text: function(label): string, measure: function(string, string): Number,
  *                previous: Set<string>}} measure gives a text's width in a CSS font; previous
  *                holds the keys placed last frame, selected the id of the label selected in the
- *                names panel, placed first even when hidden (hidden labels are left out otherwise)
+ *                names panel, placed first even when hidden (hidden labels are left out otherwise);
+ *                names false places only settlements, as their symbols
  * @returns {{key: string, label: Object, style: Object, text: string,
  *            glyphs: {char: string, x: Number, y: Number, angle: Number}[],
  *            boxes: {minX: Number, minY: Number, maxX: Number, maxY: Number}[],
  *            center?: {x: Number, y: Number, angle: Number, width: Number},
- *            selected?: true}[]} boxes are the letters' boxes, center is a straight label's
+ *            symbol?: {x: Number, y: Number},
+ *            selected?: true}[]} boxes are the letters' boxes, symbol is a settlement's point,
+ *            whose symbol's box comes first in boxes, center is a straight label's
  *            middle, screen angle and width as laid out, selected marks the selected label
  */
 export function placeLabels(
   view,
   labels,
-  { text, measure, previous = new Set(), selected = null },
+  { text, measure, previous = new Set(), selected = null, names = true },
 ) {
   const zoom = zoomOf(view);
   const candidates = [];
   for (const label of labels) {
     if (label.hidden && label.id !== selected) continue;
+    const settlement = isSettlement(label.kind);
+    if (!names && !settlement) continue;
     const [low, high] = LABEL_STYLES[label.kind].zooms;
     if (zoom < low || zoom > high) continue;
     const { style, content, chars, widths, gap, width } = labelLayout(label, text, measure);
-    const layouts =
-      label.kind === "river"
+    const layouts = settlement
+      ? [settlementLayout(view, label, style, width, names)]
+      : label.kind === "river"
         ? riverLayouts(view, label, width)
         : areaLayouts(view, label, style, width);
     for (const layout of layouts) {
@@ -217,20 +300,35 @@ export function placeLabels(
   const screen = { minX: 0, minY: 0, maxX: view.width, maxY: view.height };
   const boxes = [];
   const placed = [];
+  const free = (own) => !own.some((box) => boxes.some((other) => overlaps(box, other)));
   for (const { layout, label, style, content, chars, widths, gap } of candidates) {
-    const glyphs = layout.glyphs(widths, gap);
-    const own = glyphs.map((glyph, i) => glyphBox(glyph, widths[i], gap, style.size));
-    if (!own.some((box) => overlaps(box, screen))) continue;
-    if (own.some((box) => boxes.some((other) => overlaps(box, other)))) continue;
+    const fixed = layout.symbol ? [layout.symbol.box] : [];
+    if (!free(fixed)) continue;
+    let chosen = null;
+    for (const option of layout.sides ?? [layout]) {
+      const glyphs = option.glyphs(widths, gap);
+      const own = glyphs.map((glyph, i) => glyphBox(glyph, widths[i], gap, style.size));
+      if (own.some((box) => overlaps(box, screen)) && free(own)) {
+        chosen = { option, glyphs, own };
+        break;
+      }
+    }
+    // A settlement placed without its name: names are off
+    if (layout.sides?.length === 0 && fixed.some((box) => overlaps(box, screen))) {
+      chosen = { option: {}, glyphs: [], own: [] };
+    }
+    if (!chosen) continue;
+    const own = [...fixed, ...chosen.own];
     boxes.push(...own);
     placed.push({
       key: layout.key,
       label,
       style,
-      text: content,
-      glyphs: glyphs.map((glyph, i) => ({ ...glyph, char: chars[i] })),
+      text: chosen.glyphs.length > 0 ? content : "",
+      glyphs: chosen.glyphs.map((glyph, i) => ({ ...glyph, char: chars[i] })),
       boxes: own,
-      ...(layout.center && { center: layout.center }),
+      ...(chosen.option.center && { center: chosen.option.center }),
+      ...(layout.symbol && { symbol: { x: layout.symbol.x, y: layout.symbol.y } }),
       ...(label.id === selected && { selected: true }),
     });
   }
@@ -561,12 +659,22 @@ function riverLayouts(view, label, width) {
 }
 
 /**
- * The inks of each rendering mode: land and water labels, and the halo that keeps them legible
- * over the map. Debug mode has no labels.
+ * The inks of each rendering mode: land and water labels, the halo that keeps them legible
+ * over the map, and the paper the walls of settlements' symbols are drawn in. Debug mode has no labels.
  */
 export const INKS = {
-  default: { land: "rgb(52, 38, 26)", water: "rgb(38, 58, 82)", halo: "rgba(240, 228, 200, 0.85)" },
-  biomes: { land: "rgb(20, 20, 20)", water: "rgb(12, 30, 75)", halo: "rgba(255, 255, 255, 0.85)" },
+  default: {
+    land: "rgb(52, 38, 26)",
+    water: "rgb(38, 58, 82)",
+    halo: "rgba(240, 228, 200, 0.85)",
+    paper: "rgb(240, 228, 200)",
+  },
+  biomes: {
+    land: "rgb(20, 20, 20)",
+    water: "rgb(12, 30, 75)",
+    halo: "rgba(255, 255, 255, 0.85)",
+    paper: "rgb(255, 255, 255)",
+  },
 };
 
 /**
@@ -637,7 +745,7 @@ export const SELECTED_HALO_EXTRA = 2;
 export const HIDDEN_ALPHA = 0.45;
 
 /**
- * Draws placed labels, each over its halo: a straight label as one string on whole pixels, a
+ * Draws placed labels, a settlement's symbol under its name, each over its halo: a straight label as one string on whole pixels, a
  * river's letter by letter along its course (and every label so, where canvas text has no
  * letterSpacing).
  *
@@ -651,11 +759,20 @@ export function drawLabels(context, placed, mode) {
   context.save();
   context.lineJoin = "round";
   for (const label of placed) {
+    context.globalAlpha = label.label.hidden ? HIDDEN_ALPHA : 1;
+    if (label.symbol) {
+      drawSymbol(context, label.label.kind, label.symbol.x, label.symbol.y, {
+        ink: inks.land,
+        paper: inks.paper,
+        halo: label.selected ? SELECTED_HALO : inks.halo,
+        haloWidth: SYMBOL_HALO + (label.selected ? SELECTED_HALO_EXTRA : 0),
+      });
+    }
+    if (label.glyphs.length === 0) continue;
     context.font = fontOf(label.style);
     context.fillStyle = inks[label.style.ink];
     context.strokeStyle = label.selected ? SELECTED_HALO : inks.halo;
     context.lineWidth = HALO_WIDTHS[label.style.ink] + (label.selected ? SELECTED_HALO_EXTRA : 0);
-    context.globalAlpha = label.label.hidden ? HIDDEN_ALPHA : 1;
     if (whole && label.center) drawWhole(context, label);
     else drawGlyphs(context, label.glyphs);
   }
@@ -678,7 +795,7 @@ export function layoutAndDraw(
   context,
   view,
   labels,
-  { mode, text, measure, previous, scale = 1, selected = null },
+  { mode, text, measure, previous, scale = 1, selected = null, names = true },
 ) {
   const layoutView = {
     ...view,
@@ -686,7 +803,7 @@ export function layoutAndDraw(
     height: view.height / scale,
     pixelsPerUnit: view.pixelsPerUnit / scale,
   };
-  const placed = placeLabels(layoutView, labels, { text, measure, previous, selected });
+  const placed = placeLabels(layoutView, labels, { text, measure, previous, selected, names });
   context.save();
   context.scale(scale, scale);
   drawLabels(context, placed, mode);
