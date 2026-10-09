@@ -17,7 +17,8 @@ export const EMPTY_EDITS = Object.freeze({
 });
 
 // The ids generation/features.js gives, and no other: a file cannot slip in keys like __proto__
-const FEATURE_ID = /^(?:(?:continent|island|range|lake|river|sea):-?\d+(?:,-?\d+)*|ocean)$/;
+const FEATURE_ID =
+  /^(?:(?:continent|island|range|lake|river|sea):-?\d+(?:,-?\d+)*|settlement:\d+|ocean)$/;
 
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 

@@ -19,7 +19,7 @@ test("labels are grouped by kind, largest kinds and features first", () => {
   expect(groups.map((g) => g.kind)).toEqual(["ocean", "sea", "river"]);
   expect(groups[1].entries.map((e) => e.label.id)).toEqual(["sea:2", "sea:1"]);
   expect(groups[1].entries[0].text).toBe("Mer d’Éléni");
-  expect(KIND_ORDER).toHaveLength(7);
+  expect(KIND_ORDER).toHaveLength(11);
 });
 
 test("a search keeps the matching names and their groups", () => {
@@ -54,4 +54,18 @@ test("a search keeps the selected name, so it stays in the list while being edit
   expect(
     groupLabels(labels, text, "eleni", "river:1").map((g) => g.entries.map((e) => e.label.id)),
   ).toEqual([["sea:2"], ["river:1"]]);
+});
+
+test("settlements are listed after the other kinds, largest first", () => {
+  expect(KIND_ORDER.slice(-4)).toEqual(["capital", "city", "town", "village"]);
+  const groups = groupLabels(
+    [
+      { id: "settlement:2", kind: "village", priority: 1100, text: "Brec" },
+      { id: "settlement:1", kind: "capital", priority: 8400, text: "Calvenne" },
+      { id: "ocean", kind: "ocean", priority: 11100, text: "Océan Sumika" },
+    ],
+    (l) => l.text,
+    "",
+  );
+  expect(groups.map((g) => g.kind)).toEqual(["ocean", "capital", "village"]);
 });

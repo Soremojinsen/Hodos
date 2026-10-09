@@ -560,3 +560,88 @@ test("an export shows the map's own names", async ({ page }) => {
   const after = await exportView(page);
   expect(await countDifferentPixels(page, before, after)).toBeGreaterThan(50);
 });
+
+// A capital that is on the map: not every settlement of the world fits the first view
+const capitalOf = async (page) => {
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.hodosLabels.placed.some((p) => p.label.kind === "capital")),
+    )
+    .toBe(true);
+  return page.evaluate(() => {
+    const id = window.hodosLabels.placed.find((p) => p.label.kind === "capital").label.id;
+    return window.hodosEdits.labels.find((l) => l.id === id);
+  });
+};
+
+test("a renamed settlement shows on the map, and a hidden one leaves it with its symbol", async ({
+  page,
+}) => {
+  await openMap(page);
+  const capital = await capitalOf(page);
+  await expect
+    .poll(() =>
+      page.evaluate((id) => window.hodosLabels.placed.some((p) => p.label.id === id), capital.id),
+    )
+    .toBe(true);
+  await rename(page, capital.id, { root: "Calvenne" });
+  await expect.poll(() => placedTexts(page)).toContain("CALVENNE");
+  await page.reload();
+  await expect.poll(() => placedTexts(page)).toContain("CALVENNE");
+  await page.evaluate(
+    (id) => window.hodosEdits.update((e) => ({ ...e, hidden: [...e.hidden, id] })),
+    capital.id,
+  );
+  await expect
+    .poll(() =>
+      page.evaluate((id) => window.hodosLabels.placed.some((p) => p.label.id === id), capital.id),
+    )
+    .toBe(false);
+});
+
+test("the panel lists settlements, turns a kind off, and has no Full name switch for them", async ({
+  page,
+}) => {
+  await openMap(page);
+  await openPanel(page);
+  await expect(page.locator("#names-list")).toContainText("Capitales");
+  const capital = await capitalOf(page);
+  await page.locator("#names-search").fill(capital.name.root);
+  await page.locator("#names-list").getByText(capital.name.root, { exact: true }).first().click();
+  await expect(page.locator("#names-editor")).toBeVisible();
+  await expect(page.locator("#names-full")).toBeHidden();
+  await page.locator("#names-kinds").getByLabel("Capitales").uncheck();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          window.hodosLabels.placed.filter((p) => p.label.kind === "capital" && !p.selected).length,
+      ),
+    )
+    .toBe(0);
+});
+
+test("a click on a settlement's symbol selects it", async ({ page }) => {
+  await openMap(page);
+  await openPanel(page);
+  await capitalOf(page);
+  const { id, x, y } = await page.evaluate(() => {
+    const rect = window.hodos.renderer.canvas.getBoundingClientRect();
+    // One the open panel does not cover
+    const panel = document.getElementById("names-panel").getBoundingClientRect();
+    const capital = window.hodosLabels.placed.find((p) => {
+      const [x, y] = [rect.left + p.symbol?.x, rect.top + p.symbol?.y];
+      const covered =
+        x > panel.left - 10 && x < panel.right + 10 && y > panel.top - 10 && y < panel.bottom + 10;
+      return p.label.kind === "capital" && !covered;
+    });
+    return {
+      id: capital.label.id,
+      x: rect.left + capital.symbol.x,
+      y: rect.top + capital.symbol.y,
+    };
+  });
+  await page.mouse.click(x, y);
+  await expect(page.locator("#names-editor")).toBeVisible();
+  expect(await page.evaluate(() => window.hodosLabels.selected)).toBe(id);
+});

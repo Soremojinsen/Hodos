@@ -1,7 +1,19 @@
 /**
  * The order of the names list's groups: the largest kinds first.
  */
-export const KIND_ORDER = ["ocean", "continent", "sea", "range", "island", "lake", "river"];
+export const KIND_ORDER = [
+  "ocean",
+  "continent",
+  "sea",
+  "range",
+  "island",
+  "lake",
+  "river",
+  "capital",
+  "city",
+  "town",
+  "village",
+];
 
 /**
  * A text as the names search compares it: lower case, without accents, with straight apostrophes.

@@ -1,5 +1,6 @@
 import { t } from "../i18n/i18n.js";
 import { labelText, rootFrame } from "../overlay/label-text.js";
+import { isSettlement } from "../overlay/settlement-symbols.js";
 import { withHidden, withName } from "../state/edits.js";
 
 /**
@@ -19,6 +20,8 @@ export function setupNamesEditor(labelEdits) {
   const input = document.getElementById("names-input");
   const fullBox = document.getElementById("names-full");
   const hideBox = document.getElementById("names-hide");
+  // A settlement's name has no kind's word, so it has no full name to switch to
+  const fullSwitch = fullBox.closest("label");
   let id = null;
   // Whether the field holds a full name: the user's choice while the name is still empty
   let full = false;
@@ -63,8 +66,11 @@ export function setupNamesEditor(labelEdits) {
     pick.hidden = Boolean(shown);
     if (!shown) return;
     const generated = generatedOf(shown);
+    const settlement = isSettlement(shown.kind);
+    fullSwitch.hidden = settlement;
     const edit = labelEdits.edits.names[id];
-    if (edit) full = edit.full !== undefined;
+    if (settlement) full = false;
+    else if (edit) full = edit.full !== undefined;
     else if (changed) full = false;
     if (changed) kept = { root: edit?.root ?? "", full: edit?.full ?? "" };
     generatedLine.textContent = t("names.generated", {

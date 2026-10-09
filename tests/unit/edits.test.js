@@ -89,3 +89,14 @@ test("sameEdits ignores order", () => {
   expect(sameEdits(a, b)).toBe(true);
   expect(sameEdits(a, { ...b, hidden: [] })).toBe(false);
 });
+
+test("settlements' ids and kinds are kept like other places'", () => {
+  const edits = normalizeEdits({
+    names: { "settlement:4123": { root: "Hjalvik" }, "settlement:x": { root: "No" } },
+    hidden: ["settlement:17", "settlement:-1"],
+    kinds: { village: false, town: true },
+  });
+  expect(edits.names).toEqual({ "settlement:4123": { root: "Hjalvik" } });
+  expect(edits.hidden).toEqual(["settlement:17"]);
+  expect(edits.kinds).toEqual({ village: false });
+});

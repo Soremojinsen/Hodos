@@ -67,3 +67,13 @@ test("a file without edits opens to no edits, and bad parts are dropped", () => 
   // Kept as text: the panel shows it with textContent
   expect(edits.names).toEqual({ "lake:1,1": { root: "<b>Mire</b>" } });
 });
+
+test("a file with settlements' edits opens to the same edits", () => {
+  const settlementEdits = {
+    names: { "settlement:4123": { root: "Hjalvik" } },
+    hidden: ["settlement:17"],
+    kinds: { village: false },
+  };
+  const text = serializeEditsFile("12345", settlementEdits);
+  expect(parseEditsFile(text)).toEqual({ seed: "12345", edits: settlementEdits });
+});
