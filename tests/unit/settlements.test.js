@@ -90,8 +90,19 @@ test("a world has a moderate number of settlements", () => {
   for (const seed of ["12345", "1", "hodos"]) {
     const w = worldOf(seed);
     const count = settlementFeatures(w.base, w.sampler, w.world, w.centres).length;
-    expect(count).toBeGreaterThan(20);
+    expect(count).toBeGreaterThan(50);
     expect(count).toBeLessThan(5000);
+  }
+});
+
+test("every world has cities, and more towns than cities", () => {
+  for (const seed of ["12345", "1", "hodos"]) {
+    const w = worldOf(seed);
+    const all = settlementFeatures(w.base, w.sampler, w.world, w.centres);
+    const count = (kind) => all.filter((s) => s.kind === kind).length;
+    expect(count("city")).toBeGreaterThan(0);
+    expect(count("town")).toBeGreaterThan(count("city"));
+    expect(count("village")).toBeGreaterThan(count("town"));
   }
 });
 

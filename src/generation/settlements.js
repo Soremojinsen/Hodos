@@ -46,14 +46,14 @@ export const CONFLUENCE_BONUS = 0.2;
  * The height difference to a neighbouring point that halves a point's score: settlements keep to
  * gentle ground.
  */
-export const STEEPNESS = 0.05;
+export const STEEPNESS = 0.15;
 
 /**
  * The passes that pick settlements, largest first: each keeps the best points from MIN_SCORE up,
  * at least SPACING world units from every settlement kept before, in any pass.
  */
-export const SPACING = { city: 800, town: 250, village: 100 };
-export const MIN_SCORE = { city: 0.6, town: 0.35, village: 0.2 };
+export const SPACING = { city: 600, town: 250, village: 100 };
+export const MIN_SCORE = { city: 0.4, town: 0.22, village: 0.1 };
 const PASSES = ["city", "town", "village"];
 
 /**
