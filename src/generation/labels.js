@@ -2,6 +2,7 @@ import {
   continentFeatures,
   islandFeatures,
   lakeFeatures,
+  landSitesOf,
   rangeFeatures,
   riverFeatures,
   seaFeatures,
@@ -36,11 +37,7 @@ export const EMPTY_ATLAS = { labels: [], lookup: null };
  */
 export function buildAtlas(base, sampler) {
   const world = worldGeometry(base);
-  const landSites = [];
-  for (let i = 0; i < world.count; i++) {
-    if (world.land[i]) landSites.push(base.sites[2 * i], base.sites[2 * i + 1]);
-  }
-  const centres = placeCultureCentres(base.seed, landSites);
+  const centres = placeCultureCentres(base.seed, landSitesOf(base, world));
   const { seas, ocean } = seaFeatures(base, world, centres);
   const features = [
     ...continentFeatures(base, world),

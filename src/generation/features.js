@@ -53,6 +53,17 @@ export function worldGeometry(base) {
 }
 
 /**
+ * The coarse land cells' sites, x0, y0, x1, y1, …, as placeCultureCentres takes them.
+ */
+export function landSitesOf(base, world) {
+  const sites = [];
+  for (let i = 0; i < world.count; i++) {
+    if (world.land[i]) sites.push(base.sites[2 * i], base.sites[2 * i + 1]);
+  }
+  return sites;
+}
+
+/**
  * The connected groups of the indexes below count that include accepts, each from its lowest
  * index, in breadth-first order.
  */
