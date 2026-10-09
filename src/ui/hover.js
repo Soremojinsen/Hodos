@@ -9,9 +9,12 @@ import { applyTranslations } from "./language.js";
 export const TAP_DISTANCE = 6;
 
 /**
- * Shows what is under the pointer (or a tap) in a corner panel, when the setting is on.
+ * Shows what is under the pointer (or a tap) in a corner panel, when the setting is on: a
+ * settlement drawn there first, then the feature under it.
+ *
+ * @param labelLayer {LabelLayer} see overlay/label-layer.js
  */
-export function setupHoverInfo(worldMap) {
+export function setupHoverInfo(worldMap, labelLayer) {
   const mapElement = document.getElementById("map");
   const toggle = document.getElementById("hover-toggle");
   const panel = document.getElementById("hover-info");
@@ -51,7 +54,8 @@ export function setupHoverInfo(worldMap) {
 
   const show = (clientX, clientY) => {
     const rect = worldMap.renderer.canvas.getBoundingClientRect();
-    const point = screenToWorld(worldMap.camera.view, clientX - rect.left, clientY - rect.top);
+    const [x, y] = [clientX - rect.left, clientY - rect.top];
+    const point = screenToWorld(worldMap.camera.view, x, y);
     const info = worldMap.inspect(point.x, point.y);
     if (!info) {
       panel.hidden = true;
@@ -70,8 +74,13 @@ export function setupHoverInfo(worldMap) {
       if (names.landmass) setText(land, "hover.name", { name: labelText(names.landmass) });
       else setText(land, "land.island");
     }
-    nameLine.hidden = !names.feature;
-    if (names.feature) setText(name, "hover.name", { name: labelText(names.feature) });
+    const settlement = labelLayer.settlementAt(x, y);
+    nameLine.hidden = !settlement && !names.feature;
+    if (settlement) {
+      setText(name, `hover.settlement.${settlement.kind}`, { name: labelText(settlement) });
+    } else if (names.feature) {
+      setText(name, "hover.name", { name: labelText(names.feature) });
+    }
     panel.hidden = false;
   };
 

@@ -221,3 +221,27 @@ test.describe("touch", () => {
     await expect(page.locator("#hover-info")).toBeHidden();
   });
 });
+
+test("over a settlement, the panel gives its name and size, in the page's language", async ({
+  page,
+}) => {
+  await page.addInitScript(() => localStorage.setItem("hodos.hover", "on"));
+  await openMap(page);
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.hodosLabels.placed.some((p) => p.label.kind === "capital")),
+    )
+    .toBe(true);
+  const point = await page.evaluate(() => {
+    const capital = window.hodosLabels.placed.find((p) => p.label.kind === "capital");
+    const rect = window.hodos.renderer.canvas.getBoundingClientRect();
+    return { x: rect.left + capital.symbol.x, y: rect.top + capital.symbol.y };
+  });
+  await page.mouse.move(point.x, point.y);
+  await expect(page.locator("#hover-name")).toHaveText(/, capitale$/);
+  await page.getByRole("button", { name: "Paramètres" }).click();
+  await page.locator("#language-select").selectOption("en");
+  await page.keyboard.press("Escape");
+  await page.mouse.move(point.x, point.y + 1);
+  await expect(page.locator("#hover-name")).toHaveText(/, capital$/);
+});

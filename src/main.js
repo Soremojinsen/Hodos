@@ -111,7 +111,7 @@ setupLinkButton(urlSync, () => !isEmpty(labelEdits.edits));
 setupViewButtons(worldMap);
 setupGridControls(overlay, initialState.grid);
 setupLabelControls(labelLayer, initialState.labels);
-setupHoverInfo(worldMap);
+setupHoverInfo(worldMap, labelLayer);
 setupNamesPanel({ labelEdits, labelLayer, worldMap, currentState, urlSync });
 const exportDialog = setupExportDialog(worldMap, overlay, labelLayer);
 // Browsers restore form fields on reload: the link decides the mode
