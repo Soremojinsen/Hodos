@@ -82,3 +82,11 @@ test("rootFrame gives the kind's words around a root", () => {
   expect(rootFrame("range", undefined, "Krodh")).toEqual({ before: "", after: " Mountains" });
   expect(rootFrame("continent", undefined, "Valcoria")).toEqual({ before: "", after: "" });
 });
+
+test("a settlement is named by its root alone in both languages", () => {
+  for (const kind of ["capital", "city", "town", "village"]) {
+    expect(text("fr", kind, { root: "Hjalvik" })).toBe("Hjalvik");
+    expect(text("en", kind, { root: "Hjalvik" })).toBe("Hjalvik");
+  }
+  expect(rootFrame("town", undefined, "Hjalvik")).toEqual({ before: "", after: "" });
+});

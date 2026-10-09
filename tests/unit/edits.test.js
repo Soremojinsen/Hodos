@@ -59,7 +59,7 @@ test("only feature ids are kept, never keys like __proto__", () => {
 test("only known kinds turned off are kept", () => {
   const edits = normalizeEdits({ kinds: { river: false, lake: true, dragons: false, sea: 0 } });
   expect(edits.kinds).toEqual({ river: false });
-  expect(LABEL_KINDS).toHaveLength(7);
+  expect(LABEL_KINDS).toHaveLength(11);
 });
 
 test("updaters return new normalized edits and leave the old ones alone", () => {

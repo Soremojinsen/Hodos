@@ -193,3 +193,18 @@ test("about one feature in seven of the descriptive kinds gets a descriptive nam
   expect(share).toBeGreaterThan(0.08);
   expect(share).toBeLessThan(0.22);
 });
+
+test("names drawn with the names already used avoid them, and the first call is unchanged", () => {
+  const feature = (id, kind, culture) => ({ id, kind, terrain: "plain", culture });
+  const first = [feature("island:1", "island", 0), feature("lake:1", "lake", 1)];
+  const second = Array.from({ length: 40 }, (_, i) => feature(`settlement:${i}`, "town", i % 3));
+  const used = new Set();
+  const a = nameFeatures("names-test", first, used);
+  expect(a).toEqual(nameFeatures("names-test", first));
+  const b = nameFeatures("names-test", second, used);
+  const roots = new Set(a.filter((n) => n.root).map((n) => n.root.toLowerCase()));
+  for (const name of b) {
+    expect(name.root).toBeTruthy();
+    expect(roots.has(name.root.toLowerCase())).toBe(false);
+  }
+});

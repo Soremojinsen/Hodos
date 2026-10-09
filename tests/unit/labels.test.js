@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 import { WorldSampler } from "../../src/generation/fields.js";
 import { withWater } from "../../src/generation/hydrology.js";
 import { KIND_RANK, buildAtlas } from "../../src/generation/labels.js";
+import { SETTLEMENT_KINDS } from "../../src/generation/settlements.js";
 import { generateWorld } from "../../src/generation/world.js";
 
 const atlasOf = (seed) => {
@@ -49,6 +50,29 @@ test("the atlas builds for other seeds too, with unique ids", () => {
 
 test("seed 12345 keeps its names", () => {
   expect(
-    atlas.labels.map((l) => `${l.id} ${l.kind} ${l.culture} ${JSON.stringify(l.name)}`),
+    atlas.labels
+      .filter((l) => !SETTLEMENT_KINDS.includes(l.kind))
+      .map((l) => `${l.id} ${l.kind} ${l.culture} ${JSON.stringify(l.name)}`),
   ).toMatchSnapshot();
+});
+
+test("settlements come after the other labels, each with a root no other label has", () => {
+  const { labels } = atlas;
+  const first = labels.findIndex((l) => SETTLEMENT_KINDS.includes(l.kind));
+  expect(first).toBeGreaterThan(0);
+  expect(labels.slice(first).every((l) => SETTLEMENT_KINDS.includes(l.kind))).toBe(true);
+  const others = new Set(
+    labels
+      .slice(0, first)
+      .filter((l) => l.name.root)
+      .map((l) => l.name.root.toLowerCase()),
+  );
+  for (const l of labels.slice(first)) {
+    expect(l.id).toMatch(/^settlement:\d+$/);
+    expect(l.name.root).toBeTruthy();
+    expect(others.has(l.name.root.toLowerCase())).toBe(false);
+    expect(l.anchors).toHaveLength(1);
+    expect(l.span).toBe(0);
+  }
+  expect(labels.some((l) => l.kind === "capital")).toBe(true);
 });

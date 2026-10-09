@@ -188,16 +188,17 @@ const nameKey = (kind, name) =>
 
 /**
  * Names features from their own random stream, seed + ":" + id, so a name depends on its seed
- * and feature alone. A name another feature already has is drawn again, the lower id keeping it.
+ * and feature alone. A name another feature already has, in this call or in used, is drawn
+ * again, the lower id keeping it within a call.
  *
  * @param features {{id: string, kind: string, terrain: string, culture: Number}[]}
+ * @param used     {Set<string>} the names taken before, filled with those drawn here
  * @returns {({root: string}|{adjective: string})[]} in the order of features
  */
-export function nameFeatures(seed, features) {
+export function nameFeatures(seed, features, used = new Set()) {
   const order = features
     .map((_, i) => i)
     .sort((a, b) => (features[a].id < features[b].id ? -1 : 1));
-  const used = new Set();
   const names = new Array(features.length);
   for (const i of order) {
     const feature = features[i];
