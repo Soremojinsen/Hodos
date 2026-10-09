@@ -52,10 +52,14 @@ const tower = (x, y, h, { half = 2, eave = 2.8, peak = 1 } = {}) => {
 };
 const spire = (x, y, h) => tower(x, y, h, { half: 1.8, eave: 2.4, peak: 4 });
 
+// Merlons from x0 to x1 at y, as many as fit about a pixel wide, one at each end
 const crenels = (x0, x1, y) => {
-  const points = [[x0, y]];
-  for (let x = x0; x < x1 - 0.5; x += 2) {
-    points.push([x + 1, y], [x + 1, y - 1.2], [x + 2, y - 1.2], [x + 2, y]);
+  const count = Math.max(1, Math.round((x1 - x0 + 1) / 2));
+  const step = (x1 - x0) / (2 * count - 1);
+  const points = [];
+  for (let k = 0; k < count; k++) {
+    const x = x0 + 2 * k * step;
+    points.push([x, y], [x, y - 1.2], [x + step, y - 1.2], [x + step, y]);
   }
   return { points, fill: null, line: 0.8, open: true };
 };
@@ -65,10 +69,18 @@ const wall = (w, top = 2.5, bottom = 6) => [
   crenels(-w, w, top),
 ];
 
-const roundTower = (x, top, bottom) => [
-  { points: rect(x - 2.6, top, x + 2.6, bottom), fill: "paper", line: 0.9 },
-  crenels(x - 2.6, x + 2.6, top),
-];
+// A round tower: a light body under a dark dome, half a disc a little wider than the body
+const roundTower = (x, top, bottom, half = 2.6) => {
+  const radius = half + 0.4;
+  const dome = Array.from({ length: 9 }, (_, k) => {
+    const angle = (Math.PI * k) / 8;
+    return [x - radius * Math.cos(angle), top - radius * Math.sin(angle)];
+  });
+  return [
+    { points: rect(x - half, top, x + half, bottom), fill: "paper", line: 0.9 },
+    { points: dome, fill: "ink", line: 0 },
+  ];
+};
 
 const keep = (h) => [
   { points: rect(-4.2, 4 - h, 4.2, 4), fill: "paper", line: 1 },
@@ -134,7 +146,8 @@ export const SYMBOLS = {
 };
 
 /**
- * The width of the halo under a symbol, in pixels, as the land labels' (labels.js HALO_WIDTHS).
+ * The width of the halo under a symbol, in pixels: a little narrower than the land labels' (4, see
+ * labels.js HALO_WIDTHS), as a symbol's thin lines need less of it.
  */
 export const SYMBOL_HALO = 3.4;
 

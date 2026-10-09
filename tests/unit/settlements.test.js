@@ -86,12 +86,13 @@ test("one capital per culture that has a city or a town", () => {
 });
 
 test("a world has a moderate number of settlements", () => {
-  // Loose until tuned by eye in Task 8, which tightens it to the measured range
+  // Measured after tuning by eye on 2026-10-09: 12345 gives 237, 1 gives 241, hodos gives 283,
+  // so from 30 % under the fewest to 30 % over the most
   for (const seed of ["12345", "1", "hodos"]) {
     const w = worldOf(seed);
     const count = settlementFeatures(w.base, w.sampler, w.world, w.centres).length;
-    expect(count).toBeGreaterThan(50);
-    expect(count).toBeLessThan(5000);
+    expect(count).toBeGreaterThan(165);
+    expect(count).toBeLessThan(368);
   }
 });
 
