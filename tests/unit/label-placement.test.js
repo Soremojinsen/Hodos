@@ -424,6 +424,15 @@ test("a settlement shows from its kind's zoom, its symbol on its point and its n
     expect(glyph.x).toBeGreaterThan(500 + SYMBOL_BOXES.town.maxX + SYMBOL_GAP);
 });
 
+test("a settlement whose symbol is just off screen leaves its name out too", () => {
+  const view = viewAt(4.5);
+  const x = 5000 + (-SYMBOL_BOXES.town.maxX - 1 - 500) / view.pixelsPerUnit;
+  const off = town({ anchors: [[x, 5000]] });
+  expect(placeLabels(view, [off], { text, measure })).toHaveLength(0);
+  const on = town({ anchors: [[x + 2 / view.pixelsPerUnit, 5000]] });
+  expect(placeLabels(view, [on], { text, measure })).toHaveLength(1);
+});
+
 // A lake label placed before the town, its middle at (dx, 0) pixels from the screen's middle
 const lakeAt = (zoom, dx) =>
   label({
@@ -490,9 +499,14 @@ test("a symbol alone is drawn without text", () => {
   expect(calls.some(([name]) => name === "fillText" || name === "strokeText")).toBe(false);
 });
 
-test("the names list flies to a settlement at the first zoom of its kind", () => {
+test("the names list flies to a settlement at the town zoom or the first zoom of its kind", () => {
+  for (const kind of ["capital", "city", "town"]) {
+    const view = focusView(town({ kind }), { text, measure, width: 1000, height: 700 });
+    expect(view.zoom).toBe(LABEL_STYLES.town.zooms[0]);
+  }
+  const village = focusView(town({ kind: "village" }), { text, measure, width: 1000, height: 700 });
+  expect(village.zoom).toBe(LABEL_STYLES.village.zooms[0]);
   const view = focusView(town(), { text, measure, width: 1000, height: 700 });
-  expect(view.zoom).toBe(LABEL_STYLES.town.zooms[0]);
   expect(view.x).toBeCloseTo(0);
   expect(view.y).toBeCloseTo(0);
 });

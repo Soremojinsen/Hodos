@@ -194,7 +194,8 @@ export function pickSites(scores, sites, seed, snap) {
       if (scores[i] < MIN_SCORE[kind]) break;
       if (taken.has(i)) continue;
       const [mx, my] = [sites[2 * i], sites[2 * i + 1]];
-      // Far enough already from the mesh point, so a snapped point is checked again below
+      // Closer than half the spacing even before snapping, which moves a point less than that, so the
+      // slow snap is skipped. The snapped point is checked at the full spacing below
       if (kept.some((k) => (k.x - mx) ** 2 + (k.y - my) ** 2 < spacing / 4)) continue;
       const place = snap(mx, my);
       if (!place) continue;

@@ -62,13 +62,17 @@ test("no settlement on mountains, tundra or swamp, nor in a desert away from a r
 });
 
 test("settlements keep the spacing of the later of each pair's passes", () => {
-  const pass = { capital: "city", city: "city", town: "town", village: "village" };
+  // A capital was a city, or a town promoted for lack of a city. Passes run city first, each from
+  // its MIN_SCORE up, so a capital under the city score was a town. One at or over it could be a
+  // town too, once the city pass skipped it for room, which only makes this check stricter
+  const passOf = (s) =>
+    s.kind === "capital" ? (s.score >= MIN_SCORE.city ? "city" : "town") : s.kind;
   const order = ["city", "town", "village"];
   // One expectation for all pairs: a million expect calls would be slow
   const tooClose = [];
   for (let a = 0; a < settlements.length; a++) {
     for (let b = a + 1; b < settlements.length; b++) {
-      const [pa, pb] = [pass[settlements[a].kind], pass[settlements[b].kind]];
+      const [pa, pb] = [passOf(settlements[a]), passOf(settlements[b])];
       const later = order.indexOf(pa) > order.indexOf(pb) ? pa : pb;
       const [sa, sb] = [settlements[a], settlements[b]];
       if (Math.hypot(sa.x - sb.x, sa.y - sb.y) < SPACING[later] - 1e-9)

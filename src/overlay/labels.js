@@ -303,6 +303,8 @@ export function placeLabels(
   const free = (own) => !own.some((box) => boxes.some((other) => overlaps(box, other)));
   for (const { layout, label, style, content, chars, widths, gap } of candidates) {
     const fixed = layout.symbol ? [layout.symbol.box] : [];
+    // A name never shows without its symbol, so a symbol off screen leaves both out
+    if (layout.symbol && !fixed.some((box) => overlaps(box, screen))) continue;
     if (!free(fixed)) continue;
     let chosen = null;
     for (const option of layout.sides ?? [layout]) {
@@ -314,7 +316,7 @@ export function placeLabels(
       }
     }
     // A settlement placed without its name: names are off
-    if (layout.sides?.length === 0 && fixed.some((box) => overlaps(box, screen))) {
+    if (layout.sides?.length === 0) {
       chosen = { option: {}, glyphs: [], own: [] };
     }
     if (!chosen) continue;
@@ -412,10 +414,12 @@ export function focusView(label, { text, measure, width, height, open }) {
   const area = open ?? { x: 0, y: 0, width, height };
   const style = LABEL_STYLES[label.kind];
   const [low, high] = style.zooms;
+  // A settlement is flown to at the zoom its symbol and name are easy to see, whatever its kind
+  const start = isSettlement(label.kind) ? Math.max(low, LABEL_STYLES.town.zooms[0]) : low;
   const room = label.kind === "river" ? pathLength(label.path) : label.span * style.overflow;
   const textWidth = labelLayout(label, text, measure).width;
   const fit = room > 0 ? Math.log2((textWidth / room) * (WORLD_SIZE / TILE_PIXEL_SIZE)) : low;
-  const first = Math.min(Math.max(Math.ceil(fit * 4) / 4, low), high);
+  const first = Math.min(Math.max(Math.ceil(fit * 4) / 4, start), high);
   const zooms = [];
   for (let zoom = first; zoom <= high; zoom += 0.25) zooms.push(zoom);
   // The view that puts a world point in the open part's middle, kept within the world as
