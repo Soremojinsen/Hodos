@@ -258,3 +258,19 @@ test("place names are in the export only when asked", async ({ page }) => {
   const withoutLabels = (await download(page)).png;
   expect(await countDifferentPixels(page, withLabels, withoutLabels)).toBeGreaterThan(500);
 });
+
+test("settlements are in the export even without the place names", async ({ page }) => {
+  await openMap(page);
+  await openExport(page);
+  await page.locator("#export-size").selectOption("1024");
+  await page.locator("#export-labels").uncheck();
+  const withSymbols = (await download(page)).png;
+  await page.evaluate(() =>
+    window.hodosEdits.update((e) => ({
+      ...e,
+      kinds: { ...e.kinds, capital: false, city: false, town: false, village: false },
+    })),
+  );
+  const withoutSymbols = (await download(page)).png;
+  expect(await countDifferentPixels(page, withSymbols, withoutSymbols)).toBeGreaterThan(50);
+});

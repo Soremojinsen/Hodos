@@ -43,14 +43,34 @@ test("debug mode has no place names", async ({ page }) => {
   await expect.poll(async () => await placedTexts(page)).toEqual([]);
 });
 
-test("the setting and labels=off hide the place names", async ({ page }) => {
+test("the setting and labels=off hide the place names but keep the settlements' symbols", async ({
+  page,
+}) => {
   await openMap(page, "./?seed=12345&labels=off");
-  await page.waitForTimeout(500);
-  expect(await placedTexts(page)).toEqual([]);
+  const symbols = () =>
+    page.evaluate(() => window.hodosLabels.placed.filter((p) => p.symbol).length);
+  await expect.poll(symbols).toBeGreaterThan(0);
+  expect((await placedTexts(page)).filter(Boolean)).toEqual([]);
   await page.getByRole("button", { name: "Paramètres" }).click();
   const toggle = page.getByRole("checkbox", { name: "Noms de lieux", exact: true });
   await expect(toggle).not.toBeChecked();
   await toggle.check();
-  await expect.poll(async () => (await placedTexts(page)).length).toBeGreaterThan(0);
+  await expect
+    .poll(async () => (await placedTexts(page)).filter(Boolean).length)
+    .toBeGreaterThan(0);
   await expect.poll(() => page.url()).not.toContain("labels=off");
+});
+
+test("capitals show from the world view, and smaller settlements as you zoom in", async ({
+  page,
+}) => {
+  const kinds = () => page.evaluate(() => window.hodosLabels.placed.map((p) => p.label.kind));
+  await openMap(page, "./?seed=12345");
+  await expect.poll(kinds).toContain("capital");
+  expect(await kinds()).not.toContain("town");
+  expect(await kinds()).not.toContain("village");
+  await openMap(page, "./?seed=12345&x=-2329&y=686&z=5");
+  await expect
+    .poll(async () => (await kinds()).some((k) => k === "town" || k === "village"))
+    .toBe(true);
 });

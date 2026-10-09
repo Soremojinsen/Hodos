@@ -86,6 +86,17 @@ export class LabelLayer {
   }
 
   /**
+   * The settlement whose symbol or name is drawn at a point of the map, in CSS pixels, or null.
+   */
+  settlementAt(x, y) {
+    return labelAt(
+      this.#placed.filter((p) => p.symbol),
+      x,
+      y,
+    );
+  }
+
+  /**
    * The labels placed on the last frame, see labels.js placeLabels.
    */
   get placed() {
@@ -116,36 +127,46 @@ export class LabelLayer {
   }
 
   /**
-   * Draws the labels of the screen's view, keeping those of the last frame in place.
+   * Draws the labels of the screen's view, keeping those of the last frame in place. With place
+   * names off, settlements still show as their symbols.
    */
   draw(context, view) {
     const labels = this.#worldMap.labels;
     const mode = this.#worldMap.renderer.renderingMode;
-    if (!this.#enabled || !this.#ready || labels.length === 0 || mode === "debug") {
+    if (!this.#ready || labels.length === 0 || mode === "debug") {
       this.#placed = [];
       return;
     }
     const previous = new Set(this.#placed.map((p) => p.key));
-    this.#placed = layoutAndDraw(
-      context,
-      view,
-      labels,
-      this.#options(context, mode, previous, 1, this.#selected),
-    );
+    this.#placed = layoutAndDraw(context, view, labels, {
+      ...this.#options(context, mode, previous, 1, this.#selected),
+      names: this.#enabled,
+    });
   }
 
   /**
-   * Draws the labels of an export's view at its scale, see labels.js layoutAndDraw.
+   * Draws the labels of an export's view at its scale, see labels.js layoutAndDraw: the
+   * settlements' symbols always, the names when asked.
    *
    * @param context {CanvasRenderingContext2D}
    * @param view    see map/view.js
    * @param mode    {string} the rendering mode
    * @param scale   {number} the label scale: the export's factor over the screen for a view of the
    *                screen, so the labels match the screen's, sharper. Defaults to labelScale.
+   * @param options {{names: boolean}} whether the export has the place names
    */
-  drawExport(context, view, mode, scale = labelScale(view.width, view.height)) {
+  drawExport(
+    context,
+    view,
+    mode,
+    scale = labelScale(view.width, view.height),
+    { names = true } = {},
+  ) {
     const labels = this.#worldMap.labels;
     if (labels.length === 0 || mode === "debug") return;
-    layoutAndDraw(context, view, labels, this.#options(context, mode, new Set(), scale));
+    layoutAndDraw(context, view, labels, {
+      ...this.#options(context, mode, new Set(), scale),
+      names,
+    });
   }
 }

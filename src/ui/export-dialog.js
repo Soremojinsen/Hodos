@@ -123,19 +123,20 @@ export function setupExportDialog(worldMap, overlay, labelLayer) {
     }
   }
 
-  const renderSelection = (selectedArea, size) =>
-    renderImage(
+  const renderSelection = (selectedArea, size) => {
+    // Settlements are part of the map: their symbols are in every export, their names when asked
+    const names = labelsCheckbox.checked;
+    return renderImage(
       worldMap.renderer,
       exportView(selectedArea, size, worldMap.camera.view),
       gridCheckbox.checked && !gridCheckbox.disabled ? overlay.settings : null,
-      labelsCheckbox.checked
-        ? (context, view, mode) =>
-            // A view export is the screen's labels, sharper: scaled by its factor
-            selectedArea === "view"
-              ? labelLayer.drawExport(context, view, mode, size)
-              : labelLayer.drawExport(context, view, mode)
-        : null,
+      (context, view, mode) =>
+        // A view export is the screen's labels, sharper: scaled by its factor
+        selectedArea === "view"
+          ? labelLayer.drawExport(context, view, mode, size, { names })
+          : labelLayer.drawExport(context, view, mode, undefined, { names }),
     );
+  };
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
