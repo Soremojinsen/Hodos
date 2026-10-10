@@ -13,6 +13,8 @@ const launchOptions = {
 
 export default defineConfig({
   testDir: "tests/browser",
+  // Each world takes seconds to generate on a CI runner, and some tests open two or three
+  timeout: 60_000,
   forbidOnly: !!process.env.CI,
   reporter: process.env.CI ? "github" : "list",
   use: {
