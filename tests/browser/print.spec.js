@@ -1,8 +1,12 @@
 import { expect, test } from "@playwright/test";
 import { openMap } from "./helpers.js";
 
+// A 2×2 print draws a large image in software WebGL: seconds alone, over a minute when every
+// test file runs at once
+const PRINT_TIMEOUT = 150_000;
+
 test("printing on 2×2 pages prints four captioned pages, then removes them", async ({ page }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(PRINT_TIMEOUT + 30_000);
   await page.addInitScript(() => {
     window.print = () => {
       window.printCount = (window.printCount ?? 0) + 1;
@@ -12,7 +16,9 @@ test("printing on 2×2 pages prints four captioned pages, then removes them", as
   await page.getByRole("button", { name: "Exporter la carte" }).click();
   await page.locator("#print-pages").selectOption("2");
   await page.locator("#print-button").click();
-  await expect.poll(() => page.evaluate(() => window.printCount ?? 0), { timeout: 60_000 }).toBe(1);
+  await expect
+    .poll(() => page.evaluate(() => window.printCount ?? 0), { timeout: PRINT_TIMEOUT })
+    .toBe(1);
 
   const pages = page.locator("#print-container .print-page");
   await expect(pages).toHaveCount(4);
@@ -38,7 +44,7 @@ test("Ctrl+P without a print in progress still shows the map", async ({ page }) 
 test("a failing page mid-print revokes the URLs made so far and leaves no container", async ({
   page,
 }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(PRINT_TIMEOUT + 30_000);
   await page.addInitScript(() => {
     window.print = () => {
       window.printCount = (window.printCount ?? 0) + 1;
@@ -75,7 +81,7 @@ test("a failing page mid-print revokes the URLs made so far and leaves no contai
   await page.locator("#print-button").click();
 
   await expect(page.locator("#export-status")).toHaveText("L'export a échoué.", {
-    timeout: 60_000,
+    timeout: PRINT_TIMEOUT,
   });
   await expect(page.locator("#print-container")).toHaveCount(0);
   await expect(page.locator("#print-button")).toBeEnabled();
