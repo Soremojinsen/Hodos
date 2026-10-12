@@ -8,8 +8,10 @@
 Hodos is a simple client-side procedural world map generator running on JavaScript and WebGL. It combines both voronoïd cells and noise based algorithms to generate pseudo-random unique maps.
 
 <div align="center">
-  <img src="./docs/images/example.png" width=600>
+  <img src="./docs/images/example.png" width=600 alt="A Hodos map with shaded relief, forests, rivers, named seas and islands, and settlements">
 </div>
+
+<p align="center"><em>The seed <a href="https://hodos.soremo.me/?seed=voyage&z=2">voyage</a> at zoom 2</em></p>
 
 A public instance is available at [hodos.soremo.me](https://hodos.soremo.me/).
 
@@ -36,7 +38,7 @@ Hodos creates maps for your imagination to thrive.
 
 ### Link parameters
 
-The same seed always produces the same map since the version that brought zoom detail, and these parameters are kept stable. Older links may show a different map. Links from before rivers show the same continents and coasts, now with rivers and lakes. Links from before relief shading show the same map, now shaded. Links from before swamps and deltas show the same continents and rivers, now with swamps, floodplains and deltas, whose coasts reach a little further out. Links from before natural forests show the same map, with its trees placed differently. Links from before place names show the same map, now named. Links from before settlements show the same map and the same names, now with its settlements.
+The same seed always produces the same map, names and settlements, and these parameters are kept stable.
 
 | Parameter | Meaning                                                         | Default   |
 | --------- | --------------------------------------------------------------- | --------- |
