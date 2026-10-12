@@ -31,16 +31,21 @@ test("the map is not redrawn while idle", async ({ page }) => {
 
 test("moving, resizing and switching mode redraw the map", async ({ page }) => {
   await openMap(page);
-  await expect.poll(() => frameCount(page)).toBeGreaterThan(0);
+  // Each step starts once no tile is left to draw a frame of its own, so the frames counted
+  // after it are the step's
+  await waitForIdle(page);
   let count = await frameCount(page);
+  expect(count).toBeGreaterThan(0);
 
   await page.keyboard.press("ArrowLeft");
   await expect.poll(() => frameCount(page)).toBeGreaterThan(count);
+  await waitForIdle(page);
   count = await frameCount(page);
 
   await page.setViewportSize({ width: 800, height: 600 });
   await expect.poll(() => frameCount(page)).toBeGreaterThan(count);
   expect(await page.evaluate(() => window.hodos.renderer.canvas.width)).toBe(800);
+  await waitForIdle(page);
   count = await frameCount(page);
 
   await page.locator(".map-settings").getByText("Paramètres").click();
