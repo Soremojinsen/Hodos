@@ -1,3 +1,4 @@
+import { availableParallelism } from "node:os";
 import { defineConfig } from "@playwright/test";
 
 // Software WebGL (SwiftShader), which works without a GPU and without a display server
@@ -15,6 +16,9 @@ export default defineConfig({
   testDir: "tests/browser",
   // Each world takes seconds to generate on a CI runner, and some tests open two or three
   timeout: 60_000,
+  // Software WebGL draws on the CPU: past four tests at once, each slows so much that some time out,
+  // and the whole run is no faster. Playwright's default is half the cores.
+  workers: Math.min(4, Math.max(1, Math.floor(availableParallelism() / 2))),
   forbidOnly: !!process.env.CI,
   reporter: process.env.CI ? "github" : "list",
   use: {
